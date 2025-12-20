@@ -2,6 +2,7 @@ package com.manufacturing.erp.service;
 
 import com.manufacturing.erp.domain.SupplierTaxProfile;
 import com.manufacturing.erp.domain.TdsRule;
+import com.manufacturing.erp.domain.Enums.DocumentStatus;
 import com.manufacturing.erp.repository.PurchaseInvoiceRepository;
 import com.manufacturing.erp.repository.SupplierTaxProfileRepository;
 import com.manufacturing.erp.repository.TdsRuleRepository;
@@ -37,7 +38,8 @@ public class TdsService {
 
     LocalDate fyStart = LocalDate.of(invoiceDate.getMonthValue() >= 4 ? invoiceDate.getYear() : invoiceDate.getYear() - 1, 4, 1);
     LocalDate fyEnd = fyStart.plusYears(1).minusDays(1);
-    BigDecimal cumulative = purchaseInvoiceRepository.findPostedTotalForSupplier(supplierId, fyStart, fyEnd);
+    BigDecimal cumulative = purchaseInvoiceRepository.findPostedTotalForSupplier(
+        supplierId, fyStart, fyEnd, DocumentStatus.POSTED);
     BigDecimal projected = cumulative.add(invoiceAmount);
     if (projected.compareTo(rule.getThresholdAmount()) <= 0) {
       return BigDecimal.ZERO;
