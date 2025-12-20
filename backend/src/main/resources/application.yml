@@ -1,0 +1,27 @@
+spring:
+  datasource:
+    url: jdbc:mariadb://localhost:3306/manufacturing_erp
+    username: erp
+    password: erp
+    driver-class-name: org.mariadb.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        format_sql: true
+  flyway:
+    enabled: true
+
+server:
+  port: 8080
+
+app:
+  jwt:
+    issuer: manufacturing-erp
+    secret: ${APP_JWT_SECRET:change-me-please-change-me-please-change-me}
+    expiresMinutes: 480
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html

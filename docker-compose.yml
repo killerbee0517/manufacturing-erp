@@ -1,0 +1,35 @@
+version: '3.9'
+
+services:
+  db:
+    image: mariadb:11.3
+    environment:
+      MARIADB_DATABASE: manufacturing_erp
+      MARIADB_USER: erp
+      MARIADB_PASSWORD: erp
+      MARIADB_ROOT_PASSWORD: root
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+
+  backend:
+    build: ./backend
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mariadb://db:3306/manufacturing_erp
+      SPRING_DATASOURCE_USERNAME: erp
+      SPRING_DATASOURCE_PASSWORD: erp
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db
+
+  adminer:
+    image: adminer:4
+    ports:
+      - "8081:8080"
+    depends_on:
+      - db
+
+volumes:
+  db_data:
