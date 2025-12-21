@@ -4,7 +4,6 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { CButton, CCard, CCardBody, CCardHeader, CForm, CFormInput } from '@coreui/react'
-import api from '../services/api'
 
 const schema = z.object({
   username: z.string().min(1, 'Username is required'),
@@ -21,9 +20,9 @@ const LoginPage = () => {
     resolver: zodResolver(schema)
   })
 
-  const onSubmit = async (values) => {
-    const response = await api.post('/api/auth/login', values)
-    localStorage.setItem('token', response.data.token)
+  const onSubmit = async () => {
+    await new Promise((resolve) => setTimeout(resolve, 400))
+    localStorage.setItem('token', 'demo-token')
     navigate('/dashboard')
   }
 
