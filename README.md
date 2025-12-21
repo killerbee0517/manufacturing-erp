@@ -47,6 +47,18 @@ npm run dev
 
 Frontend will be available at `http://localhost:5173`.
 
+## Frontend UI
+
+Run the CoreUI-based dashboard locally:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open `http://localhost:5173` and sign in to access the sidebar navigation.
+
 ## Default Credentials
 
 - Username: `admin`

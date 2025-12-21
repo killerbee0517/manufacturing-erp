@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import '@coreui/coreui/dist/css/coreui.min.css'
+import 'simplebar-react/dist/simplebar.min.css'
 import App from './App.jsx'
 
 const queryClient = new QueryClient()
