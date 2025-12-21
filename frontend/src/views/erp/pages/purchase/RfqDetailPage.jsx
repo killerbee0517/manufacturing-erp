@@ -16,6 +16,7 @@ import Typography from '@mui/material/Typography';
 import MainCard from 'ui-component/cards/MainCard';
 import PageHeader from 'components/common/PageHeader';
 import apiClient from 'api/client';
+import RfqCloseDialog from './components/RfqCloseDialog';
 
 export default function RfqDetailPage() {
   const { id } = useParams();
@@ -25,6 +26,9 @@ export default function RfqDetailPage() {
   const [itemMap, setItemMap] = useState({});
   const [uomMap, setUomMap] = useState({});
   const [supplierMap, setSupplierMap] = useState({});
+  const [brokerMap, setBrokerMap] = useState({});
+  const [closeOpen, setCloseOpen] = useState(false);
+  const [closing, setClosing] = useState(false);
 
   const loadRfq = () => {
     setLoading(true);
@@ -66,6 +70,16 @@ export default function RfqDetailPage() {
         setSupplierMap(lookup);
       })
       .catch(() => setSupplierMap({}));
+    apiClient
+      .get('/api/brokers')
+      .then((response) => {
+        const lookup = (response.data || []).reduce((acc, broker) => {
+          acc[broker.id] = broker.name;
+          return acc;
+        }, {});
+        setBrokerMap(lookup);
+      })
+      .catch(() => setBrokerMap({}));
   }, [id]);
 
   const handleSubmit = async () => {
@@ -76,6 +90,22 @@ export default function RfqDetailPage() {
   const handleApprove = async () => {
     await apiClient.post(`/api/rfq/${id}/approve`);
     loadRfq();
+  };
+
+  const handleClose = async (reason) => {
+    setClosing(true);
+    try {
+      const response = await apiClient.post(`/api/rfq/${id}/close`, { closureReason: reason });
+      const poId = response.data?.purchaseOrderId;
+      if (poId) {
+        navigate(`/purchase/po/${poId}`);
+        return;
+      }
+      loadRfq();
+    } finally {
+      setClosing(false);
+      setCloseOpen(false);
+    }
   };
 
   if (!rfq) {
@@ -95,6 +125,9 @@ export default function RfqDetailPage() {
           <Stack direction="row" spacing={1}>
             <Button variant="outlined" onClick={() => navigate(`/purchase/rfq/${id}/edit`)}>
               Edit
+            </Button>
+            <Button variant="outlined" color="secondary" onClick={() => setCloseOpen(true)} disabled={rfq.status === 'CLOSED'}>
+              Close
             </Button>
             <Button variant="outlined" disabled={rfq.status !== 'DRAFT'} onClick={handleSubmit}>
               Submit
@@ -119,10 +152,20 @@ export default function RfqDetailPage() {
             <Typography variant="subtitle2">Status</Typography>
             <Chip label={rfq.status} color={rfq.status === 'APPROVED' ? 'success' : 'default'} />
           </Grid>
-          <Grid size={{ xs: 12 }}>
-            <Typography variant="subtitle2">Remarks</Typography>
-            <Typography>{rfq.remarks || '-'}</Typography>
+          <Grid size={{ xs: 12, md: 3 }}>
+            <Typography variant="subtitle2">Payment Terms</Typography>
+            <Typography>{rfq.paymentTerms || '-'}</Typography>
           </Grid>
+          <Grid size={{ xs: 12 }}>
+            <Typography variant="subtitle2">Narration</Typography>
+            <Typography>{rfq.narration || '-'}</Typography>
+          </Grid>
+          {rfq.closureReason && (
+            <Grid size={{ xs: 12 }}>
+              <Typography variant="subtitle2">Closure Reason</Typography>
+              <Typography>{rfq.closureReason}</Typography>
+            </Grid>
+          )}
         </Grid>
         <Divider />
         <Stack spacing={1}>
@@ -132,8 +175,9 @@ export default function RfqDetailPage() {
               <TableRow>
                 <TableCell>Item</TableCell>
                 <TableCell>UOM</TableCell>
+                <TableCell>Broker</TableCell>
                 <TableCell>Qty</TableCell>
-                <TableCell>Expected Rate</TableCell>
+                <TableCell>Rate</TableCell>
                 <TableCell>Remarks</TableCell>
               </TableRow>
             </TableHead>
@@ -142,6 +186,7 @@ export default function RfqDetailPage() {
                 <TableRow key={line.id}>
                   <TableCell>{itemMap[line.itemId] || line.itemId}</TableCell>
                   <TableCell>{uomMap[line.uomId] || line.uomId}</TableCell>
+                  <TableCell>{brokerMap[line.brokerId] || line.brokerId || '-'}</TableCell>
                   <TableCell>{line.quantity}</TableCell>
                   <TableCell>{line.rateExpected ?? '-'}</TableCell>
                   <TableCell>{line.remarks ?? '-'}</TableCell>
@@ -149,13 +194,14 @@ export default function RfqDetailPage() {
               ))}
               {!rfq.lines?.length && (
                 <TableRow>
-                  <TableCell colSpan={5}>No line items</TableCell>
+                  <TableCell colSpan={6}>No line items</TableCell>
                 </TableRow>
               )}
             </TableBody>
           </Table>
         </Stack>
       </Stack>
+      <RfqCloseDialog open={closeOpen} onClose={() => setCloseOpen(false)} onConfirm={handleClose} loading={closing} />
     </MainCard>
   );
 }

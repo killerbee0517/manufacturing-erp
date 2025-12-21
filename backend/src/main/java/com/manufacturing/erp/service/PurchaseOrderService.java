@@ -4,17 +4,22 @@ import com.manufacturing.erp.domain.Enums.DocumentStatus;
 import com.manufacturing.erp.domain.Item;
 import com.manufacturing.erp.domain.PurchaseOrder;
 import com.manufacturing.erp.domain.PurchaseOrderLine;
+import com.manufacturing.erp.domain.Rfq;
 import com.manufacturing.erp.domain.Supplier;
 import com.manufacturing.erp.domain.Uom;
 import com.manufacturing.erp.dto.TransactionDtos;
 import com.manufacturing.erp.repository.ItemRepository;
 import com.manufacturing.erp.repository.PurchaseOrderRepository;
+import com.manufacturing.erp.repository.RfqRepository;
 import com.manufacturing.erp.repository.SupplierRepository;
 import com.manufacturing.erp.repository.UomRepository;
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Locale;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -29,15 +34,18 @@ public class PurchaseOrderService {
   private final SupplierRepository supplierRepository;
   private final ItemRepository itemRepository;
   private final UomRepository uomRepository;
+  private final RfqRepository rfqRepository;
 
   public PurchaseOrderService(PurchaseOrderRepository purchaseOrderRepository,
                               SupplierRepository supplierRepository,
                               ItemRepository itemRepository,
-                              UomRepository uomRepository) {
+                              UomRepository uomRepository,
+                              RfqRepository rfqRepository) {
     this.purchaseOrderRepository = purchaseOrderRepository;
     this.supplierRepository = supplierRepository;
     this.itemRepository = itemRepository;
     this.uomRepository = uomRepository;
+    this.rfqRepository = rfqRepository;
   }
 
   public Page<TransactionDtos.PurchaseOrderResponse> list(String q, String status, Pageable pageable) {
@@ -61,10 +69,15 @@ public class PurchaseOrderService {
     Supplier supplier = supplierRepository.findById(request.supplierId())
         .orElseThrow(() -> new IllegalArgumentException("Supplier not found"));
     PurchaseOrder po = new PurchaseOrder();
-    po.setPoNo(request.poNo());
+    po.setPoNo(resolvePoNo(request.poNo()));
     po.setSupplier(supplier);
     po.setPoDate(request.poDate());
-    po.setRemarks(request.remarks());
+    po.setDeliveryDate(request.deliveryDate());
+    po.setSupplierInvoiceNo(request.supplierInvoiceNo());
+    po.setPurchaseLedger(request.purchaseLedger());
+    po.setCurrentLedgerBalance(request.currentLedgerBalance() != null ? request.currentLedgerBalance() : BigDecimal.ZERO);
+    po.setRemarks(request.narration());
+    po.setRfq(resolveRfq(request.rfqId()));
     po.setStatus(DocumentStatus.DRAFT);
 
     request.lines().forEach(lineRequest -> po.getLines().add(toLineEntity(po, lineRequest)));
@@ -79,10 +92,15 @@ public class PurchaseOrderService {
     Supplier supplier = supplierRepository.findById(request.supplierId())
         .orElseThrow(() -> new IllegalArgumentException("Supplier not found"));
 
-    po.setPoNo(request.poNo());
+    po.setPoNo(resolvePoNo(request.poNo(), po.getPoNo()));
     po.setSupplier(supplier);
     po.setPoDate(request.poDate());
-    po.setRemarks(request.remarks());
+    po.setDeliveryDate(request.deliveryDate());
+    po.setSupplierInvoiceNo(request.supplierInvoiceNo());
+    po.setPurchaseLedger(request.purchaseLedger());
+    po.setCurrentLedgerBalance(request.currentLedgerBalance() != null ? request.currentLedgerBalance() : BigDecimal.ZERO);
+    po.setRemarks(request.narration());
+    po.setRfq(resolveRfq(request.rfqId()));
 
     Map<Long, PurchaseOrderLine> existingById = new HashMap<>();
     po.getLines().forEach(line -> existingById.put(line.getId(), line));
@@ -124,7 +142,7 @@ public class PurchaseOrderService {
     line.setUom(uom);
     line.setQuantity(request.quantity());
     line.setRate(request.rate());
-    line.setAmount(request.amount() != null ? request.amount() : request.rate().multiply(request.quantity()));
+    line.setAmount(request.rate().multiply(request.quantity()));
     line.setRemarks(request.remarks());
     return line;
   }
@@ -138,7 +156,7 @@ public class PurchaseOrderService {
     line.setUom(uom);
     line.setQuantity(request.quantity());
     line.setRate(request.rate());
-    line.setAmount(request.amount() != null ? request.amount() : request.rate().multiply(request.quantity()));
+    line.setAmount(request.rate().multiply(request.quantity()));
     line.setRemarks(request.remarks());
   }
 
@@ -163,8 +181,13 @@ public class PurchaseOrderService {
     return new TransactionDtos.PurchaseOrderResponse(
         po.getId(),
         po.getPoNo(),
+        po.getRfq() != null ? po.getRfq().getId() : null,
         po.getSupplier() != null ? po.getSupplier().getId() : null,
         po.getPoDate(),
+        po.getDeliveryDate(),
+        po.getSupplierInvoiceNo(),
+        po.getPurchaseLedger(),
+        po.getCurrentLedgerBalance() != null ? po.getCurrentLedgerBalance() : BigDecimal.ZERO,
         po.getRemarks(),
         po.getTotalAmount(),
         po.getStatus().name(),
@@ -174,5 +197,28 @@ public class PurchaseOrderService {
   private PurchaseOrder getPurchaseOrderOrThrow(Long id) {
     return purchaseOrderRepository.findById(id)
         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Purchase order not found"));
+  }
+
+  private String resolvePoNo(String provided) {
+    return resolvePoNo(provided, null);
+  }
+
+  private String resolvePoNo(String provided, String fallback) {
+    if (provided != null && !provided.isBlank()) {
+      return provided;
+    }
+    if (fallback != null && !fallback.isBlank()) {
+      return fallback;
+    }
+    String stamp = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd", Locale.ENGLISH));
+    return "PO-" + stamp + "-" + System.nanoTime();
+  }
+
+  private Rfq resolveRfq(Long rfqId) {
+    if (rfqId == null) {
+      return null;
+    }
+    return rfqRepository.findById(rfqId)
+        .orElseThrow(() -> new IllegalArgumentException("RFQ not found"));
   }
 }

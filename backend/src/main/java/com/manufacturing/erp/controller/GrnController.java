@@ -25,13 +25,41 @@ public class GrnController {
   @GetMapping
   public List<GrnDtos.GrnResponse> list() {
     return grnRepository.findAll().stream()
-        .map(grn -> new GrnDtos.GrnResponse(grn.getId(), grn.getGrnNo(), grn.getStatus().name()))
+        .map(grn -> new GrnDtos.GrnResponse(
+            grn.getId(),
+            grn.getGrnNo(),
+            grn.getSupplier() != null ? grn.getSupplier().getId() : null,
+            grn.getPurchaseOrder() != null ? grn.getPurchaseOrder().getId() : null,
+            grn.getWeighbridgeTicket() != null ? grn.getWeighbridgeTicket().getId() : null,
+            grn.getGrnDate(),
+            grn.getItem() != null ? grn.getItem().getId() : null,
+            grn.getUom() != null ? grn.getUom().getId() : null,
+            grn.getQuantity(),
+            grn.getFirstWeight(),
+            grn.getSecondWeight(),
+            grn.getNetWeight(),
+            grn.getNarration(),
+            grn.getStatus().name()))
         .toList();
   }
 
   @PostMapping
   public GrnDtos.GrnResponse create(@Valid @RequestBody GrnDtos.CreateGrnRequest request) {
     var grn = grnService.createGrn(request);
-    return new GrnDtos.GrnResponse(grn.getId(), grn.getGrnNo(), grn.getStatus().name());
+    return new GrnDtos.GrnResponse(
+        grn.getId(),
+        grn.getGrnNo(),
+        grn.getSupplier() != null ? grn.getSupplier().getId() : null,
+        grn.getPurchaseOrder() != null ? grn.getPurchaseOrder().getId() : null,
+        grn.getWeighbridgeTicket() != null ? grn.getWeighbridgeTicket().getId() : null,
+        grn.getGrnDate(),
+        grn.getItem() != null ? grn.getItem().getId() : null,
+        grn.getUom() != null ? grn.getUom().getId() : null,
+        grn.getQuantity(),
+        grn.getFirstWeight(),
+        grn.getSecondWeight(),
+        grn.getNetWeight(),
+        grn.getNarration(),
+        grn.getStatus().name());
   }
 }

@@ -23,6 +23,7 @@ const emptyLine = () => ({
   id: null,
   itemId: '',
   uomId: '',
+  brokerId: '',
   quantity: '',
   rateExpected: '',
   remarks: ''
@@ -35,18 +36,21 @@ export default function RfqEditPage() {
     rfqNo: '',
     supplierId: '',
     rfqDate: '',
-    remarks: ''
+    paymentTerms: '',
+    narration: ''
   });
   const [lines, setLines] = useState([emptyLine()]);
   const [suppliers, setSuppliers] = useState([]);
   const [items, setItems] = useState([]);
   const [uoms, setUoms] = useState([]);
+  const [brokers, setBrokers] = useState([]);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     apiClient.get('/api/suppliers').then((res) => setSuppliers(res.data || [])).catch(() => setSuppliers([]));
     apiClient.get('/api/items').then((res) => setItems(res.data || [])).catch(() => setItems([]));
     apiClient.get('/api/uoms').then((res) => setUoms(res.data || [])).catch(() => setUoms([]));
+    apiClient.get('/api/brokers').then((res) => setBrokers(res.data || [])).catch(() => setBrokers([]));
   }, []);
 
   useEffect(() => {
@@ -56,7 +60,8 @@ export default function RfqEditPage() {
         rfqNo: rfq.rfqNo || '',
         supplierId: rfq.supplierId || '',
         rfqDate: rfq.rfqDate || '',
-        remarks: rfq.remarks || ''
+        paymentTerms: rfq.paymentTerms || '',
+        narration: rfq.narration || ''
       });
       setLines(
         rfq.lines?.length
@@ -65,6 +70,7 @@ export default function RfqEditPage() {
               id: line.id,
               itemId: line.itemId || '',
               uomId: line.uomId || '',
+              brokerId: line.brokerId || '',
               quantity: line.quantity || '',
               rateExpected: line.rateExpected || '',
               remarks: line.remarks || ''
@@ -97,11 +103,13 @@ export default function RfqEditPage() {
         rfqNo: header.rfqNo,
         supplierId: Number(header.supplierId),
         rfqDate: header.rfqDate,
-        remarks: header.remarks,
+        paymentTerms: header.paymentTerms,
+        narration: header.narration,
         lines: lines.map((line) => ({
           id: line.id,
           itemId: Number(line.itemId),
           uomId: Number(line.uomId),
+          brokerId: line.brokerId ? Number(line.brokerId) : null,
           quantity: Number(line.quantity),
           rateExpected: line.rateExpected ? Number(line.rateExpected) : null,
           remarks: line.remarks
@@ -138,6 +146,7 @@ export default function RfqEditPage() {
               label="RFQ No"
               value={header.rfqNo}
               onChange={(event) => setHeader((prev) => ({ ...prev, rfqNo: event.target.value }))}
+              placeholder="Auto-generated"
             />
           </Grid>
           <Grid size={{ xs: 12, md: 4 }}>
@@ -168,9 +177,17 @@ export default function RfqEditPage() {
           <Grid size={{ xs: 12 }}>
             <TextField
               fullWidth
-              label="Remarks"
-              value={header.remarks}
-              onChange={(event) => setHeader((prev) => ({ ...prev, remarks: event.target.value }))}
+              label="Payment Terms"
+              value={header.paymentTerms}
+              onChange={(event) => setHeader((prev) => ({ ...prev, paymentTerms: event.target.value }))}
+            />
+          </Grid>
+          <Grid size={{ xs: 12 }}>
+            <TextField
+              fullWidth
+              label="Narration"
+              value={header.narration}
+              onChange={(event) => setHeader((prev) => ({ ...prev, narration: event.target.value }))}
             />
           </Grid>
         </Grid>
@@ -182,8 +199,9 @@ export default function RfqEditPage() {
               <TableRow>
                 <TableCell>Item</TableCell>
                 <TableCell>UOM</TableCell>
+                <TableCell>Broker</TableCell>
                 <TableCell>Qty</TableCell>
-                <TableCell>Expected Rate</TableCell>
+                <TableCell>Rate</TableCell>
                 <TableCell>Remarks</TableCell>
                 <TableCell align="right">Actions</TableCell>
               </TableRow>
@@ -215,6 +233,21 @@ export default function RfqEditPage() {
                       {uoms.map((uom) => (
                         <MenuItem key={uom.id} value={uom.id}>
                           {uom.code}
+                        </MenuItem>
+                      ))}
+                    </TextField>
+                  </TableCell>
+                  <TableCell>
+                    <TextField
+                      select
+                      value={line.brokerId}
+                      onChange={(event) => updateLine(index, 'brokerId', event.target.value)}
+                      fullWidth
+                    >
+                      <MenuItem value="">None</MenuItem>
+                      {brokers.map((broker) => (
+                        <MenuItem key={broker.id} value={broker.id}>
+                          {broker.name}
                         </MenuItem>
                       ))}
                     </TextField>

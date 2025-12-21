@@ -34,7 +34,11 @@ export default function PoCreatePage() {
     poNo: '',
     supplierId: '',
     poDate: new Date().toISOString().slice(0, 10),
-    remarks: ''
+    deliveryDate: '',
+    supplierInvoiceNo: '',
+    purchaseLedger: '',
+    currentLedgerBalance: 0,
+    narration: ''
   });
   const [lines, setLines] = useState([emptyLine()]);
   const [suppliers, setSuppliers] = useState([]);
@@ -80,7 +84,11 @@ export default function PoCreatePage() {
         poNo: header.poNo,
         supplierId: Number(header.supplierId),
         poDate: header.poDate,
-        remarks: header.remarks,
+        deliveryDate: header.deliveryDate || null,
+        supplierInvoiceNo: header.supplierInvoiceNo,
+        purchaseLedger: header.purchaseLedger,
+        currentLedgerBalance: Number(header.currentLedgerBalance || 0),
+        narration: header.narration,
         lines: lines.map((line) => ({
           itemId: Number(line.itemId),
           uomId: Number(line.uomId),
@@ -91,7 +99,7 @@ export default function PoCreatePage() {
         }))
       };
       const response = await apiClient.post('/api/purchase-orders', payload);
-      navigate(`/purchase/purchase-order/${response.data.id}`);
+      navigate(`/purchase/po/${response.data.id}`);
     } finally {
       setSaving(false);
     }
@@ -101,7 +109,7 @@ export default function PoCreatePage() {
     <MainCard>
       <PageHeader
         title="Create Purchase Order"
-        breadcrumbs={[{ label: 'Purchase', to: '/purchase/purchase-order' }, { label: 'Create' }]}
+        breadcrumbs={[{ label: 'Purchase', to: '/purchase/po' }, { label: 'Create' }]}
         actions={
           <Button variant="contained" color="secondary" onClick={handleSave} disabled={saving}>
             Save
@@ -116,6 +124,7 @@ export default function PoCreatePage() {
               label="PO No"
               value={header.poNo}
               onChange={(event) => setHeader((prev) => ({ ...prev, poNo: event.target.value }))}
+              placeholder="Auto-generated"
             />
           </Grid>
           <Grid size={{ xs: 12, md: 4 }}>
@@ -143,12 +152,46 @@ export default function PoCreatePage() {
               InputLabelProps={{ shrink: true }}
             />
           </Grid>
+          <Grid size={{ xs: 12, md: 4 }}>
+            <TextField
+              fullWidth
+              type="date"
+              label="Delivery Date"
+              value={header.deliveryDate}
+              onChange={(event) => setHeader((prev) => ({ ...prev, deliveryDate: event.target.value }))}
+              InputLabelProps={{ shrink: true }}
+            />
+          </Grid>
+          <Grid size={{ xs: 12, md: 4 }}>
+            <TextField
+              fullWidth
+              label="Supplier Invoice No"
+              value={header.supplierInvoiceNo}
+              onChange={(event) => setHeader((prev) => ({ ...prev, supplierInvoiceNo: event.target.value }))}
+            />
+          </Grid>
+          <Grid size={{ xs: 12, md: 4 }}>
+            <TextField
+              fullWidth
+              label="Purchase Ledger"
+              value={header.purchaseLedger}
+              onChange={(event) => setHeader((prev) => ({ ...prev, purchaseLedger: event.target.value }))}
+            />
+          </Grid>
+          <Grid size={{ xs: 12, md: 4 }}>
+            <TextField
+              fullWidth
+              label="Current Ledger Balance"
+              value={header.currentLedgerBalance}
+              InputProps={{ readOnly: true }}
+            />
+          </Grid>
           <Grid size={{ xs: 12 }}>
             <TextField
               fullWidth
-              label="Remarks"
-              value={header.remarks}
-              onChange={(event) => setHeader((prev) => ({ ...prev, remarks: event.target.value }))}
+              label="Narration"
+              value={header.narration}
+              onChange={(event) => setHeader((prev) => ({ ...prev, narration: event.target.value }))}
             />
           </Grid>
         </Grid>

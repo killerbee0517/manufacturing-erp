@@ -9,7 +9,7 @@ import PageHeader from 'components/common/PageHeader';
 import DataTable from 'components/common/DataTable';
 import apiClient from 'api/client';
 
-export default function GrnPage() {
+export default function WeighbridgeListPage() {
   const navigate = useNavigate();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -19,7 +19,7 @@ export default function GrnPage() {
   useEffect(() => {
     setLoading(true);
     apiClient
-      .get('/api/grn')
+      .get('/api/weighbridge/tickets')
       .then((response) => setRows(response.data || []))
       .catch(() => setRows([]))
       .finally(() => setLoading(false));
@@ -50,26 +50,28 @@ export default function GrnPage() {
   return (
     <MainCard>
       <PageHeader
-        title="GRN"
-        breadcrumbs={[{ label: 'Purchase' }, { label: 'GRN' }]}
+        title="Weighbridge In"
+        breadcrumbs={[{ label: 'Purchase' }, { label: 'Weighbridge In' }]}
         actions={
-          <Button variant="contained" color="secondary" onClick={() => navigate('/purchase/grn/new')}>
-            Create GRN
+          <Button variant="contained" color="secondary" onClick={() => navigate('/purchase/weighbridge-in/new')}>
+            New Entry
           </Button>
         }
       />
       <Stack spacing={2}>
         <DataTable
           columns={[
-            { field: 'grnNo', headerName: 'GRN No' },
+            { field: 'ticketNo', headerName: 'Ticket No' },
+            { field: 'vehicleNo', headerName: 'Vehicle' },
             { field: 'supplierId', headerName: 'Supplier', render: (row) => supplierMap[row.supplierId] || row.supplierId },
             { field: 'itemId', headerName: 'Item', render: (row) => itemMap[row.itemId] || row.itemId },
-            { field: 'grnDate', headerName: 'Date' },
-            { field: 'status', headerName: 'Status' }
+            { field: 'grossWeight', headerName: 'Gross' },
+            { field: 'unloadedWeight', headerName: 'Unloaded' },
+            { field: 'netWeight', headerName: 'Net' }
           ]}
           rows={rows}
           loading={loading}
-          emptyMessage="No GRNs found."
+          emptyMessage="No weighbridge entries found."
         />
       </Stack>
     </MainCard>

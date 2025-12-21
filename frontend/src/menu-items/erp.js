@@ -75,7 +75,8 @@ const erp = {
       icon: icons.IconShoppingCart,
       children: [
         { id: 'purchase-rfq', title: 'RFQ', type: 'item', url: '/purchase/rfq' },
-        { id: 'purchase-po', title: 'Purchase Order', type: 'item', url: '/purchase/purchase-order' },
+        { id: 'purchase-po', title: 'Purchase Order', type: 'item', url: '/purchase/po' },
+        { id: 'purchase-weighbridge', title: 'Weighbridge In', type: 'item', url: '/purchase/weighbridge-in' },
         { id: 'purchase-grn', title: 'GRN', type: 'item', url: '/purchase/grn' },
         { id: 'purchase-invoice', title: 'Purchase Invoice', type: 'item', url: '/purchase/purchase-invoice' },
         { id: 'purchase-debit', title: 'Debit Note', type: 'item', url: '/purchase/debit-note' }

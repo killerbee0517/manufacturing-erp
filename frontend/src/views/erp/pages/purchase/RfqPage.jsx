@@ -11,6 +11,7 @@ import MainCard from 'ui-component/cards/MainCard';
 import PageHeader from 'components/common/PageHeader';
 import DataTable from 'components/common/DataTable';
 import apiClient from 'api/client';
+import RfqCloseDialog from './components/RfqCloseDialog';
 
 export default function RfqPage() {
   const navigate = useNavigate();
@@ -18,6 +19,8 @@ export default function RfqPage() {
   const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState({ q: '', status: '' });
   const [supplierMap, setSupplierMap] = useState({});
+  const [closeTarget, setCloseTarget] = useState(null);
+  const [closing, setClosing] = useState(false);
 
   const loadRows = (params = {}) => {
     setLoading(true);
@@ -55,6 +58,26 @@ export default function RfqPage() {
     return () => clearTimeout(handle);
   }, [filters]);
 
+  const handleCloseRfq = async (reason) => {
+    if (!closeTarget) return;
+    setClosing(true);
+    try {
+      const response = await apiClient.post(`/api/rfq/${closeTarget.id}/close`, { closureReason: reason });
+      const poId = response.data?.purchaseOrderId;
+      if (poId) {
+        navigate(`/purchase/po/${poId}`);
+        return;
+      }
+      loadRows({
+        q: filters.q || undefined,
+        status: filters.status || undefined
+      });
+    } finally {
+      setClosing(false);
+      setCloseTarget(null);
+    }
+  };
+
   return (
     <MainCard>
       <PageHeader
@@ -88,6 +111,7 @@ export default function RfqPage() {
               <MenuItem value="DRAFT">Draft</MenuItem>
               <MenuItem value="SUBMITTED">Submitted</MenuItem>
               <MenuItem value="APPROVED">Approved</MenuItem>
+              <MenuItem value="CLOSED">Closed</MenuItem>
             </TextField>
           </Grid>
         </Grid>
@@ -95,15 +119,53 @@ export default function RfqPage() {
           columns={[
             { field: 'rfqNo', headerName: 'RFQ No' },
             { field: 'supplierId', headerName: 'Supplier', render: (row) => supplierMap[row.supplierId] || row.supplierId },
-            { field: 'status', headerName: 'Status' }
+            { field: 'rfqDate', headerName: 'Date' },
+            { field: 'status', headerName: 'Status' },
+            {
+              field: 'actions',
+              headerName: 'Actions',
+              render: (row) => (
+                <Stack direction="row" spacing={1}>
+                  <Button size="small" variant="text" onClick={(event) => {
+                    event.stopPropagation();
+                    navigate(`/purchase/rfq/${row.id}`);
+                  }}>
+                    View
+                  </Button>
+                  <Button size="small" variant="text" onClick={(event) => {
+                    event.stopPropagation();
+                    navigate(`/purchase/rfq/${row.id}/edit`);
+                  }}>
+                    Edit
+                  </Button>
+                  <Button
+                    size="small"
+                    variant="text"
+                    color="secondary"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setCloseTarget(row);
+                    }}
+                    disabled={row.status === 'CLOSED'}
+                  >
+                    Close
+                  </Button>
+                </Stack>
+              )
+            }
           ]}
           rows={rows}
           loading={loading}
           emptyMessage="No RFQs found."
           onRowClick={(row) => navigate(`/purchase/rfq/${row.id}`)}
-          onEdit={(row) => navigate(`/purchase/rfq/${row.id}/edit`)}
         />
       </Stack>
+      <RfqCloseDialog
+        open={Boolean(closeTarget)}
+        onClose={() => setCloseTarget(null)}
+        onConfirm={handleCloseRfq}
+        loading={closing}
+      />
     </MainCard>
   );
 }

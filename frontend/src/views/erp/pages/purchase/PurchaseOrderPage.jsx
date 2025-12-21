@@ -61,7 +61,7 @@ export default function PurchaseOrderPage() {
         title="Purchase Orders"
         breadcrumbs={[{ label: 'Purchase' }, { label: 'Purchase Order' }]}
         actions={
-          <Button variant="contained" color="secondary" onClick={() => navigate('/purchase/purchase-order/new')}>
+          <Button variant="contained" color="secondary" onClick={() => navigate('/purchase/po/new')}>
             Create PO
           </Button>
         }
@@ -95,13 +95,33 @@ export default function PurchaseOrderPage() {
           columns={[
             { field: 'poNo', headerName: 'PO No' },
             { field: 'supplierId', headerName: 'Supplier', render: (row) => supplierMap[row.supplierId] || row.supplierId },
-            { field: 'status', headerName: 'Status' }
+            { field: 'poDate', headerName: 'Order Date' },
+            { field: 'status', headerName: 'Status' },
+            {
+              field: 'actions',
+              headerName: 'Actions',
+              render: (row) => (
+                <Stack direction="row" spacing={1}>
+                  <Button size="small" variant="text" onClick={(event) => {
+                    event.stopPropagation();
+                    navigate(`/purchase/po/${row.id}`);
+                  }}>
+                    View
+                  </Button>
+                  <Button size="small" variant="text" onClick={(event) => {
+                    event.stopPropagation();
+                    navigate(`/purchase/po/${row.id}/edit`);
+                  }}>
+                    Edit
+                  </Button>
+                </Stack>
+              )
+            }
           ]}
           rows={rows}
           loading={loading}
           emptyMessage="No purchase orders found."
-          onRowClick={(row) => navigate(`/purchase/purchase-order/${row.id}`)}
-          onEdit={(row) => navigate(`/purchase/purchase-order/${row.id}/edit`)}
+          onRowClick={(row) => navigate(`/purchase/po/${row.id}`)}
         />
       </Stack>
     </MainCard>

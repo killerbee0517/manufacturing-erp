@@ -33,6 +33,10 @@ public class WeighbridgeTicket extends BaseEntity {
   @Column(nullable = false)
   private LocalTime timeIn;
 
+  private LocalDate dateOut;
+
+  private LocalTime timeOut;
+
   @Column(nullable = false)
   private BigDecimal grossWeight;
 
@@ -92,6 +96,22 @@ public class WeighbridgeTicket extends BaseEntity {
 
   public void setTimeIn(LocalTime timeIn) {
     this.timeIn = timeIn;
+  }
+
+  public LocalDate getDateOut() {
+    return dateOut;
+  }
+
+  public void setDateOut(LocalDate dateOut) {
+    this.dateOut = dateOut;
+  }
+
+  public LocalTime getTimeOut() {
+    return timeOut;
+  }
+
+  public void setTimeOut(LocalTime timeOut) {
+    this.timeOut = timeOut;
   }
 
   public BigDecimal getGrossWeight() {

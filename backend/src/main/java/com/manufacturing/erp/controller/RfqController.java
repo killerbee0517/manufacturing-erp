@@ -59,6 +59,12 @@ public class RfqController {
     return rfqService.approve(id);
   }
 
+  @PostMapping("/{id}/close")
+  public TransactionDtos.RfqCloseResponse close(@PathVariable Long id,
+                                                @Valid @RequestBody TransactionDtos.RfqCloseRequest request) {
+    return rfqService.close(id, request);
+  }
+
   private Sort parseSort(String sort) {
     String[] parts = sort.split(",");
     String field = parts.length > 0 ? parts[0] : "id";

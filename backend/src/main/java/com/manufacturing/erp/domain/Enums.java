@@ -9,6 +9,7 @@ public class Enums {
     APPROVED,
     RELEASED,
     POSTED,
+    CLOSED,
     CANCELLED
   }
 

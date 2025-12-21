@@ -23,6 +23,10 @@ public class RfqLine extends BaseEntity {
   @JoinColumn(name = "uom_id")
   private Uom uom;
 
+  @ManyToOne
+  @JoinColumn(name = "broker_id")
+  private Broker broker;
+
   @Column(nullable = false)
   private BigDecimal quantity;
 
@@ -53,6 +57,14 @@ public class RfqLine extends BaseEntity {
 
   public void setUom(Uom uom) {
     this.uom = uom;
+  }
+
+  public Broker getBroker() {
+    return broker;
+  }
+
+  public void setBroker(Broker broker) {
+    this.broker = broker;
   }
 
   public BigDecimal getQuantity() {

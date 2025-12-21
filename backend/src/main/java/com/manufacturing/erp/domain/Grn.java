@@ -22,8 +22,27 @@ public class Grn extends BaseEntity {
   @ManyToOne
   private WeighbridgeTicket weighbridgeTicket;
 
+  @ManyToOne
+  private PurchaseOrder purchaseOrder;
+
+  @ManyToOne
+  private Item item;
+
+  @ManyToOne
+  private Uom uom;
+
   @Column(nullable = false)
   private LocalDate grnDate;
+
+  private String narration;
+
+  private java.math.BigDecimal firstWeight;
+
+  private java.math.BigDecimal secondWeight;
+
+  private java.math.BigDecimal netWeight;
+
+  private java.math.BigDecimal quantity;
 
   @Enumerated(EnumType.STRING)
   @Column(nullable = false)
@@ -53,12 +72,76 @@ public class Grn extends BaseEntity {
     this.weighbridgeTicket = weighbridgeTicket;
   }
 
+  public PurchaseOrder getPurchaseOrder() {
+    return purchaseOrder;
+  }
+
+  public void setPurchaseOrder(PurchaseOrder purchaseOrder) {
+    this.purchaseOrder = purchaseOrder;
+  }
+
+  public Item getItem() {
+    return item;
+  }
+
+  public void setItem(Item item) {
+    this.item = item;
+  }
+
+  public Uom getUom() {
+    return uom;
+  }
+
+  public void setUom(Uom uom) {
+    this.uom = uom;
+  }
+
   public LocalDate getGrnDate() {
     return grnDate;
   }
 
   public void setGrnDate(LocalDate grnDate) {
     this.grnDate = grnDate;
+  }
+
+  public String getNarration() {
+    return narration;
+  }
+
+  public void setNarration(String narration) {
+    this.narration = narration;
+  }
+
+  public java.math.BigDecimal getFirstWeight() {
+    return firstWeight;
+  }
+
+  public void setFirstWeight(java.math.BigDecimal firstWeight) {
+    this.firstWeight = firstWeight;
+  }
+
+  public java.math.BigDecimal getSecondWeight() {
+    return secondWeight;
+  }
+
+  public void setSecondWeight(java.math.BigDecimal secondWeight) {
+    this.secondWeight = secondWeight;
+  }
+
+  public java.math.BigDecimal getNetWeight() {
+    return netWeight;
+  }
+
+  public void setNetWeight(java.math.BigDecimal netWeight) {
+    this.netWeight = netWeight;
+  }
+
+  public java.math.BigDecimal getQuantity() {
+    return quantity;
+  }
+
+  public void setQuantity(java.math.BigDecimal quantity) {
+    this.quantity = quantity;
   }
 
   public DocumentStatus getStatus() {
