@@ -36,7 +36,11 @@ export default function PoEditPage() {
     poNo: '',
     supplierId: '',
     poDate: '',
-    remarks: ''
+    deliveryDate: '',
+    supplierInvoiceNo: '',
+    purchaseLedger: '',
+    currentLedgerBalance: 0,
+    narration: ''
   });
   const [lines, setLines] = useState([emptyLine()]);
   const [suppliers, setSuppliers] = useState([]);
@@ -57,7 +61,11 @@ export default function PoEditPage() {
         poNo: po.poNo || '',
         supplierId: po.supplierId || '',
         poDate: po.poDate || '',
-        remarks: po.remarks || ''
+        deliveryDate: po.deliveryDate || '',
+        supplierInvoiceNo: po.supplierInvoiceNo || '',
+        purchaseLedger: po.purchaseLedger || '',
+        currentLedgerBalance: po.currentLedgerBalance ?? 0,
+        narration: po.narration || ''
       });
       setLines(
         po.lines?.length
@@ -108,7 +116,11 @@ export default function PoEditPage() {
         poNo: header.poNo,
         supplierId: Number(header.supplierId),
         poDate: header.poDate,
-        remarks: header.remarks,
+        deliveryDate: header.deliveryDate || null,
+        supplierInvoiceNo: header.supplierInvoiceNo,
+        purchaseLedger: header.purchaseLedger,
+        currentLedgerBalance: Number(header.currentLedgerBalance || 0),
+        narration: header.narration,
         lines: lines.map((line) => ({
           id: line.id,
           itemId: Number(line.itemId),
@@ -120,7 +132,7 @@ export default function PoEditPage() {
         }))
       };
       await apiClient.put(`/api/purchase-orders/${id}`, payload);
-      navigate(`/purchase/purchase-order/${id}`);
+      navigate(`/purchase/po/${id}`);
     } finally {
       setSaving(false);
     }
@@ -131,13 +143,13 @@ export default function PoEditPage() {
       <PageHeader
         title="Edit Purchase Order"
         breadcrumbs={[
-          { label: 'Purchase', to: '/purchase/purchase-order' },
-          { label: 'Purchase Order', to: `/purchase/purchase-order/${id}` },
+          { label: 'Purchase', to: '/purchase/po' },
+          { label: 'Purchase Order', to: `/purchase/po/${id}` },
           { label: 'Edit' }
         ]}
         actions={
           <Stack direction="row" spacing={1}>
-            <Button variant="outlined" onClick={() => navigate(`/purchase/purchase-order/${id}`)}>
+            <Button variant="outlined" onClick={() => navigate(`/purchase/po/${id}`)}>
               Cancel
             </Button>
             <Button variant="contained" color="secondary" onClick={handleSave} disabled={saving}>
@@ -154,6 +166,7 @@ export default function PoEditPage() {
               label="PO No"
               value={header.poNo}
               onChange={(event) => setHeader((prev) => ({ ...prev, poNo: event.target.value }))}
+              placeholder="Auto-generated"
             />
           </Grid>
           <Grid size={{ xs: 12, md: 4 }}>
@@ -181,12 +194,46 @@ export default function PoEditPage() {
               InputLabelProps={{ shrink: true }}
             />
           </Grid>
+          <Grid size={{ xs: 12, md: 4 }}>
+            <TextField
+              fullWidth
+              type="date"
+              label="Delivery Date"
+              value={header.deliveryDate}
+              onChange={(event) => setHeader((prev) => ({ ...prev, deliveryDate: event.target.value }))}
+              InputLabelProps={{ shrink: true }}
+            />
+          </Grid>
+          <Grid size={{ xs: 12, md: 4 }}>
+            <TextField
+              fullWidth
+              label="Supplier Invoice No"
+              value={header.supplierInvoiceNo}
+              onChange={(event) => setHeader((prev) => ({ ...prev, supplierInvoiceNo: event.target.value }))}
+            />
+          </Grid>
+          <Grid size={{ xs: 12, md: 4 }}>
+            <TextField
+              fullWidth
+              label="Purchase Ledger"
+              value={header.purchaseLedger}
+              onChange={(event) => setHeader((prev) => ({ ...prev, purchaseLedger: event.target.value }))}
+            />
+          </Grid>
+          <Grid size={{ xs: 12, md: 4 }}>
+            <TextField
+              fullWidth
+              label="Current Ledger Balance"
+              value={header.currentLedgerBalance}
+              InputProps={{ readOnly: true }}
+            />
+          </Grid>
           <Grid size={{ xs: 12 }}>
             <TextField
               fullWidth
-              label="Remarks"
-              value={header.remarks}
-              onChange={(event) => setHeader((prev) => ({ ...prev, remarks: event.target.value }))}
+              label="Narration"
+              value={header.narration}
+              onChange={(event) => setHeader((prev) => ({ ...prev, narration: event.target.value }))}
             />
           </Grid>
         </Grid>

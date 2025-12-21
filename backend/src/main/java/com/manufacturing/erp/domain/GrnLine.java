@@ -16,6 +16,9 @@ public class GrnLine extends BaseEntity {
   @ManyToOne
   private Item item;
 
+  @ManyToOne
+  private Uom uom;
+
   @Column(nullable = false)
   private String bagType;
 
@@ -42,6 +45,14 @@ public class GrnLine extends BaseEntity {
 
   public void setItem(Item item) {
     this.item = item;
+  }
+
+  public Uom getUom() {
+    return uom;
+  }
+
+  public void setUom(Uom uom) {
+    this.uom = uom;
   }
 
   public String getBagType() {

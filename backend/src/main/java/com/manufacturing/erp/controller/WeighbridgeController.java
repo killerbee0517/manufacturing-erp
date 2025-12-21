@@ -29,6 +29,13 @@ public class WeighbridgeController {
         .map(ticket -> new WeighbridgeDtos.TicketResponse(
             ticket.getId(),
             ticket.getTicketNo(),
+            ticket.getVehicleNo(),
+            ticket.getSupplier() != null ? ticket.getSupplier().getId() : null,
+            ticket.getItem() != null ? ticket.getItem().getId() : null,
+            ticket.getDateIn(),
+            ticket.getTimeIn(),
+            ticket.getDateOut(),
+            ticket.getTimeOut(),
             ticket.getGrossWeight(),
             ticket.getTareWeight(),
             ticket.getNetWeight()))
@@ -38,7 +45,18 @@ public class WeighbridgeController {
   @PostMapping("/tickets")
   public WeighbridgeDtos.TicketResponse create(@Valid @RequestBody WeighbridgeDtos.CreateTicketRequest request) {
     var ticket = weighbridgeService.createTicket(request);
-    return new WeighbridgeDtos.TicketResponse(ticket.getId(), ticket.getTicketNo(), ticket.getGrossWeight(),
-        ticket.getTareWeight(), ticket.getNetWeight());
+    return new WeighbridgeDtos.TicketResponse(
+        ticket.getId(),
+        ticket.getTicketNo(),
+        ticket.getVehicleNo(),
+        ticket.getSupplier() != null ? ticket.getSupplier().getId() : null,
+        ticket.getItem() != null ? ticket.getItem().getId() : null,
+        ticket.getDateIn(),
+        ticket.getTimeIn(),
+        ticket.getDateOut(),
+        ticket.getTimeOut(),
+        ticket.getGrossWeight(),
+        ticket.getTareWeight(),
+        ticket.getNetWeight());
   }
 }

@@ -4,6 +4,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.PositiveOrZero;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -13,23 +14,26 @@ public class TransactionDtos {
       Long id,
       @NotNull Long itemId,
       @NotNull Long uomId,
+      Long brokerId,
       @NotNull @Positive BigDecimal quantity,
-      BigDecimal rateExpected,
+      @PositiveOrZero BigDecimal rateExpected,
       String remarks) {}
 
   public record RfqLineResponse(
       Long id,
       Long itemId,
       Long uomId,
+      Long brokerId,
       BigDecimal quantity,
       BigDecimal rateExpected,
       String remarks) {}
 
   public record RfqRequest(
-      @NotBlank String rfqNo,
+      String rfqNo,
       @NotNull Long supplierId,
       LocalDate rfqDate,
-      String remarks,
+      String paymentTerms,
+      String narration,
       @NotEmpty List<RfqLineRequest> lines) {}
 
   public record RfqResponse(
@@ -37,16 +41,22 @@ public class TransactionDtos {
       String rfqNo,
       Long supplierId,
       LocalDate rfqDate,
-      String remarks,
+      String paymentTerms,
+      String narration,
+      String closureReason,
       String status,
       List<RfqLineResponse> lines) {}
+
+  public record RfqCloseRequest(@NotBlank String closureReason) {}
+
+  public record RfqCloseResponse(Long id, String status, String closureReason, Long purchaseOrderId) {}
 
   public record PurchaseOrderLineRequest(
       Long id,
       @NotNull Long itemId,
       @NotNull Long uomId,
       @NotNull @Positive BigDecimal quantity,
-      @NotNull @Positive BigDecimal rate,
+      @NotNull @PositiveOrZero BigDecimal rate,
       BigDecimal amount,
       String remarks) {}
 
@@ -60,18 +70,28 @@ public class TransactionDtos {
       String remarks) {}
 
   public record PurchaseOrderRequest(
-      @NotBlank String poNo,
+      String poNo,
+      Long rfqId,
       @NotNull Long supplierId,
       LocalDate poDate,
-      String remarks,
+      LocalDate deliveryDate,
+      String supplierInvoiceNo,
+      String purchaseLedger,
+      BigDecimal currentLedgerBalance,
+      String narration,
       @NotEmpty List<PurchaseOrderLineRequest> lines) {}
 
   public record PurchaseOrderResponse(
       Long id,
       String poNo,
+      Long rfqId,
       Long supplierId,
       LocalDate poDate,
-      String remarks,
+      LocalDate deliveryDate,
+      String supplierInvoiceNo,
+      String purchaseLedger,
+      BigDecimal currentLedgerBalance,
+      String narration,
       BigDecimal totalAmount,
       String status,
       List<PurchaseOrderLineResponse> lines) {}

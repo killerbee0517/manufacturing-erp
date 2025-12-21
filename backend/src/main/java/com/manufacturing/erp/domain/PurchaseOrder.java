@@ -26,7 +26,18 @@ public class PurchaseOrder extends BaseEntity {
 
   private LocalDate poDate;
 
+  private LocalDate deliveryDate;
+
+  private String supplierInvoiceNo;
+
+  private String purchaseLedger;
+
+  private BigDecimal currentLedgerBalance;
+
   private String remarks;
+
+  @ManyToOne
+  private Rfq rfq;
 
   private BigDecimal totalAmount;
 
@@ -61,12 +72,52 @@ public class PurchaseOrder extends BaseEntity {
     this.poDate = poDate;
   }
 
+  public LocalDate getDeliveryDate() {
+    return deliveryDate;
+  }
+
+  public void setDeliveryDate(LocalDate deliveryDate) {
+    this.deliveryDate = deliveryDate;
+  }
+
+  public String getSupplierInvoiceNo() {
+    return supplierInvoiceNo;
+  }
+
+  public void setSupplierInvoiceNo(String supplierInvoiceNo) {
+    this.supplierInvoiceNo = supplierInvoiceNo;
+  }
+
+  public String getPurchaseLedger() {
+    return purchaseLedger;
+  }
+
+  public void setPurchaseLedger(String purchaseLedger) {
+    this.purchaseLedger = purchaseLedger;
+  }
+
+  public BigDecimal getCurrentLedgerBalance() {
+    return currentLedgerBalance;
+  }
+
+  public void setCurrentLedgerBalance(BigDecimal currentLedgerBalance) {
+    this.currentLedgerBalance = currentLedgerBalance;
+  }
+
   public String getRemarks() {
     return remarks;
   }
 
   public void setRemarks(String remarks) {
     this.remarks = remarks;
+  }
+
+  public Rfq getRfq() {
+    return rfq;
+  }
+
+  public void setRfq(Rfq rfq) {
+    this.rfq = rfq;
   }
 
   public BigDecimal getTotalAmount() {

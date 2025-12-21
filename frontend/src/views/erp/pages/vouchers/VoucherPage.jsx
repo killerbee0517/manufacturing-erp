@@ -23,6 +23,20 @@ import EntitySelect from 'components/common/EntitySelect';
 import { vouchersApi } from 'api/vouchers';
 
 const emptyLine = { id: Date.now(), item: '', qty: 0, rate: 0, amount: 0, tax: 5 };
+const deductionFields = [
+  { key: 'weightShortage', label: 'Weight Shortage' },
+  { key: 'rateReduction', label: 'Rate Reduction' },
+  { key: 'refractionDeduction', label: 'Refraction Deduction' },
+  { key: 'looseBagPacking', label: 'Loose Bag Packing' },
+  { key: 'discountPercent', label: 'Discount %' },
+  { key: 'bagWeightDeduction', label: 'Bag Weight Deduction' },
+  { key: 'weighmentDeduction', label: 'Weighment Deduction' },
+  { key: 'freightDeduction', label: 'Freight Deduction' },
+  { key: 'brokerageCommission', label: 'Brokerage Commission' },
+  { key: 'haltingCharges', label: 'Halting Charges' },
+  { key: 'unloadingCharges', label: 'Unloading Charges' },
+  { key: 'tdsPercent', label: 'TDS %' }
+];
 
 export default function VoucherPage({ title, type }) {
   const [header, setHeader] = useState({
@@ -34,20 +48,45 @@ export default function VoucherPage({ title, type }) {
   });
   const [narration, setNarration] = useState('');
   const [lines, setLines] = useState([emptyLine]);
+  const [deductions, setDeductions] = useState({
+    weightShortage: 0,
+    rateReduction: 0,
+    refractionDeduction: 0,
+    looseBagPacking: 0,
+    discountPercent: 0,
+    bagWeightDeduction: 0,
+    weighmentDeduction: 0,
+    freightDeduction: 0,
+    brokerageCommission: 0,
+    haltingCharges: 0,
+    unloadingCharges: 0,
+    tdsPercent: 0
+  });
   const [previewOpen, setPreviewOpen] = useState(false);
 
   const totals = useMemo(() => {
     const taxable = lines.reduce((sum, line) => sum + Number(line.amount || 0), 0);
     const taxAmount = lines.reduce((sum, line) => sum + (Number(line.amount || 0) * Number(line.tax || 0)) / 100, 0);
+    const grossAmount = taxable + taxAmount;
+    const discount = (grossAmount * Number(deductions.discountPercent || 0)) / 100;
+    const deductionsTotal = Object.entries(deductions).reduce((sum, [key, value]) => {
+      if (key === 'tdsPercent' || key === 'discountPercent') return sum;
+      return sum + Number(value || 0);
+    }, 0) + discount;
+    const tdsAmount = (grossAmount * Number(deductions.tdsPercent || 0)) / 100;
+    const netPayable = grossAmount - deductionsTotal - tdsAmount;
     return {
       taxable,
       cgst: taxAmount / 2,
       sgst: taxAmount / 2,
       igst: 0,
       roundOff: 0,
-      grandTotal: taxable + taxAmount
+      grandTotal: grossAmount,
+      deductionsTotal,
+      tdsAmount,
+      netPayable
     };
-  }, [lines]);
+  }, [lines, deductions]);
 
   const updateLine = (index, key, value) => {
     setLines((prev) => {
@@ -68,21 +107,22 @@ export default function VoucherPage({ title, type }) {
   };
 
   const handleSave = async (status) => {
-    const payload = {
-      type,
-      status,
-      header: {
-        voucherNo: header.voucherNo,
-        date: header.date,
-        party: header.party?.name || header.party?.label || header.party || '',
-        costCenter: header.costCenter?.name || header.costCenter?.label || header.costCenter || '',
-        placeOfSupply: header.placeOfSupply,
-        narration
-      },
-      lines,
-      totals
-    };
-    await vouchersApi.create(payload);
+      const payload = {
+        type,
+        status,
+        header: {
+          voucherNo: header.voucherNo,
+          date: header.date,
+          party: header.party?.name || header.party?.label || header.party || '',
+          costCenter: header.costCenter?.name || header.costCenter?.label || header.costCenter || '',
+          placeOfSupply: header.placeOfSupply,
+          narration
+        },
+        lines,
+        totals,
+        deductions
+      };
+      await vouchersApi.create(payload);
   };
 
   return (
@@ -204,6 +244,32 @@ export default function VoucherPage({ title, type }) {
           </Button>
         </Stack>
         <Divider />
+        {(type === 'purchase-invoice' || type === 'debit-note') && (
+          <>
+            <Stack spacing={2}>
+              <Typography variant="h5">Deductions</Typography>
+              <Grid container spacing={2}>
+                {deductionFields.map((field) => (
+                  <Grid key={field.key} size={{ xs: 12, md: 4 }}>
+                    <TextField
+                      fullWidth
+                      type="number"
+                      label={field.label}
+                      value={deductions[field.key]}
+                      onChange={(event) =>
+                        setDeductions((prev) => ({
+                          ...prev,
+                          [field.key]: event.target.value
+                        }))
+                      }
+                    />
+                  </Grid>
+                ))}
+              </Grid>
+            </Stack>
+            <Divider />
+          </>
+        )}
         <Grid container spacing={2}>
           <Grid size={{ xs: 12, md: 6 }}>
             <Stack spacing={1}>
@@ -228,10 +294,28 @@ export default function VoucherPage({ title, type }) {
                 <Typography>Round Off</Typography>
                 <Typography>{totals.roundOff.toFixed(2)}</Typography>
               </Stack>
+              {(type === 'purchase-invoice' || type === 'debit-note') && (
+                <>
+                  <Stack direction="row" justifyContent="space-between">
+                    <Typography>Deductions</Typography>
+                    <Typography>{totals.deductionsTotal.toFixed(2)}</Typography>
+                  </Stack>
+                  <Stack direction="row" justifyContent="space-between">
+                    <Typography>TDS</Typography>
+                    <Typography>{totals.tdsAmount.toFixed(2)}</Typography>
+                  </Stack>
+                </>
+              )}
               <Stack direction="row" justifyContent="space-between">
                 <Typography variant="h6">Grand Total</Typography>
                 <Typography variant="h6">{totals.grandTotal.toFixed(2)}</Typography>
               </Stack>
+              {(type === 'purchase-invoice' || type === 'debit-note') && (
+                <Stack direction="row" justifyContent="space-between">
+                  <Typography variant="h6">Net Payable</Typography>
+                  <Typography variant="h6">{totals.netPayable.toFixed(2)}</Typography>
+                </Stack>
+              )}
             </Stack>
           </Grid>
           <Grid size={{ xs: 12, md: 6 }}>

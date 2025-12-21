@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 
 // material-ui
+import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import Chip from '@mui/material/Chip';
+import Card from '@mui/material/Card';
+import CardContent from '@mui/material/CardContent';
 import Grid from '@mui/material/Grid';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
@@ -15,13 +17,54 @@ import Breadcrumbs from 'ui-component/extended/Breadcrumbs';
 import { gridSpacing } from 'store/constant';
 import apiClient from 'api/client';
 import { useNavigate } from 'react-router-dom';
+import {
+  IconShoppingCart,
+  IconClipboardList,
+  IconTruck,
+  IconFileInvoice
+} from '@tabler/icons-react';
 
-const quickActions = ['Record Weighbridge In', 'Create Purchase Order', 'Post QC Result', 'Transfer to UNRESTRICTED'];
+const quickActions = [
+  { label: 'Create RFQ', route: '/purchase/rfq/new' },
+  { label: 'Create Purchase Order', route: '/purchase/po/new' },
+  { label: 'Weighbridge In', route: '/purchase/weighbridge-in/new' },
+  { label: 'Create GRN', route: '/purchase/grn/new' }
+];
+
+const modules = [
+  {
+    title: 'Purchase',
+    subtitle: 'RFQ → PO → GRN',
+    metricLabel: 'Open GRNs',
+    icon: IconShoppingCart,
+    route: '/purchase/rfq'
+  },
+  {
+    title: 'Inventory',
+    subtitle: 'Stock & Transfers',
+    metricLabel: 'Pending QC',
+    icon: IconClipboardList,
+    route: '/inventory/stock-ledger'
+  },
+  {
+    title: 'Logistics',
+    subtitle: 'Weighbridge & Receiving',
+    metricLabel: 'Transfers In Flight',
+    icon: IconTruck,
+    route: '/purchase/weighbridge-in'
+  },
+  {
+    title: 'Finance',
+    subtitle: 'Invoices & Deductions',
+    metricLabel: 'Invoices Ready',
+    icon: IconFileInvoice,
+    route: '/purchase/purchase-invoice'
+  }
+];
 
 // ==============================|| ERP DASHBOARD ||============================== //
 
 export default function Dashboard() {
-  const [apiStatus, setApiStatus] = useState({ loading: true, ok: false, message: 'Checking backend...' });
   const [metrics, setMetrics] = useState({
     openGrns: 0,
     pendingQc: 0,
@@ -29,24 +72,6 @@ export default function Dashboard() {
     transfersInFlight: 0
   });
   const navigate = useNavigate();
-
-  useEffect(() => {
-    let active = true;
-    apiClient
-      .get('/actuator/health')
-      .then((response) => {
-        if (!active) return;
-        const status = response?.data?.status || 'UP';
-        setApiStatus({ loading: false, ok: status === 'UP', message: status });
-      })
-      .catch(() => {
-        if (!active) return;
-        setApiStatus({ loading: false, ok: false, message: 'Backend not connected' });
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
 
   useEffect(() => {
     apiClient
@@ -67,67 +92,78 @@ export default function Dashboard() {
           <MainCard
             title="Manufacturing ERP Overview"
             secondary={
-              <Button variant="contained" color="secondary" onClick={() => navigate('/purchase/weighbridge-in')}>
+              <Button variant="contained" color="secondary" onClick={() => navigate('/purchase/weighbridge-in/new')}>
                 Create Entry
               </Button>
             }
           >
             <Stack spacing={2.5}>
-              <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
-                <SubCard sx={{ flex: 1 }}>
-                  <Typography variant="h4">{metrics.openGrns}</Typography>
-                  <Typography variant="subtitle2">Open GRNs</Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    Pending receipts
-                  </Typography>
-                </SubCard>
-                <SubCard sx={{ flex: 1 }}>
-                  <Typography variant="h4">{metrics.pendingQc}</Typography>
-                  <Typography variant="subtitle2">Pending QC Lots</Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    Awaiting inspection
-                  </Typography>
-                </SubCard>
-                <SubCard sx={{ flex: 1 }}>
-                  <Typography variant="h4">{metrics.invoicesReady}</Typography>
-                  <Typography variant="subtitle2">Invoices Ready</Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    Purchase invoices
-                  </Typography>
-                </SubCard>
-                <SubCard sx={{ flex: 1 }}>
-                  <Typography variant="h4">{metrics.transfersInFlight}</Typography>
-                  <Typography variant="subtitle2">Transfers In Flight</Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    Stock movements
-                  </Typography>
-                </SubCard>
-              </Stack>
-              <Box>
-                <SubCard>
-                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ sm: 'center' }}>
-                    <Box sx={{ flexGrow: 1 }}>
-                      <Typography variant="h5">API Status</Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        Health check from backend /actuator/health
-                      </Typography>
-                    </Box>
-                    <Chip
-                      color={apiStatus.ok ? 'success' : 'warning'}
-                      label={apiStatus.loading ? 'Checking...' : apiStatus.message}
-                      variant={apiStatus.ok ? 'filled' : 'outlined'}
-                    />
-                  </Stack>
-                </SubCard>
-              </Box>
+              <Grid container spacing={2}>
+                {modules.map((module) => {
+                  const Icon = module.icon;
+                  const metricValue = (() => {
+                    switch (module.metricLabel) {
+                      case 'Open GRNs':
+                        return metrics.openGrns;
+                      case 'Pending QC':
+                        return metrics.pendingQc;
+                      case 'Invoices Ready':
+                        return metrics.invoicesReady;
+                      case 'Transfers In Flight':
+                        return metrics.transfersInFlight;
+                      default:
+                        return 0;
+                    }
+                  })();
+
+                  return (
+                    <Grid key={module.title} size={{ xs: 12, sm: 6, lg: 3 }}>
+                      <Card
+                        onClick={() => navigate(module.route)}
+                        sx={(theme) => ({
+                          height: '100%',
+                          border: `1px solid ${theme.palette.divider}`,
+                          borderRadius: 2,
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease',
+                          '&:hover': {
+                            boxShadow: theme.shadows[6],
+                            borderColor: theme.palette.primary.light
+                          }
+                        })}
+                      >
+                        <CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                          <Stack direction="row" spacing={1.5} alignItems="center">
+                            <Avatar sx={{ bgcolor: 'secondary.light', color: 'secondary.dark', width: 44, height: 44 }}>
+                              <Icon size={22} />
+                            </Avatar>
+                            <Box>
+                              <Typography variant="h5">{module.title}</Typography>
+                              <Typography variant="body2" color="text.secondary">
+                                {module.subtitle}
+                              </Typography>
+                            </Box>
+                          </Stack>
+                          <Box>
+                            <Typography variant="h3">{metricValue}</Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {module.metricLabel}
+                            </Typography>
+                          </Box>
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                  );
+                })}
+              </Grid>
               <SubCard>
                 <Typography variant="h5" gutterBottom>
                   Quick Actions
                 </Typography>
                 <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
                   {quickActions.map((action) => (
-                    <Button key={action} variant="outlined" color="secondary" onClick={() => navigate('/purchase/weighbridge-in')}>
-                      {action}
+                    <Button key={action.label} variant="outlined" color="secondary" onClick={() => navigate(action.route)}>
+                      {action.label}
                     </Button>
                   ))}
                 </Stack>

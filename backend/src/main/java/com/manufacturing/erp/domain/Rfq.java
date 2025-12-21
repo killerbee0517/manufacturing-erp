@@ -25,7 +25,11 @@ public class Rfq extends BaseEntity {
 
   private LocalDate rfqDate;
 
-  private String remarks;
+  private String paymentTerms;
+
+  private String narration;
+
+  private String closureReason;
 
   @Enumerated(EnumType.STRING)
   @Column(nullable = false)
@@ -59,11 +63,35 @@ public class Rfq extends BaseEntity {
   }
 
   public String getRemarks() {
-    return remarks;
+    return narration;
   }
 
   public void setRemarks(String remarks) {
-    this.remarks = remarks;
+    this.narration = remarks;
+  }
+
+  public String getPaymentTerms() {
+    return paymentTerms;
+  }
+
+  public void setPaymentTerms(String paymentTerms) {
+    this.paymentTerms = paymentTerms;
+  }
+
+  public String getNarration() {
+    return narration;
+  }
+
+  public void setNarration(String narration) {
+    this.narration = narration;
+  }
+
+  public String getClosureReason() {
+    return closureReason;
+  }
+
+  public void setClosureReason(String closureReason) {
+    this.closureReason = closureReason;
   }
 
   public DocumentStatus getStatus() {

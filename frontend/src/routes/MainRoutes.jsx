@@ -16,7 +16,10 @@ const PurchaseOrderPage = Loadable(lazy(() => import('views/erp/pages/purchase/P
 const PoCreatePage = Loadable(lazy(() => import('views/erp/pages/purchase/PoCreatePage')));
 const PoDetailPage = Loadable(lazy(() => import('views/erp/pages/purchase/PoDetailPage')));
 const PoEditPage = Loadable(lazy(() => import('views/erp/pages/purchase/PoEditPage')));
+const WeighbridgeListPage = Loadable(lazy(() => import('views/erp/pages/purchase/WeighbridgeListPage')));
+const WeighbridgeCreatePage = Loadable(lazy(() => import('views/erp/pages/purchase/WeighbridgeCreatePage')));
 const GrnPage = Loadable(lazy(() => import('views/erp/pages/purchase/GrnPage')));
+const GrnCreatePage = Loadable(lazy(() => import('views/erp/pages/purchase/GrnCreatePage')));
 const PurchaseInvoicePage = Loadable(lazy(() => import('views/erp/pages/purchase/PurchaseInvoicePage')));
 const DebitNotePage = Loadable(lazy(() => import('views/erp/pages/purchase/DebitNotePage')));
 const SalesOrderPage = Loadable(lazy(() => import('views/erp/pages/sales/SalesOrderPage')));
@@ -70,11 +73,14 @@ const MainRoutes = {
         { path: 'rfq/new', element: <RfqCreatePage /> },
         { path: 'rfq/:id', element: <RfqDetailPage /> },
         { path: 'rfq/:id/edit', element: <RfqEditPage /> },
-        { path: 'purchase-order', element: <PurchaseOrderPage /> },
-        { path: 'purchase-order/new', element: <PoCreatePage /> },
-        { path: 'purchase-order/:id', element: <PoDetailPage /> },
-        { path: 'purchase-order/:id/edit', element: <PoEditPage /> },
+        { path: 'po', element: <PurchaseOrderPage /> },
+        { path: 'po/new', element: <PoCreatePage /> },
+        { path: 'po/:id', element: <PoDetailPage /> },
+        { path: 'po/:id/edit', element: <PoEditPage /> },
+        { path: 'weighbridge-in', element: <WeighbridgeListPage /> },
+        { path: 'weighbridge-in/new', element: <WeighbridgeCreatePage /> },
         { path: 'grn', element: <GrnPage /> },
+        { path: 'grn/new', element: <GrnCreatePage /> },
         { path: 'purchase-invoice', element: <PurchaseInvoicePage /> },
         { path: 'debit-note', element: <DebitNotePage /> }
       ]

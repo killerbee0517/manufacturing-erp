@@ -85,10 +85,10 @@ export default function PoDetailPage() {
     <MainCard>
       <PageHeader
         title={`Purchase Order ${po.poNo}`}
-        breadcrumbs={[{ label: 'Purchase', to: '/purchase/purchase-order' }, { label: 'Purchase Order Detail' }]}
+        breadcrumbs={[{ label: 'Purchase', to: '/purchase/po' }, { label: 'Purchase Order Detail' }]}
         actions={
           <Stack direction="row" spacing={1}>
-            <Button variant="outlined" onClick={() => navigate(`/purchase/purchase-order/${id}/edit`)}>
+            <Button variant="outlined" onClick={() => navigate(`/purchase/po/${id}/edit`)}>
               Edit
             </Button>
             <Button variant="contained" color="secondary" disabled={po.status !== 'DRAFT'} onClick={handleApprove}>
@@ -104,8 +104,12 @@ export default function PoDetailPage() {
             <Typography>{supplierMap[po.supplierId] || po.supplierId || '-'}</Typography>
           </Grid>
           <Grid size={{ xs: 12, md: 3 }}>
-            <Typography variant="subtitle2">PO Date</Typography>
+            <Typography variant="subtitle2">Order Date</Typography>
             <Typography>{po.poDate || '-'}</Typography>
+          </Grid>
+          <Grid size={{ xs: 12, md: 3 }}>
+            <Typography variant="subtitle2">Delivery Date</Typography>
+            <Typography>{po.deliveryDate || '-'}</Typography>
           </Grid>
           <Grid size={{ xs: 12, md: 3 }}>
             <Typography variant="subtitle2">Status</Typography>
@@ -115,9 +119,21 @@ export default function PoDetailPage() {
             <Typography variant="subtitle2">Total</Typography>
             <Typography>{po.totalAmount || '-'}</Typography>
           </Grid>
+          <Grid size={{ xs: 12, md: 3 }}>
+            <Typography variant="subtitle2">Supplier Invoice No</Typography>
+            <Typography>{po.supplierInvoiceNo || '-'}</Typography>
+          </Grid>
+          <Grid size={{ xs: 12, md: 3 }}>
+            <Typography variant="subtitle2">Purchase Ledger</Typography>
+            <Typography>{po.purchaseLedger || '-'}</Typography>
+          </Grid>
+          <Grid size={{ xs: 12, md: 3 }}>
+            <Typography variant="subtitle2">Current Ledger Balance</Typography>
+            <Typography>{po.currentLedgerBalance ?? 0}</Typography>
+          </Grid>
           <Grid size={{ xs: 12 }}>
-            <Typography variant="subtitle2">Remarks</Typography>
-            <Typography>{po.remarks || '-'}</Typography>
+            <Typography variant="subtitle2">Narration</Typography>
+            <Typography>{po.narration || '-'}</Typography>
           </Grid>
         </Grid>
         <Divider />
