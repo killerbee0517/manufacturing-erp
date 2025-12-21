@@ -7,7 +7,6 @@ import Stack from '@mui/material/Stack';
 import Box from '@mui/material/Box';
 
 // project imports
-import MenuCard from './MenuCard';
 import MenuList from '../MenuList';
 import LogoSection from '../LogoSection';
 import MiniDrawerStyled from './MiniDrawerStyled';
@@ -32,7 +31,7 @@ function Sidebar() {
 
   const logo = useMemo(
     () => (
-      <Box sx={{ display: 'flex', p: 2 }}>
+      <Box sx={{ display: 'flex', px: 2, py: 1 }}>
         <LogoSection />
       </Box>
     ),
@@ -41,16 +40,12 @@ function Sidebar() {
 
   const drawer = useMemo(() => {
     const drawerContent = (
-      <>
-        <MenuCard />
-        <Stack direction="row" sx={{ justifyContent: 'center', mb: 2 }}>
-          <Chip label={import.meta.env.VITE_APP_VERSION} size="small" color="default" />
-        </Stack>
-      </>
+      <Stack direction="row" sx={{ justifyContent: 'center', mb: 2 }}>
+        <Chip label={import.meta.env.VITE_APP_VERSION} size="small" color="default" />
+      </Stack>
     );
 
-    let drawerSX = { paddingLeft: '0px', paddingRight: '0px', marginTop: '20px' };
-    if (drawerOpen) drawerSX = { paddingLeft: '16px', paddingRight: '16px', marginTop: '0px' };
+    const drawerSX = { px: 2, py: 1 };
 
     return (
       <>
@@ -60,7 +55,7 @@ function Sidebar() {
             {drawerOpen && drawerContent}
           </Box>
         ) : (
-          <SimpleBar sx={{ height: 'calc(100vh - 90px)', ...drawerSX }}>
+          <SimpleBar sx={{ height: '100vh', ...drawerSX }}>
             <MenuList />
             {drawerOpen && drawerContent}
           </SimpleBar>

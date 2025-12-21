@@ -8,6 +8,8 @@ import AuthGuard from './AuthGuard';
 // dashboard routing
 const DashboardDefault = Loadable(lazy(() => import('views/dashboard/Default')));
 const SettingsEntityRouter = Loadable(lazy(() => import('views/erp/pages/settings/SettingsEntityRouter')));
+const MastersEntityRouter = Loadable(lazy(() => import('views/erp/pages/masters/MastersEntityRouter')));
+const AdminEntityRouter = Loadable(lazy(() => import('views/erp/pages/admin/AdminEntityRouter')));
 const RfqPage = Loadable(lazy(() => import('views/erp/pages/purchase/RfqPage')));
 const RfqCreatePage = Loadable(lazy(() => import('views/erp/pages/purchase/RfqCreatePage')));
 const RfqDetailPage = Loadable(lazy(() => import('views/erp/pages/purchase/RfqDetailPage')));
@@ -20,6 +22,7 @@ const WeighbridgeListPage = Loadable(lazy(() => import('views/erp/pages/purchase
 const WeighbridgeCreatePage = Loadable(lazy(() => import('views/erp/pages/purchase/WeighbridgeCreatePage')));
 const GrnPage = Loadable(lazy(() => import('views/erp/pages/purchase/GrnPage')));
 const GrnCreatePage = Loadable(lazy(() => import('views/erp/pages/purchase/GrnCreatePage')));
+const PurchaseArrivalPage = Loadable(lazy(() => import('views/erp/pages/purchase/PurchaseArrivalPage')));
 const PurchaseInvoicePage = Loadable(lazy(() => import('views/erp/pages/purchase/PurchaseInvoicePage')));
 const DebitNotePage = Loadable(lazy(() => import('views/erp/pages/purchase/DebitNotePage')));
 const SalesOrderPage = Loadable(lazy(() => import('views/erp/pages/sales/SalesOrderPage')));
@@ -67,6 +70,14 @@ const MainRoutes = {
       ]
     },
     {
+      path: 'masters',
+      children: [{ path: ':entity', element: <MastersEntityRouter /> }]
+    },
+    {
+      path: 'admin',
+      children: [{ path: ':entity', element: <AdminEntityRouter /> }]
+    },
+    {
       path: 'purchase',
       children: [
         { path: 'rfq', element: <RfqPage /> },
@@ -81,6 +92,7 @@ const MainRoutes = {
         { path: 'weighbridge-in/new', element: <WeighbridgeCreatePage /> },
         { path: 'grn', element: <GrnPage /> },
         { path: 'grn/new', element: <GrnCreatePage /> },
+        { path: 'arrival', element: <PurchaseArrivalPage /> },
         { path: 'purchase-invoice', element: <PurchaseInvoicePage /> },
         { path: 'debit-note', element: <DebitNotePage /> }
       ]
@@ -98,9 +110,9 @@ const MainRoutes = {
     {
       path: 'inventory',
       children: [
+        { path: 'stock-on-hand', element: <ItemBalancesPage /> },
         { path: 'stock-transfer', element: <StockTransferPage /> },
-        { path: 'stock-ledger', element: <StockLedgerPage /> },
-        { path: 'item-balances', element: <ItemBalancesPage /> }
+        { path: 'stock-ledger', element: <StockLedgerPage /> }
       ]
     },
     {

@@ -32,6 +32,8 @@ const lookupEndpoints = {
   uoms: '/api/uoms',
   locations: '/api/locations',
   customers: '/api/customers',
+  banks: '/api/banks',
+  godowns: '/api/godowns',
   brokers: '/api/brokers',
   roles: '/api/roles',
   tickets: '/api/weighbridge/tickets',
