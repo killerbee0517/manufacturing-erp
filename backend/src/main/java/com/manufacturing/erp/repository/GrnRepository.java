@@ -1,6 +1,9 @@
 package com.manufacturing.erp.repository;
 
+import com.manufacturing.erp.domain.Enums.DocumentStatus;
 import com.manufacturing.erp.domain.Grn;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface GrnRepository extends JpaRepository<Grn, Long> {}
+public interface GrnRepository extends JpaRepository<Grn, Long> {
+  long countByStatusNot(DocumentStatus status);
+}

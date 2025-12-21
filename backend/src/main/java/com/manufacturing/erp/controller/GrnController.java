@@ -1,8 +1,11 @@
 package com.manufacturing.erp.controller;
 
 import com.manufacturing.erp.dto.GrnDtos;
+import com.manufacturing.erp.repository.GrnRepository;
 import com.manufacturing.erp.service.GrnService;
 import jakarta.validation.Valid;
+import java.util.List;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -12,9 +15,18 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/grn")
 public class GrnController {
   private final GrnService grnService;
+  private final GrnRepository grnRepository;
 
-  public GrnController(GrnService grnService) {
+  public GrnController(GrnService grnService, GrnRepository grnRepository) {
     this.grnService = grnService;
+    this.grnRepository = grnRepository;
+  }
+
+  @GetMapping
+  public List<GrnDtos.GrnResponse> list() {
+    return grnRepository.findAll().stream()
+        .map(grn -> new GrnDtos.GrnResponse(grn.getId(), grn.getGrnNo(), grn.getStatus().name()))
+        .toList();
   }
 
   @PostMapping

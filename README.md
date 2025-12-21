@@ -1,6 +1,6 @@
 # Manufacturing ERP (Food Products)
 
-Manufacturing ERP MVP for food products (paddy/rice/flour/maida) with Spring Boot + React (CoreUI).
+Manufacturing ERP MVP for food products (paddy/rice/flour/maida) with Spring Boot + React (Berry dashboard).
 
 ## Repository Structure
 
@@ -40,7 +40,6 @@ mvn spring-boot:run
 
 ```bash
 cd frontend
-cp .env.example .env
 npm install
 npm run dev
 ```
@@ -49,12 +48,18 @@ Frontend will be available at `http://localhost:5173`.
 
 ## Frontend UI
 
-Run the CoreUI-based dashboard locally:
+The frontend uses the Berry free admin dashboard template with ERP-specific routes and placeholders.
+
+### Environment variables
+
+- `VITE_API_BASE_URL` (default: `http://localhost:8080`)
+- `VITE_APP_BASE_NAME` (default: `/`)
+
+Example:
 
 ```bash
 cd frontend
-npm install
-npm run dev
+cp .env.example .env
 ```
 
 Open `http://localhost:5173` and sign in to access the sidebar navigation.
@@ -84,6 +89,12 @@ Swagger UI: `http://localhost:8080/swagger-ui.html`
 - Inventory: Stock ledger + stock transfer
 - Masters: Suppliers, Items, Locations, Brokers, Users/Roles, TDS Rules
 - Reports: TDS Register stub
+
+## Frontend Structure
+
+- Menu config: `frontend/src/menu-items/erp.js`
+- Routes: `frontend/src/routes/MainRoutes.jsx`
+- ERP placeholder page template: `frontend/src/views/erp/ModulePage.jsx`
 
 ## Testing
 
