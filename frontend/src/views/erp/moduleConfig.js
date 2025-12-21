@@ -9,7 +9,7 @@ export const moduleConfigs = {
   },
   suppliers: {
     title: 'Suppliers',
-    subtitle: 'Masters',
+    subtitle: 'Settings',
     createEndpoint: '/api/suppliers',
     listEndpoint: '/api/suppliers',
     fields: [
@@ -26,7 +26,7 @@ export const moduleConfigs = {
   },
   items: {
     title: 'Items',
-    subtitle: 'Masters',
+    subtitle: 'Settings',
     createEndpoint: '/api/items',
     listEndpoint: '/api/items',
     fields: [
@@ -43,7 +43,7 @@ export const moduleConfigs = {
   },
   locations: {
     title: 'Locations (Godown/Storage)',
-    subtitle: 'Masters',
+    subtitle: 'Settings',
     createEndpoint: '/api/locations',
     listEndpoint: '/api/locations',
     fields: [
@@ -60,7 +60,7 @@ export const moduleConfigs = {
   },
   vehicles: {
     title: 'Vehicles',
-    subtitle: 'Masters',
+    subtitle: 'Settings',
     createEndpoint: '/api/vehicles',
     listEndpoint: '/api/vehicles',
     fields: [{ name: 'vehicleNo', label: 'Vehicle Number', type: 'text' }],
@@ -71,7 +71,7 @@ export const moduleConfigs = {
   },
   customers: {
     title: 'Customers',
-    subtitle: 'Masters',
+    subtitle: 'Settings',
     createEndpoint: '/api/customers',
     listEndpoint: '/api/customers',
     fields: [
@@ -86,7 +86,7 @@ export const moduleConfigs = {
   },
   brokers: {
     title: 'Brokers & Commission',
-    subtitle: 'Masters',
+    subtitle: 'Settings',
     createEndpoint: '/api/brokers',
     listEndpoint: '/api/brokers',
     fields: [
@@ -101,7 +101,7 @@ export const moduleConfigs = {
   },
   users: {
     title: 'Users & Roles',
-    subtitle: 'Masters',
+    subtitle: 'Settings',
     createEndpoint: '/api/users',
     listEndpoint: '/api/users',
     fields: [
@@ -119,7 +119,7 @@ export const moduleConfigs = {
   },
   tdsRules: {
     title: 'TDS Rules',
-    subtitle: 'Masters',
+    subtitle: 'Settings',
     createEndpoint: '/api/tds-rules',
     listEndpoint: '/api/tds-rules',
     fields: [

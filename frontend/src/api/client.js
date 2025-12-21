@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'
+  baseURL: '/api'
 });
 
 apiClient.interceptors.request.use((config) => {
@@ -11,5 +11,13 @@ apiClient.interceptors.request.use((config) => {
   }
   return config;
 });
+
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const message = error?.response?.data?.message || 'Something went wrong. Please try again.';
+    return Promise.reject({ ...error, message });
+  }
+);
 
 export default apiClient;

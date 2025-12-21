@@ -5,11 +5,32 @@ import { Navigate } from 'react-router-dom';
 import MainLayout from 'layout/MainLayout';
 import Loadable from 'ui-component/Loadable';
 import AuthGuard from './AuthGuard';
-import { moduleConfigs } from 'views/erp/moduleConfig';
-
 // dashboard routing
 const DashboardDefault = Loadable(lazy(() => import('views/dashboard/Default')));
-const ModulePage = Loadable(lazy(() => import('views/erp/ModulePage')));
+const SettingsEntityRouter = Loadable(lazy(() => import('views/erp/pages/settings/SettingsEntityRouter')));
+const RfqPage = Loadable(lazy(() => import('views/erp/pages/purchase/RfqPage')));
+const PurchaseOrderPage = Loadable(lazy(() => import('views/erp/pages/purchase/PurchaseOrderPage')));
+const GrnPage = Loadable(lazy(() => import('views/erp/pages/purchase/GrnPage')));
+const PurchaseInvoicePage = Loadable(lazy(() => import('views/erp/pages/purchase/PurchaseInvoicePage')));
+const DebitNotePage = Loadable(lazy(() => import('views/erp/pages/purchase/DebitNotePage')));
+const SalesOrderPage = Loadable(lazy(() => import('views/erp/pages/sales/SalesOrderPage')));
+const DeliveryNotePage = Loadable(lazy(() => import('views/erp/pages/sales/DeliveryNotePage')));
+const TaxInvoicePage = Loadable(lazy(() => import('views/erp/pages/sales/TaxInvoicePage')));
+const CreditNotePage = Loadable(lazy(() => import('views/erp/pages/sales/CreditNotePage')));
+const ReceiptPage = Loadable(lazy(() => import('views/erp/pages/sales/ReceiptPage')));
+const StockTransferPage = Loadable(lazy(() => import('views/erp/pages/inventory/StockTransferPage')));
+const StockLedgerPage = Loadable(lazy(() => import('views/erp/pages/inventory/StockLedgerPage')));
+const ItemBalancesPage = Loadable(lazy(() => import('views/erp/pages/inventory/ItemBalancesPage')));
+const ProcessTemplatesPage = Loadable(lazy(() => import('views/erp/pages/production/ProcessTemplatesPage')));
+const ProductionOrdersPage = Loadable(lazy(() => import('views/erp/pages/production/ProductionOrdersPage')));
+const ProcessExecutionPage = Loadable(lazy(() => import('views/erp/pages/production/ProcessExecutionPage')));
+const ReprocessScrapPage = Loadable(lazy(() => import('views/erp/pages/production/ReprocessScrapPage')));
+const LedgerReportPage = Loadable(lazy(() => import('views/erp/pages/reports/LedgerReportPage')));
+const OutstandingReportPage = Loadable(lazy(() => import('views/erp/pages/reports/OutstandingReportPage')));
+const AgeingReportPage = Loadable(lazy(() => import('views/erp/pages/reports/AgeingReportPage')));
+const ProfilePage = Loadable(lazy(() => import('views/erp/pages/profile/ProfilePage')));
+const ChangePasswordPage = Loadable(lazy(() => import('views/erp/pages/profile/ChangePasswordPage')));
+const DevToolsPage = Loadable(lazy(() => import('views/erp/pages/dev-tools/DevToolsPage')));
 
 // ==============================|| MAIN ROUTING ||============================== //
 
@@ -30,54 +51,75 @@ const MainRoutes = {
       element: <DashboardDefault />
     },
     {
-      path: 'masters',
+      path: 'settings',
       children: [
-        { path: 'suppliers', element: <ModulePage config={moduleConfigs.suppliers} /> },
-        { path: 'items', element: <ModulePage config={moduleConfigs.items} /> },
-        { path: 'locations', element: <ModulePage config={moduleConfigs.locations} /> },
-        { path: 'vehicles', element: <ModulePage config={moduleConfigs.vehicles} /> },
-        { path: 'customers', element: <ModulePage config={moduleConfigs.customers} /> },
-        { path: 'brokers', element: <ModulePage config={moduleConfigs.brokers} /> },
-        { path: 'users', element: <ModulePage config={moduleConfigs.users} /> },
-        { path: 'tds-rules', element: <ModulePage config={moduleConfigs.tdsRules} /> }
+        { path: '', element: <Navigate to="/settings/company" replace /> },
+        { path: ':entity', element: <SettingsEntityRouter /> }
       ]
     },
     {
       path: 'purchase',
       children: [
-        { path: 'rfq', element: <ModulePage config={moduleConfigs.rfq} /> },
-        { path: 'po', element: <ModulePage config={moduleConfigs.purchaseOrders} /> },
-        { path: 'weighbridge-in', element: <ModulePage config={moduleConfigs.weighbridgeIn} /> },
-        { path: 'grn', element: <ModulePage config={moduleConfigs.grn} /> },
-        { path: 'qc', element: <ModulePage config={moduleConfigs.qc} /> },
-        { path: 'purchase-invoice', element: <ModulePage config={moduleConfigs.purchaseInvoice} /> },
-        { path: 'debit-note', element: <ModulePage config={moduleConfigs.debitNote} /> }
+        { path: 'rfq', element: <RfqPage /> },
+        { path: 'purchase-order', element: <PurchaseOrderPage /> },
+        { path: 'grn', element: <GrnPage /> },
+        { path: 'purchase-invoice', element: <PurchaseInvoicePage /> },
+        { path: 'debit-note', element: <DebitNotePage /> }
       ]
     },
     {
       path: 'sales',
       children: [
-        { path: 'so', element: <ModulePage config={moduleConfigs.salesOrders} /> },
-        { path: 'weighbridge-out', element: <ModulePage config={moduleConfigs.weighbridgeOut} /> },
-        { path: 'delivery', element: <ModulePage config={moduleConfigs.delivery} /> },
-        { path: 'sales-invoice', element: <ModulePage config={moduleConfigs.salesInvoice} /> }
+        { path: 'sales-order', element: <SalesOrderPage /> },
+        { path: 'delivery-note', element: <DeliveryNotePage /> },
+        { path: 'tax-invoice', element: <TaxInvoicePage /> },
+        { path: 'credit-note', element: <CreditNotePage /> },
+        { path: 'receipt', element: <ReceiptPage /> }
       ]
     },
     {
       path: 'inventory',
       children: [
-        { path: 'stock-on-hand', element: <ModulePage config={moduleConfigs.stockOnHand} /> },
-        { path: 'stock-ledger', element: <ModulePage config={moduleConfigs.stockLedger} /> },
-        { path: 'stock-transfer', element: <ModulePage config={moduleConfigs.stockTransfer} /> }
+        { path: 'stock-transfer', element: <StockTransferPage /> },
+        { path: 'stock-ledger', element: <StockLedgerPage /> },
+        { path: 'item-balances', element: <ItemBalancesPage /> }
+      ]
+    },
+    {
+      path: 'production',
+      children: [
+        { path: 'process-templates', element: <ProcessTemplatesPage /> },
+        { path: 'production-orders', element: <ProductionOrdersPage /> },
+        { path: 'process-execution', element: <ProcessExecutionPage /> },
+        { path: 'reprocess-scrap', element: <ReprocessScrapPage /> }
       ]
     },
     {
       path: 'reports',
-      element: <ModulePage config={moduleConfigs.reports} />
+      children: [
+        { path: 'ledger', element: <LedgerReportPage /> },
+        { path: 'outstanding', element: <OutstandingReportPage /> },
+        { path: 'ageing', element: <AgeingReportPage /> }
+      ]
     },
     {
-      path: 'settings',
-      element: <ModulePage config={moduleConfigs.settings} />
+      path: 'profile',
+      children: [
+        { path: '', element: <ProfilePage /> },
+        { path: 'change-password', element: <ChangePasswordPage /> }
+      ]
+    },
+    ...(import.meta.env.DEV
+      ? [
+          {
+            path: 'dev-tools',
+            element: <DevToolsPage />
+          }
+        ]
+      : []),
+    {
+      path: 'dev-tools',
+      element: <Navigate to="/dashboard" replace />
     },
     {
       path: '*',
