@@ -36,7 +36,7 @@ public class SecurityConfig {
         .cors(cors -> cors.configurationSource(corsConfigurationSource()))
         .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
         .authorizeHttpRequests(auth -> auth
-            .requestMatchers("/api/auth/**", "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**")
+            .requestMatchers("/api/auth/**", "/actuator/health", "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**")
             .permitAll()
             .anyRequest().authenticated())
         .authenticationProvider(authenticationProvider())
@@ -56,6 +56,9 @@ public class SecurityConfig {
   public CorsConfigurationSource corsConfigurationSource() {
     CorsConfiguration config = new CorsConfiguration();
     config.setAllowedOrigins(List.of(
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "http://localhost:3002",
         "http://localhost:5173",
         "http://localhost:5174"
     ));

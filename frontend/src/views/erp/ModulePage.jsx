@@ -1,5 +1,6 @@
 import PropTypes from 'prop-types';
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 // material-ui
 import Alert from '@mui/material/Alert';
@@ -38,6 +39,7 @@ const lookupEndpoints = {
 };
 
 export default function ModulePage({ config }) {
+  const navigate = useNavigate();
   const [filters, setFilters] = useState({ search: '', from: '', to: '', status: '' });
   const [formState, setFormState] = useState({});
   const [rows, setRows] = useState([]);
@@ -48,6 +50,8 @@ export default function ModulePage({ config }) {
   const fields = config.fields || [];
   const columns = config.columns || [];
   const createEnabled = Boolean(config.createEndpoint);
+  const useInlineCreate = config.useInlineCreate !== false;
+  const showActions = Boolean(config.detailRouteBase || config.editRouteBase);
 
   const fieldLookups = useMemo(
     () => fields.filter((field) => field.optionsSource).map((field) => field.optionsSource),
@@ -71,16 +75,17 @@ export default function ModulePage({ config }) {
     });
   }, [fieldLookups, lookups]);
 
-  const loadRows = () => {
+  const loadRows = (params = {}) => {
     if (!config.listEndpoint) {
       setRows([]);
       return;
     }
     setLoading(true);
     apiClient
-      .get(config.listEndpoint)
+      .get(config.listEndpoint, { params })
       .then((response) => {
-        setRows(response.data || []);
+        const payload = response.data || [];
+        setRows(payload.content || payload);
       })
       .catch(() => {
         setRows([]);
@@ -91,6 +96,17 @@ export default function ModulePage({ config }) {
   useEffect(() => {
     loadRows();
   }, [config.listEndpoint]);
+
+  useEffect(() => {
+    if (!config.enableFilters) return;
+    const handle = setTimeout(() => {
+      loadRows({
+        q: filters.search || undefined,
+        status: filters.status || undefined
+      });
+    }, 300);
+    return () => clearTimeout(handle);
+  }, [filters, config.enableFilters]);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -128,49 +144,46 @@ export default function ModulePage({ config }) {
               </Stack>
             }
             secondary={
-              <Button variant="contained" color="secondary" disabled={!createEnabled} type="submit" form="module-form">
+              <Button
+                variant="contained"
+                color="secondary"
+                disabled={!createEnabled}
+                type={createEnabled && useInlineCreate ? 'submit' : 'button'}
+                form={createEnabled && useInlineCreate ? 'module-form' : undefined}
+                onClick={
+                  config.createRoute
+                    ? () => navigate(config.createRoute)
+                    : undefined
+                }
+              >
                 Create
               </Button>
             }
           >
             <Stack spacing={2}>
-              <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ xs: 'stretch', md: 'center' }}>
-                <TextField
-                  fullWidth
-                  label="Search"
-                  value={filters.search}
-                  onChange={(event) => setFilters({ ...filters, search: event.target.value })}
-                />
-                <TextField
-                  fullWidth
-                  type="date"
-                  label="From"
-                  InputLabelProps={{ shrink: true }}
-                  value={filters.from}
-                  onChange={(event) => setFilters({ ...filters, from: event.target.value })}
-                />
-                <TextField
-                  fullWidth
-                  type="date"
-                  label="To"
-                  InputLabelProps={{ shrink: true }}
-                  value={filters.to}
-                  onChange={(event) => setFilters({ ...filters, to: event.target.value })}
-                />
-                <TextField
-                  fullWidth
-                  select
-                  label="Status"
-                  value={filters.status}
-                  onChange={(event) => setFilters({ ...filters, status: event.target.value })}
-                >
-                  <MenuItem value="">All</MenuItem>
-                  <MenuItem value="DRAFT">Draft</MenuItem>
-                  <MenuItem value="PENDING">Pending</MenuItem>
-                  <MenuItem value="APPROVED">Approved</MenuItem>
-                </TextField>
-              </Stack>
-              {createEnabled && fields.length > 0 && (
+              {config.enableFilters && (
+                <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ xs: 'stretch', md: 'center' }}>
+                  <TextField
+                    fullWidth
+                    label="Search"
+                    value={filters.search}
+                    onChange={(event) => setFilters({ ...filters, search: event.target.value })}
+                  />
+                  <TextField
+                    fullWidth
+                    select
+                    label="Status"
+                    value={filters.status}
+                    onChange={(event) => setFilters({ ...filters, status: event.target.value })}
+                  >
+                    <MenuItem value="">All</MenuItem>
+                    <MenuItem value="DRAFT">Draft</MenuItem>
+                    <MenuItem value="SUBMITTED">Submitted</MenuItem>
+                    <MenuItem value="APPROVED">Approved</MenuItem>
+                  </TextField>
+                </Stack>
+              )}
+              {createEnabled && useInlineCreate && fields.length > 0 && (
                 <>
                   <Divider />
                   <Box component="form" id="module-form" onSubmit={handleSubmit}>
@@ -244,16 +257,28 @@ export default function ModulePage({ config }) {
                         ) : (
                           <TableCell>No data configured</TableCell>
                         )}
+                        {showActions && <TableCell align="right">Actions</TableCell>}
                       </TableRow>
                     </TableHead>
                     <TableBody>
                       {rows.length === 0 && (
                         <TableRow>
-                          <TableCell colSpan={columns.length || 1}>{loading ? 'Loading...' : 'No records found'}</TableCell>
+                          <TableCell colSpan={(columns.length || 1) + (showActions ? 1 : 0)}>
+                            {loading ? 'Loading...' : 'No records found'}
+                          </TableCell>
                         </TableRow>
                       )}
                       {rows.map((row) => (
-                        <TableRow key={row.id || JSON.stringify(row)}>
+                        <TableRow
+                          key={row.id || JSON.stringify(row)}
+                          hover={Boolean(config.detailRouteBase)}
+                          onClick={
+                            config.detailRouteBase
+                              ? () => navigate(`${config.detailRouteBase}/${row.id}`)
+                              : undefined
+                          }
+                          sx={{ cursor: config.detailRouteBase ? 'pointer' : 'default' }}
+                        >
                           {columns.map((column) => (
                             <TableCell key={`${row.id}-${column.field}`}>
                               {Array.isArray(row[column.field])
@@ -261,6 +286,20 @@ export default function ModulePage({ config }) {
                                 : row[column.field] ?? '-'}
                             </TableCell>
                           ))}
+                          {showActions && (
+                            <TableCell align="right" onClick={(event) => event.stopPropagation()}>
+                              {config.detailRouteBase && (
+                                <Button size="small" onClick={() => navigate(`${config.detailRouteBase}/${row.id}`)}>
+                                  View
+                                </Button>
+                              )}
+                              {config.editRouteBase && (
+                                <Button size="small" onClick={() => navigate(`${config.editRouteBase}/${row.id}/edit`)}>
+                                  Edit
+                                </Button>
+                              )}
+                            </TableCell>
+                          )}
                         </TableRow>
                       ))}
                     </TableBody>

@@ -141,14 +141,17 @@ export const moduleConfigs = {
     subtitle: 'Purchase',
     createEndpoint: '/api/rfq',
     listEndpoint: '/api/rfq',
-    fields: [
-      { name: 'rfqNo', label: 'RFQ Number', type: 'text' },
-      { name: 'status', label: 'Status', type: 'select', options: documentStatusOptions }
-    ],
+    createRoute: '/purchase/rfq/new',
+    detailRouteBase: '/purchase/rfq',
+    editRouteBase: '/purchase/rfq',
+    useInlineCreate: false,
+    enableFilters: true,
     columns: [
       { label: 'ID', field: 'id' },
       { label: 'RFQ No', field: 'rfqNo' },
-      { label: 'Status', field: 'status' }
+      { label: 'Supplier', field: 'supplierId' },
+      { label: 'Status', field: 'status' },
+      { label: 'Date', field: 'rfqDate' }
     ]
   },
   purchaseOrders: {
@@ -156,16 +159,17 @@ export const moduleConfigs = {
     subtitle: 'Purchase',
     createEndpoint: '/api/purchase-orders',
     listEndpoint: '/api/purchase-orders',
-    fields: [
-      { name: 'poNo', label: 'PO Number', type: 'text' },
-      { name: 'supplierId', label: 'Supplier', type: 'select', optionsSource: 'suppliers' },
-      { name: 'status', label: 'Status', type: 'select', options: documentStatusOptions }
-    ],
+    createRoute: '/purchase/po/new',
+    detailRouteBase: '/purchase/po',
+    editRouteBase: '/purchase/po',
+    useInlineCreate: false,
+    enableFilters: true,
     columns: [
       { label: 'ID', field: 'id' },
       { label: 'PO No', field: 'poNo' },
       { label: 'Supplier', field: 'supplierId' },
-      { label: 'Status', field: 'status' }
+      { label: 'Status', field: 'status' },
+      { label: 'Date', field: 'poDate' }
     ]
   },
   weighbridgeIn: {

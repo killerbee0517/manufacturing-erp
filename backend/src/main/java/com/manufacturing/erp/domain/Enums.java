@@ -5,6 +5,7 @@ public class Enums {
 
   public enum DocumentStatus {
     DRAFT,
+    SUBMITTED,
     APPROVED,
     RELEASED,
     POSTED,

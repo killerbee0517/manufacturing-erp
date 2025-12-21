@@ -9,7 +9,13 @@ import AuthGuard from './AuthGuard';
 const DashboardDefault = Loadable(lazy(() => import('views/dashboard/Default')));
 const SettingsEntityRouter = Loadable(lazy(() => import('views/erp/pages/settings/SettingsEntityRouter')));
 const RfqPage = Loadable(lazy(() => import('views/erp/pages/purchase/RfqPage')));
+const RfqCreatePage = Loadable(lazy(() => import('views/erp/pages/purchase/RfqCreatePage')));
+const RfqDetailPage = Loadable(lazy(() => import('views/erp/pages/purchase/RfqDetailPage')));
+const RfqEditPage = Loadable(lazy(() => import('views/erp/pages/purchase/RfqEditPage')));
 const PurchaseOrderPage = Loadable(lazy(() => import('views/erp/pages/purchase/PurchaseOrderPage')));
+const PoCreatePage = Loadable(lazy(() => import('views/erp/pages/purchase/PoCreatePage')));
+const PoDetailPage = Loadable(lazy(() => import('views/erp/pages/purchase/PoDetailPage')));
+const PoEditPage = Loadable(lazy(() => import('views/erp/pages/purchase/PoEditPage')));
 const GrnPage = Loadable(lazy(() => import('views/erp/pages/purchase/GrnPage')));
 const PurchaseInvoicePage = Loadable(lazy(() => import('views/erp/pages/purchase/PurchaseInvoicePage')));
 const DebitNotePage = Loadable(lazy(() => import('views/erp/pages/purchase/DebitNotePage')));
@@ -61,7 +67,13 @@ const MainRoutes = {
       path: 'purchase',
       children: [
         { path: 'rfq', element: <RfqPage /> },
+        { path: 'rfq/new', element: <RfqCreatePage /> },
+        { path: 'rfq/:id', element: <RfqDetailPage /> },
+        { path: 'rfq/:id/edit', element: <RfqEditPage /> },
         { path: 'purchase-order', element: <PurchaseOrderPage /> },
+        { path: 'purchase-order/new', element: <PoCreatePage /> },
+        { path: 'purchase-order/:id', element: <PoDetailPage /> },
+        { path: 'purchase-order/:id/edit', element: <PoEditPage /> },
         { path: 'grn', element: <GrnPage /> },
         { path: 'purchase-invoice', element: <PurchaseInvoicePage /> },
         { path: 'debit-note', element: <DebitNotePage /> }
