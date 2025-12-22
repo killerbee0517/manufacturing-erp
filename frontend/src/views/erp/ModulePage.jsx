@@ -22,7 +22,6 @@ import TableRow from '@mui/material/TableRow';
 
 // project imports
 import MainCard from 'ui-component/cards/MainCard';
-import Breadcrumbs from 'ui-component/extended/Breadcrumbs';
 import { gridSpacing } from 'store/constant';
 import apiClient from 'api/client';
 
@@ -133,7 +132,6 @@ export default function ModulePage({ config }) {
 
   return (
     <>
-      <Breadcrumbs card={false} divider={false} title />
       <Grid container spacing={gridSpacing}>
         <Grid size={12}>
           <MainCard
