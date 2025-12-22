@@ -8,7 +8,9 @@ import AuthGuard from './AuthGuard';
 // dashboard routing
 const DashboardDefault = Loadable(lazy(() => import('views/dashboard/Default')));
 const SettingsEntityRouter = Loadable(lazy(() => import('views/erp/pages/settings/SettingsEntityRouter')));
-const MastersEntityRouter = Loadable(lazy(() => import('views/erp/pages/masters/MastersEntityRouter')));
+const MastersListPage = Loadable(lazy(() => import('views/erp/pages/masters/MastersListPage')));
+const MasterFormPage = Loadable(lazy(() => import('views/erp/pages/masters/MasterFormPage')));
+const MasterDetailPage = Loadable(lazy(() => import('views/erp/pages/masters/MasterDetailPage')));
 const AdminEntityRouter = Loadable(lazy(() => import('views/erp/pages/admin/AdminEntityRouter')));
 const RfqPage = Loadable(lazy(() => import('views/erp/pages/purchase/RfqPage')));
 const RfqCreatePage = Loadable(lazy(() => import('views/erp/pages/purchase/RfqCreatePage')));
@@ -71,7 +73,12 @@ const MainRoutes = {
     },
     {
       path: 'masters',
-      children: [{ path: ':entity', element: <MastersEntityRouter /> }]
+      children: [
+        { path: ':entity', element: <MastersListPage /> },
+        { path: ':entity/new', element: <MasterFormPage mode="create" /> },
+        { path: ':entity/:id', element: <MasterDetailPage /> },
+        { path: ':entity/:id/edit', element: <MasterFormPage mode="edit" /> }
+      ]
     },
     {
       path: 'admin',

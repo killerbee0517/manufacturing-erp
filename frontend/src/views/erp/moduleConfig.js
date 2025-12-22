@@ -13,7 +13,8 @@ export const moduleConfigs = {
     createEndpoint: '/api/suppliers',
     listEndpoint: '/api/suppliers',
     fields: [
-      { name: 'name', label: 'Supplier Name', type: 'text' },
+      { name: 'name', label: 'Supplier Name', type: 'text', required: true },
+      { name: 'code', label: 'Supplier Code', type: 'text', required: true },
       { name: 'address', label: 'Address', type: 'text' },
       { name: 'state', label: 'State', type: 'text' },
       { name: 'country', label: 'Country', type: 'text' },
@@ -27,7 +28,8 @@ export const moduleConfigs = {
       { name: 'creditPeriod', label: 'Credit Period', type: 'number' }
     ],
     columns: [
-      { label: 'ID', field: 'vendorId' },
+      { label: 'ID', field: 'id' },
+      { label: 'Code', field: 'code' },
       { label: 'Name', field: 'name' },
       { label: 'GST No', field: 'gstNo' },
       { label: 'Contact', field: 'contact' }
@@ -39,12 +41,12 @@ export const moduleConfigs = {
     createEndpoint: '/api/items',
     listEndpoint: '/api/items',
     fields: [
-      { name: 'name', label: 'Item Name', type: 'text' },
-      { name: 'sku', label: 'SKU', type: 'text' },
-      { name: 'uomId', label: 'UOM', type: 'select', optionsSource: 'uoms' }
+      { name: 'name', label: 'Item Name', type: 'text', required: true },
+      { name: 'sku', label: 'SKU', type: 'text', required: true },
+      { name: 'uomId', label: 'UOM', type: 'select', optionsSource: 'uoms', required: true }
     ],
     columns: [
-      { label: 'ID', field: 'itemId' },
+      { label: 'ID', field: 'id' },
       { label: 'Name', field: 'name' },
       { label: 'SKU', field: 'sku' },
       { label: 'UOM', field: 'uomId' }
@@ -56,13 +58,13 @@ export const moduleConfigs = {
     createEndpoint: '/api/uoms',
     listEndpoint: '/api/uoms',
     fields: [
-      { name: 'name', label: 'UOM Name', type: 'text' },
-      { name: 'symbol', label: 'Symbol', type: 'text' }
+      { name: 'code', label: 'UOM Code', type: 'text', required: true },
+      { name: 'description', label: 'Description', type: 'text' }
     ],
     columns: [
-      { label: 'ID', field: 'uomId' },
-      { label: 'Name', field: 'name' },
-      { label: 'Symbol', field: 'symbol' }
+      { label: 'ID', field: 'id' },
+      { label: 'Code', field: 'code' },
+      { label: 'Description', field: 'description' }
     ]
   },
   banks: {
@@ -71,7 +73,7 @@ export const moduleConfigs = {
     createEndpoint: '/api/banks',
     listEndpoint: '/api/banks',
     fields: [
-      { name: 'name', label: 'Bank Name', type: 'text' },
+      { name: 'name', label: 'Bank Name', type: 'text', required: true },
       { name: 'branch', label: 'Branch', type: 'text' },
       { name: 'accNo', label: 'Account Number', type: 'text' },
       { name: 'ifsc', label: 'IFSC', type: 'text' },
@@ -79,7 +81,7 @@ export const moduleConfigs = {
       { name: 'type', label: 'Type', type: 'text' }
     ],
     columns: [
-      { label: 'ID', field: 'bankId' },
+      { label: 'ID', field: 'id' },
       { label: 'Name', field: 'name' },
       { label: 'Branch', field: 'branch' },
       { label: 'IFSC', field: 'ifsc' }
@@ -91,11 +93,11 @@ export const moduleConfigs = {
     createEndpoint: '/api/godowns',
     listEndpoint: '/api/godowns',
     fields: [
-      { name: 'name', label: 'Godown Name', type: 'text' },
+      { name: 'name', label: 'Godown Name', type: 'text', required: true },
       { name: 'location', label: 'Location', type: 'text' }
     ],
     columns: [
-      { label: 'ID', field: 'godownId' },
+      { label: 'ID', field: 'id' },
       { label: 'Name', field: 'name' },
       { label: 'Location', field: 'location' }
     ]
@@ -106,12 +108,12 @@ export const moduleConfigs = {
     createEndpoint: '/api/vehicles',
     listEndpoint: '/api/vehicles',
     fields: [
-      { name: 'vehicleNo', label: 'Vehicle Number', type: 'text' },
+      { name: 'vehicleNo', label: 'Vehicle Number', type: 'text', required: true },
       { name: 'vehicleType', label: 'Vehicle Type', type: 'text' },
       { name: 'registrationDate', label: 'Registration Date', type: 'date' }
     ],
     columns: [
-      { label: 'ID', field: 'vehicleId' },
+      { label: 'ID', field: 'id' },
       { label: 'Vehicle Number', field: 'vehicleNo' },
       { label: 'Type', field: 'vehicleType' }
     ]
@@ -122,7 +124,8 @@ export const moduleConfigs = {
     createEndpoint: '/api/customers',
     listEndpoint: '/api/customers',
     fields: [
-      { name: 'name', label: 'Customer Name', type: 'text' },
+      { name: 'name', label: 'Customer Name', type: 'text', required: true },
+      { name: 'code', label: 'Customer Code', type: 'text', required: true },
       { name: 'address', label: 'Address', type: 'text' },
       { name: 'state', label: 'State', type: 'text' },
       { name: 'country', label: 'Country', type: 'text' },
@@ -135,7 +138,8 @@ export const moduleConfigs = {
       { name: 'creditPeriod', label: 'Credit Period', type: 'number' }
     ],
     columns: [
-      { label: 'ID', field: 'customerId' },
+      { label: 'ID', field: 'id' },
+      { label: 'Code', field: 'code' },
       { label: 'Name', field: 'name' },
       { label: 'GST No', field: 'gstNo' },
       { label: 'Contact', field: 'contact' }
@@ -147,8 +151,8 @@ export const moduleConfigs = {
     createEndpoint: '/api/brokers',
     listEndpoint: '/api/brokers',
     fields: [
-      { name: 'name', label: 'Broker Name', type: 'text' },
-      { name: 'code', label: 'Broker Code', type: 'text' }
+      { name: 'name', label: 'Broker Name', type: 'text', required: true },
+      { name: 'code', label: 'Broker Code', type: 'text', required: true }
     ],
     columns: [
       { label: 'ID', field: 'id' },
