@@ -8,7 +8,8 @@ import {
   IconReportAnalytics,
   IconSettings,
   IconBuildingFactory2,
-  IconClipboardList
+  IconClipboardList,
+  IconBuildingWarehouse
 } from '@tabler/icons-react';
 
 // constant
@@ -21,7 +22,8 @@ const icons = {
   IconReportAnalytics,
   IconSettings,
   IconBuildingFactory2,
-  IconClipboardList
+  IconClipboardList,
+  IconBuildingWarehouse
 };
 
 // ==============================|| ERP MENU ITEMS ||============================== //
@@ -50,22 +52,21 @@ const erp = {
       breadcrumbs: false
     },
     {
-      id: 'settings',
-      title: 'Settings',
+      id: 'masters',
+      title: 'Masters',
       type: 'collapse',
-      icon: icons.IconUsers,
+      icon: icons.IconBuildingWarehouse,
       children: [
-        { id: 'settings-company', title: 'Company', type: 'item', url: '/settings/company' },
-        { id: 'settings-ledgers', title: 'Ledgers', type: 'item', url: '/settings/ledgers' },
-        { id: 'settings-ledger-groups', title: 'Ledger Groups', type: 'item', url: '/settings/ledger-groups' },
-        { id: 'settings-stock-items', title: 'Stock Items', type: 'item', url: '/settings/stock-items' },
-        { id: 'settings-stock-groups', title: 'Stock Groups', type: 'item', url: '/settings/stock-groups' },
-        { id: 'settings-uom', title: 'UOM', type: 'item', url: '/settings/uom' },
-        { id: 'settings-godowns', title: 'Godowns', type: 'item', url: '/settings/godowns' },
-        { id: 'settings-cost-categories', title: 'Cost Categories', type: 'item', url: '/settings/cost-categories' },
-        { id: 'settings-cost-centers', title: 'Cost Centers', type: 'item', url: '/settings/cost-centers' },
-        { id: 'settings-gst-hsn', title: 'GST & HSN', type: 'item', url: '/settings/gst-hsn' },
-        { id: 'settings-document-series', title: 'Document Series', type: 'item', url: '/settings/document-series' }
+        { id: 'masters-suppliers', title: 'Supplier Management', type: 'item', url: '/masters/suppliers' },
+        { id: 'masters-customers', title: 'Customer Management', type: 'item', url: '/masters/customers' },
+        { id: 'masters-banks', title: 'Bank Details', type: 'item', url: '/masters/banks' },
+        { id: 'masters-vehicles', title: 'Vehicle Management', type: 'item', url: '/masters/vehicles' },
+        { id: 'masters-godowns', title: 'Godown Management', type: 'item', url: '/masters/godowns' },
+        { id: 'masters-items', title: 'Item Master', type: 'item', url: '/masters/items' },
+        { id: 'masters-uoms', title: 'UOM Master', type: 'item', url: '/masters/uoms' },
+        { id: 'masters-brokers', title: 'Broker Master', type: 'item', url: '/masters/brokers' },
+        { id: 'admin-users', title: 'User Management', type: 'item', url: '/admin/users' },
+        { id: 'admin-roles', title: 'Role Management', type: 'item', url: '/admin/roles' }
       ]
     },
     {
@@ -78,8 +79,20 @@ const erp = {
         { id: 'purchase-po', title: 'Purchase Order', type: 'item', url: '/purchase/po' },
         { id: 'purchase-weighbridge', title: 'Weighbridge In', type: 'item', url: '/purchase/weighbridge-in' },
         { id: 'purchase-grn', title: 'GRN', type: 'item', url: '/purchase/grn' },
+        { id: 'purchase-arrival', title: 'Purchase Arrival', type: 'item', url: '/purchase/arrival' },
         { id: 'purchase-invoice', title: 'Purchase Invoice', type: 'item', url: '/purchase/purchase-invoice' },
         { id: 'purchase-debit', title: 'Debit Note', type: 'item', url: '/purchase/debit-note' }
+      ]
+    },
+    {
+      id: 'inventory',
+      title: 'Inventory',
+      type: 'collapse',
+      icon: icons.IconPackage,
+      children: [
+        { id: 'inventory-stock-on-hand', title: 'Stock On Hand', type: 'item', url: '/inventory/stock-on-hand' },
+        { id: 'inventory-stock-transfer', title: 'Stock Transfer', type: 'item', url: '/inventory/stock-transfer' },
+        { id: 'inventory-stock-ledger', title: 'Stock Ledger', type: 'item', url: '/inventory/stock-ledger' }
       ]
     },
     {
@@ -93,17 +106,6 @@ const erp = {
         { id: 'sales-tax-invoice', title: 'Tax Invoice', type: 'item', url: '/sales/tax-invoice' },
         { id: 'sales-credit-note', title: 'Credit Note', type: 'item', url: '/sales/credit-note' },
         { id: 'sales-receipt', title: 'Receipt', type: 'item', url: '/sales/receipt' }
-      ]
-    },
-    {
-      id: 'inventory',
-      title: 'Inventory',
-      type: 'collapse',
-      icon: icons.IconPackage,
-      children: [
-        { id: 'inventory-stock-transfer', title: 'Stock Transfer', type: 'item', url: '/inventory/stock-transfer' },
-        { id: 'inventory-stock-ledger', title: 'Stock Ledger', type: 'item', url: '/inventory/stock-ledger' },
-        { id: 'inventory-item-balances', title: 'Item Balances', type: 'item', url: '/inventory/item-balances' }
       ]
     },
     {
@@ -129,7 +131,14 @@ const erp = {
         { id: 'reports-ageing', title: 'Ageing', type: 'item', url: '/reports/ageing' }
       ]
     },
-    ...(devToolsItem ? [devToolsItem] : [])
+    ...(devToolsItem ? [devToolsItem] : []),
+    {
+      id: 'settings',
+      title: 'Settings',
+      type: 'item',
+      url: '/settings',
+      icon: icons.IconSettings
+    }
   ]
 };
 

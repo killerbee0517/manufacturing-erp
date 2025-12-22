@@ -9,24 +9,34 @@ export const moduleConfigs = {
   },
   suppliers: {
     title: 'Suppliers',
-    subtitle: 'Settings',
+    subtitle: 'Masters',
     createEndpoint: '/api/suppliers',
     listEndpoint: '/api/suppliers',
     fields: [
       { name: 'name', label: 'Supplier Name', type: 'text' },
       { name: 'code', label: 'Supplier Code', type: 'text' },
-      { name: 'pan', label: 'PAN', type: 'text' }
+      { name: 'address', label: 'Address', type: 'text' },
+      { name: 'state', label: 'State', type: 'text' },
+      { name: 'country', label: 'Country', type: 'text' },
+      { name: 'pinCode', label: 'Pin Code', type: 'text' },
+      { name: 'pan', label: 'PAN', type: 'text' },
+      { name: 'gstNo', label: 'GST No', type: 'text' },
+      { name: 'contact', label: 'Contact', type: 'text' },
+      { name: 'email', label: 'Email', type: 'text' },
+      { name: 'bankId', label: 'Bank', type: 'select', optionsSource: 'banks' },
+      { name: 'supplierType', label: 'Supplier Type', type: 'select', options: ['DIRECT', 'BROKER'] },
+      { name: 'creditPeriod', label: 'Credit Period', type: 'number' }
     ],
     columns: [
       { label: 'ID', field: 'id' },
       { label: 'Name', field: 'name' },
-      { label: 'Code', field: 'code' },
-      { label: 'PAN', field: 'pan' }
+      { label: 'GST No', field: 'gstNo' },
+      { label: 'Contact', field: 'contact' }
     ]
   },
   items: {
     title: 'Items',
-    subtitle: 'Settings',
+    subtitle: 'Masters',
     createEndpoint: '/api/items',
     listEndpoint: '/api/items',
     fields: [
@@ -41,52 +51,101 @@ export const moduleConfigs = {
       { label: 'UOM', field: 'uomId' }
     ]
   },
-  locations: {
-    title: 'Locations (Godown/Storage)',
-    subtitle: 'Settings',
-    createEndpoint: '/api/locations',
-    listEndpoint: '/api/locations',
+  uoms: {
+    title: 'UOM',
+    subtitle: 'Masters',
+    createEndpoint: '/api/uoms',
+    listEndpoint: '/api/uoms',
     fields: [
-      { name: 'name', label: 'Location Name', type: 'text' },
-      { name: 'code', label: 'Location Code', type: 'text' },
-      { name: 'locationType', label: 'Location Type', type: 'select', options: ['GODOWN', 'BIN'] }
+      { name: 'code', label: 'UOM Code', type: 'text' },
+      { name: 'description', label: 'Description', type: 'text' }
+    ],
+    columns: [
+      { label: 'ID', field: 'id' },
+      { label: 'Code', field: 'code' },
+      { label: 'Description', field: 'description' }
+    ]
+  },
+  banks: {
+    title: 'Bank Details',
+    subtitle: 'Masters',
+    createEndpoint: '/api/banks',
+    listEndpoint: '/api/banks',
+    fields: [
+      { name: 'name', label: 'Bank Name', type: 'text' },
+      { name: 'branch', label: 'Branch', type: 'text' },
+      { name: 'accNo', label: 'Account Number', type: 'text' },
+      { name: 'ifsc', label: 'IFSC', type: 'text' },
+      { name: 'swiftCode', label: 'Swift Code', type: 'text' },
+      { name: 'type', label: 'Type', type: 'text' }
     ],
     columns: [
       { label: 'ID', field: 'id' },
       { label: 'Name', field: 'name' },
-      { label: 'Code', field: 'code' },
-      { label: 'Type', field: 'locationType' }
+      { label: 'Branch', field: 'branch' },
+      { label: 'IFSC', field: 'ifsc' }
+    ]
+  },
+  godowns: {
+    title: 'Godowns',
+    subtitle: 'Masters',
+    createEndpoint: '/api/godowns',
+    listEndpoint: '/api/godowns',
+    fields: [
+      { name: 'name', label: 'Godown Name', type: 'text' },
+      { name: 'location', label: 'Location', type: 'text' }
+    ],
+    columns: [
+      { label: 'ID', field: 'id' },
+      { label: 'Name', field: 'name' },
+      { label: 'Location', field: 'location' }
     ]
   },
   vehicles: {
     title: 'Vehicles',
-    subtitle: 'Settings',
+    subtitle: 'Masters',
     createEndpoint: '/api/vehicles',
     listEndpoint: '/api/vehicles',
-    fields: [{ name: 'vehicleNo', label: 'Vehicle Number', type: 'text' }],
+    fields: [
+      { name: 'vehicleNo', label: 'Vehicle Number', type: 'text' },
+      { name: 'vehicleType', label: 'Vehicle Type', type: 'text' },
+      { name: 'registrationDate', label: 'Registration Date', type: 'date' }
+    ],
     columns: [
       { label: 'ID', field: 'id' },
-      { label: 'Vehicle Number', field: 'vehicleNo' }
+      { label: 'Vehicle Number', field: 'vehicleNo' },
+      { label: 'Type', field: 'vehicleType' }
     ]
   },
   customers: {
     title: 'Customers',
-    subtitle: 'Settings',
+    subtitle: 'Masters',
     createEndpoint: '/api/customers',
     listEndpoint: '/api/customers',
     fields: [
       { name: 'name', label: 'Customer Name', type: 'text' },
-      { name: 'code', label: 'Customer Code', type: 'text' }
+      { name: 'code', label: 'Customer Code', type: 'text' },
+      { name: 'address', label: 'Address', type: 'text' },
+      { name: 'state', label: 'State', type: 'text' },
+      { name: 'country', label: 'Country', type: 'text' },
+      { name: 'pinCode', label: 'Pin Code', type: 'text' },
+      { name: 'pan', label: 'PAN', type: 'text' },
+      { name: 'gstNo', label: 'GST No', type: 'text' },
+      { name: 'contact', label: 'Contact', type: 'text' },
+      { name: 'email', label: 'Email', type: 'text' },
+      { name: 'bankId', label: 'Bank', type: 'select', optionsSource: 'banks' },
+      { name: 'creditPeriod', label: 'Credit Period', type: 'number' }
     ],
     columns: [
       { label: 'ID', field: 'id' },
       { label: 'Name', field: 'name' },
-      { label: 'Code', field: 'code' }
+      { label: 'GST No', field: 'gstNo' },
+      { label: 'Contact', field: 'contact' }
     ]
   },
   brokers: {
     title: 'Brokers & Commission',
-    subtitle: 'Settings',
+    subtitle: 'Masters',
     createEndpoint: '/api/brokers',
     listEndpoint: '/api/brokers',
     fields: [
@@ -101,7 +160,7 @@ export const moduleConfigs = {
   },
   users: {
     title: 'Users & Roles',
-    subtitle: 'Settings',
+    subtitle: 'Admin',
     createEndpoint: '/api/users',
     listEndpoint: '/api/users',
     fields: [
@@ -115,6 +174,21 @@ export const moduleConfigs = {
       { label: 'Username', field: 'username' },
       { label: 'Full Name', field: 'fullName' },
       { label: 'Roles', field: 'roles' }
+    ]
+  },
+  roles: {
+    title: 'Roles',
+    subtitle: 'Admin',
+    createEndpoint: '/api/roles',
+    listEndpoint: '/api/roles',
+    fields: [
+      { name: 'name', label: 'Role Name', type: 'text' },
+      { name: 'description', label: 'Description', type: 'text' }
+    ],
+    columns: [
+      { label: 'ID', field: 'id' },
+      { label: 'Name', field: 'name' },
+      { label: 'Description', field: 'description' }
     ]
   },
   tdsRules: {
