@@ -14,7 +14,6 @@ export const moduleConfigs = {
     listEndpoint: '/api/suppliers',
     fields: [
       { name: 'name', label: 'Supplier Name', type: 'text' },
-      { name: 'code', label: 'Supplier Code', type: 'text' },
       { name: 'address', label: 'Address', type: 'text' },
       { name: 'state', label: 'State', type: 'text' },
       { name: 'country', label: 'Country', type: 'text' },
@@ -28,7 +27,7 @@ export const moduleConfigs = {
       { name: 'creditPeriod', label: 'Credit Period', type: 'number' }
     ],
     columns: [
-      { label: 'ID', field: 'id' },
+      { label: 'ID', field: 'vendorId' },
       { label: 'Name', field: 'name' },
       { label: 'GST No', field: 'gstNo' },
       { label: 'Contact', field: 'contact' }
@@ -45,7 +44,7 @@ export const moduleConfigs = {
       { name: 'uomId', label: 'UOM', type: 'select', optionsSource: 'uoms' }
     ],
     columns: [
-      { label: 'ID', field: 'id' },
+      { label: 'ID', field: 'itemId' },
       { label: 'Name', field: 'name' },
       { label: 'SKU', field: 'sku' },
       { label: 'UOM', field: 'uomId' }
@@ -57,13 +56,13 @@ export const moduleConfigs = {
     createEndpoint: '/api/uoms',
     listEndpoint: '/api/uoms',
     fields: [
-      { name: 'code', label: 'UOM Code', type: 'text' },
-      { name: 'description', label: 'Description', type: 'text' }
+      { name: 'name', label: 'UOM Name', type: 'text' },
+      { name: 'symbol', label: 'Symbol', type: 'text' }
     ],
     columns: [
-      { label: 'ID', field: 'id' },
-      { label: 'Code', field: 'code' },
-      { label: 'Description', field: 'description' }
+      { label: 'ID', field: 'uomId' },
+      { label: 'Name', field: 'name' },
+      { label: 'Symbol', field: 'symbol' }
     ]
   },
   banks: {
@@ -80,7 +79,7 @@ export const moduleConfigs = {
       { name: 'type', label: 'Type', type: 'text' }
     ],
     columns: [
-      { label: 'ID', field: 'id' },
+      { label: 'ID', field: 'bankId' },
       { label: 'Name', field: 'name' },
       { label: 'Branch', field: 'branch' },
       { label: 'IFSC', field: 'ifsc' }
@@ -96,7 +95,7 @@ export const moduleConfigs = {
       { name: 'location', label: 'Location', type: 'text' }
     ],
     columns: [
-      { label: 'ID', field: 'id' },
+      { label: 'ID', field: 'godownId' },
       { label: 'Name', field: 'name' },
       { label: 'Location', field: 'location' }
     ]
@@ -112,7 +111,7 @@ export const moduleConfigs = {
       { name: 'registrationDate', label: 'Registration Date', type: 'date' }
     ],
     columns: [
-      { label: 'ID', field: 'id' },
+      { label: 'ID', field: 'vehicleId' },
       { label: 'Vehicle Number', field: 'vehicleNo' },
       { label: 'Type', field: 'vehicleType' }
     ]
@@ -124,7 +123,6 @@ export const moduleConfigs = {
     listEndpoint: '/api/customers',
     fields: [
       { name: 'name', label: 'Customer Name', type: 'text' },
-      { name: 'code', label: 'Customer Code', type: 'text' },
       { name: 'address', label: 'Address', type: 'text' },
       { name: 'state', label: 'State', type: 'text' },
       { name: 'country', label: 'Country', type: 'text' },
@@ -137,7 +135,7 @@ export const moduleConfigs = {
       { name: 'creditPeriod', label: 'Credit Period', type: 'number' }
     ],
     columns: [
-      { label: 'ID', field: 'id' },
+      { label: 'ID', field: 'customerId' },
       { label: 'Name', field: 'name' },
       { label: 'GST No', field: 'gstNo' },
       { label: 'Contact', field: 'contact' }
