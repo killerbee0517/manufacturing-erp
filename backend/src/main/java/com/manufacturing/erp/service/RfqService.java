@@ -148,7 +148,7 @@ public class RfqService {
     rfq.setStatus(DocumentStatus.CLOSED);
 
     Long purchaseOrderId = null;
-    if ("AWARDED".equalsIgnoreCase(request.closureReason())) {
+    if ("AWARDED_TO_SUPPLIER".equalsIgnoreCase(request.closureReason())) {
       PurchaseOrder po = createPurchaseOrderFromRfq(rfq);
       purchaseOrderId = po.getId();
     }

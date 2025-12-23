@@ -41,6 +41,16 @@ export default function RfqEditPage() {
   const [lines, setLines] = useState([emptyLine()]);
   const [saving, setSaving] = useState(false);
 
+  const getLineAmount = (line) => {
+    const quantity = Number(line.quantity);
+    const rate = Number(line.rateExpected);
+    if (!Number.isFinite(quantity) || !Number.isFinite(rate)) {
+      return '';
+    }
+    const amount = quantity * rate;
+    return amount ? amount.toFixed(2) : '';
+  };
+
   useEffect(() => {
     apiClient.get(`/api/rfq/${id}`).then((response) => {
       const rfq = response.data;
@@ -176,6 +186,7 @@ export default function RfqEditPage() {
                 <TableCell>Broker</TableCell>
                 <TableCell>Qty</TableCell>
                 <TableCell>Rate</TableCell>
+                <TableCell>Amount</TableCell>
                 <TableCell>Remarks</TableCell>
                 <TableCell align="right">Actions</TableCell>
               </TableRow>
@@ -232,6 +243,9 @@ export default function RfqEditPage() {
                       value={line.rateExpected}
                       onChange={(event) => updateLine(index, 'rateExpected', event.target.value)}
                     />
+                  </TableCell>
+                  <TableCell>
+                    <TextField value={getLineAmount(line)} InputProps={{ readOnly: true }} />
                   </TableCell>
                   <TableCell>
                     <TextField
