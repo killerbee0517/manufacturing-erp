@@ -36,7 +36,9 @@ public class MasterDtos {
       Long bankId,
       String bankName,
       String supplierType,
-      Integer creditPeriod) {}
+      Integer creditPeriod,
+      Long ledgerId,
+      BigDecimal currentBalance) {}
 
   public record ItemRequest(@NotBlank String name, @NotBlank String sku, @NotNull Long uomId) {}
   public record ItemResponse(Long id, String name, String sku, Long uomId) {}
@@ -71,7 +73,9 @@ public class MasterDtos {
       String email,
       Long bankId,
       String bankName,
-      Integer creditPeriod) {}
+      Integer creditPeriod,
+      Long ledgerId,
+      BigDecimal currentBalance) {}
 
   public record BrokerRequest(@NotBlank String name, @NotBlank String code) {}
   public record BrokerResponse(Long id, String name, String code) {}

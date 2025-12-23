@@ -42,11 +42,13 @@ const StockLedgerPage = Loadable(lazy(() => import('views/erp/pages/inventory/St
 const ItemBalancesPage = Loadable(lazy(() => import('views/erp/pages/inventory/ItemBalancesPage')));
 const ProcessTemplatesPage = Loadable(lazy(() => import('views/erp/pages/production/ProcessTemplatesPage')));
 const ProductionOrdersPage = Loadable(lazy(() => import('views/erp/pages/production/ProductionOrdersPage')));
-const ProcessExecutionPage = Loadable(lazy(() => import('views/erp/pages/production/ProcessExecutionPage')));
-const ReprocessScrapPage = Loadable(lazy(() => import('views/erp/pages/production/ReprocessScrapPage')));
+const ProductionRunsPage = Loadable(lazy(() => import('views/erp/pages/production/ProductionRunsPage')));
+const ProductionCostSummaryPage = Loadable(lazy(() => import('views/erp/pages/production/ProductionCostSummaryPage')));
 const LedgerReportPage = Loadable(lazy(() => import('views/erp/pages/reports/LedgerReportPage')));
 const OutstandingReportPage = Loadable(lazy(() => import('views/erp/pages/reports/OutstandingReportPage')));
 const AgeingReportPage = Loadable(lazy(() => import('views/erp/pages/reports/AgeingReportPage')));
+const LedgerListPage = Loadable(lazy(() => import('views/erp/pages/accounts/LedgerListPage')));
+const LedgerStatementPage = Loadable(lazy(() => import('views/erp/pages/accounts/LedgerStatementPage')));
 const ProfilePage = Loadable(lazy(() => import('views/erp/pages/profile/ProfilePage')));
 const ChangePasswordPage = Loadable(lazy(() => import('views/erp/pages/profile/ChangePasswordPage')));
 const DevToolsPage = Loadable(lazy(() => import('views/erp/pages/dev-tools/DevToolsPage')));
@@ -135,10 +137,17 @@ const MainRoutes = {
     {
       path: 'production',
       children: [
-        { path: 'process-templates', element: <ProcessTemplatesPage /> },
-        { path: 'production-orders', element: <ProductionOrdersPage /> },
-        { path: 'process-execution', element: <ProcessExecutionPage /> },
-        { path: 'reprocess-scrap', element: <ReprocessScrapPage /> }
+        { path: 'templates', element: <ProcessTemplatesPage /> },
+        { path: 'orders', element: <ProductionOrdersPage /> },
+        { path: 'runs', element: <ProductionRunsPage /> },
+        { path: 'cost-summary', element: <ProductionCostSummaryPage /> }
+      ]
+    },
+    {
+      path: 'accounts',
+      children: [
+        { path: 'ledgers', element: <LedgerListPage /> },
+        { path: 'ledgers/:id', element: <LedgerStatementPage /> }
       ]
     },
     {

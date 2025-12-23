@@ -1,8 +1,10 @@
 package com.manufacturing.erp.service;
 
 import com.manufacturing.erp.domain.Enums.LedgerTxnType;
+import com.manufacturing.erp.domain.Enums.LedgerType;
 import com.manufacturing.erp.domain.Enums.StockStatus;
 import com.manufacturing.erp.domain.Godown;
+import com.manufacturing.erp.domain.Ledger;
 import com.manufacturing.erp.domain.PurchaseArrival;
 import com.manufacturing.erp.domain.PurchaseOrder;
 import com.manufacturing.erp.domain.PurchaseOrderLine;
@@ -11,10 +13,12 @@ import com.manufacturing.erp.dto.PurchaseArrivalDtos;
 import com.manufacturing.erp.repository.GodownRepository;
 import com.manufacturing.erp.repository.PurchaseArrivalRepository;
 import com.manufacturing.erp.repository.PurchaseOrderRepository;
+import com.manufacturing.erp.repository.SupplierRepository;
 import com.manufacturing.erp.repository.WeighbridgeTicketRepository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
+import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,17 +29,26 @@ public class PurchaseArrivalService {
   private final WeighbridgeTicketRepository weighbridgeTicketRepository;
   private final GodownRepository godownRepository;
   private final StockLedgerService stockLedgerService;
+  private final LedgerService ledgerService;
+  private final VoucherService voucherService;
+  private final SupplierRepository supplierRepository;
 
   public PurchaseArrivalService(PurchaseArrivalRepository purchaseArrivalRepository,
                                 PurchaseOrderRepository purchaseOrderRepository,
                                 WeighbridgeTicketRepository weighbridgeTicketRepository,
                                 GodownRepository godownRepository,
-                                StockLedgerService stockLedgerService) {
+                                StockLedgerService stockLedgerService,
+                                LedgerService ledgerService,
+                                VoucherService voucherService,
+                                SupplierRepository supplierRepository) {
     this.purchaseArrivalRepository = purchaseArrivalRepository;
     this.purchaseOrderRepository = purchaseOrderRepository;
     this.weighbridgeTicketRepository = weighbridgeTicketRepository;
     this.godownRepository = godownRepository;
     this.stockLedgerService = stockLedgerService;
+    this.ledgerService = ledgerService;
+    this.voucherService = voucherService;
+    this.supplierRepository = supplierRepository;
   }
 
   @Transactional
@@ -78,6 +91,45 @@ public class PurchaseArrivalService {
           quantity != null ? quantity : BigDecimal.ZERO,
           weight,
           StockStatus.UNRESTRICTED);
+    }
+
+    Ledger supplierLedger = purchaseOrder.getSupplier() != null ? purchaseOrder.getSupplier().getLedger() : null;
+    if (supplierLedger == null && purchaseOrder.getSupplier() != null) {
+      supplierLedger = ledgerService.createLedger(purchaseOrder.getSupplier().getName(), LedgerType.SUPPLIER,
+          "SUPPLIER", purchaseOrder.getSupplier().getId());
+      purchaseOrder.getSupplier().setLedger(supplierLedger);
+      supplierRepository.save(purchaseOrder.getSupplier());
+    }
+
+    Ledger purchaseLedger = ledgerService.findOrCreateLedger(
+        purchaseOrder.getPurchaseLedger() != null && !purchaseOrder.getPurchaseLedger().isBlank()
+            ? purchaseOrder.getPurchaseLedger()
+            : "Purchase",
+        LedgerType.EXPENSE);
+    Ledger unloadingLedger = ledgerService.findOrCreateLedger("Unloading Expense", LedgerType.EXPENSE);
+    Ledger deductionLedger = ledgerService.findOrCreateLedger("Purchase Deductions", LedgerType.GENERAL);
+    Ledger tdsLedger = ledgerService.findOrCreateLedger("TDS Payable", LedgerType.GENERAL);
+
+    List<VoucherService.VoucherLineRequest> lines = new java.util.ArrayList<>();
+    lines.add(new VoucherService.VoucherLineRequest(purchaseLedger, grossAmount, BigDecimal.ZERO));
+    if (unloadingCharges.compareTo(BigDecimal.ZERO) > 0) {
+      lines.add(new VoucherService.VoucherLineRequest(unloadingLedger, unloadingCharges, BigDecimal.ZERO));
+    }
+    if (deductions.compareTo(BigDecimal.ZERO) > 0) {
+      lines.add(new VoucherService.VoucherLineRequest(deductionLedger, BigDecimal.ZERO, deductions));
+    }
+    if (tdsAmount.compareTo(BigDecimal.ZERO) > 0) {
+      lines.add(new VoucherService.VoucherLineRequest(tdsLedger, BigDecimal.ZERO, tdsAmount));
+    }
+    if (supplierLedger != null) {
+      lines.add(new VoucherService.VoucherLineRequest(supplierLedger, BigDecimal.ZERO, netPayable));
+    }
+
+    if (supplierLedger != null) {
+      voucherService.createVoucher("PURCHASE_ARRIVAL", saved.getId(), saved.getCreatedAt() != null
+          ? saved.getCreatedAt().atZone(java.time.ZoneId.systemDefault()).toLocalDate()
+          : java.time.LocalDate.now(),
+          "Purchase arrival posting", lines);
     }
 
     return saved;
