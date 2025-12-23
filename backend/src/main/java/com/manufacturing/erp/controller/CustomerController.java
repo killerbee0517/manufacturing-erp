@@ -1,9 +1,12 @@
 package com.manufacturing.erp.controller;
 
 import com.manufacturing.erp.domain.Customer;
+import com.manufacturing.erp.domain.Enums.LedgerType;
+import com.manufacturing.erp.domain.Ledger;
 import com.manufacturing.erp.dto.MasterDtos;
 import com.manufacturing.erp.repository.BankRepository;
 import com.manufacturing.erp.repository.CustomerRepository;
+import com.manufacturing.erp.service.LedgerService;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.http.HttpStatus;
@@ -24,10 +27,12 @@ import org.springframework.transaction.annotation.Transactional;
 public class CustomerController {
   private final CustomerRepository customerRepository;
   private final BankRepository bankRepository;
+  private final LedgerService ledgerService;
 
-  public CustomerController(CustomerRepository customerRepository, BankRepository bankRepository) {
+  public CustomerController(CustomerRepository customerRepository, BankRepository bankRepository, LedgerService ledgerService) {
     this.customerRepository = customerRepository;
     this.bankRepository = bankRepository;
+    this.ledgerService = ledgerService;
   }
 
   @GetMapping
@@ -53,7 +58,10 @@ public class CustomerController {
     Customer customer = new Customer();
     applyRequest(customer, request);
     Customer saved = customerRepository.save(customer);
-    return toResponse(saved);
+    Ledger ledger = ledgerService.createLedger(request.name(), LedgerType.CUSTOMER, "CUSTOMER", saved.getId());
+    saved.setLedger(ledger);
+    Customer updated = customerRepository.save(saved);
+    return toResponse(updated);
   }
 
   @PutMapping("/{id}")
@@ -109,7 +117,9 @@ public class CustomerController {
         customer.getEmail(),
         customer.getBank() != null ? customer.getBank().getId() : null,
         customer.getBank() != null ? customer.getBank().getName() : null,
-        customer.getCreditPeriod());
+        customer.getCreditPeriod(),
+        customer.getLedger() != null ? customer.getLedger().getId() : null,
+        customer.getLedger() != null ? ledgerService.getBalance(customer.getLedger().getId()) : null);
   }
 
   private List<Customer> applyLimit(List<Customer> customers, Integer limit) {

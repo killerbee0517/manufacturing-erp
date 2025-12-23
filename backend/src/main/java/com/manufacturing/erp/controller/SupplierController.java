@@ -1,9 +1,11 @@
 package com.manufacturing.erp.controller;
 
+import com.manufacturing.erp.domain.Enums.LedgerType;
 import com.manufacturing.erp.domain.Supplier;
 import com.manufacturing.erp.dto.MasterDtos;
 import com.manufacturing.erp.repository.BankRepository;
 import com.manufacturing.erp.repository.SupplierRepository;
+import com.manufacturing.erp.service.LedgerService;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.http.HttpStatus;
@@ -24,10 +26,12 @@ import org.springframework.transaction.annotation.Transactional;
 public class SupplierController {
   private final SupplierRepository supplierRepository;
   private final BankRepository bankRepository;
+  private final LedgerService ledgerService;
 
-  public SupplierController(SupplierRepository supplierRepository, BankRepository bankRepository) {
+  public SupplierController(SupplierRepository supplierRepository, BankRepository bankRepository, LedgerService ledgerService) {
     this.supplierRepository = supplierRepository;
     this.bankRepository = bankRepository;
+    this.ledgerService = ledgerService;
   }
 
   @GetMapping
@@ -53,7 +57,10 @@ public class SupplierController {
     Supplier supplier = new Supplier();
     applyRequest(supplier, request);
     Supplier saved = supplierRepository.save(supplier);
-    return toResponse(saved);
+    Ledger ledger = ledgerService.createLedger(request.name(), LedgerType.SUPPLIER, "SUPPLIER", saved.getId());
+    saved.setLedger(ledger);
+    Supplier updated = supplierRepository.save(saved);
+    return toResponse(updated);
   }
 
   @PutMapping("/{id}")
@@ -111,7 +118,9 @@ public class SupplierController {
         supplier.getBank() != null ? supplier.getBank().getId() : null,
         supplier.getBank() != null ? supplier.getBank().getName() : null,
         supplier.getSupplierType(),
-        supplier.getCreditPeriod());
+        supplier.getCreditPeriod(),
+        supplier.getLedger() != null ? supplier.getLedger().getId() : null,
+        supplier.getLedger() != null ? ledgerService.getBalance(supplier.getLedger().getId()) : null);
   }
 
   private List<Supplier> applyLimit(List<Supplier> suppliers, Integer limit) {

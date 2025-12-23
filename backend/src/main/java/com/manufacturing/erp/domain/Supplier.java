@@ -50,6 +50,10 @@ public class Supplier extends BaseEntity {
   @Column(name = "credit_period")
   private Integer creditPeriod;
 
+  @ManyToOne
+  @JoinColumn(name = "ledger_id")
+  private Ledger ledger;
+
   public String getName() {
     return name;
   }
@@ -152,5 +156,13 @@ public class Supplier extends BaseEntity {
 
   public void setCreditPeriod(Integer creditPeriod) {
     this.creditPeriod = creditPeriod;
+  }
+
+  public Ledger getLedger() {
+    return ledger;
+  }
+
+  public void setLedger(Ledger ledger) {
+    this.ledger = ledger;
   }
 }

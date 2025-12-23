@@ -48,4 +48,19 @@ public class Enums {
     QUALITY_CLAIM,
     RATE_DIFF
   }
+
+  public enum LedgerType {
+    SUPPLIER,
+    CUSTOMER,
+    EXPENSE,
+    BANK,
+    GENERAL
+  }
+
+  public enum ProductionStatus {
+    DRAFT,
+    STARTED,
+    COMPLETED,
+    CANCELLED
+  }
 }

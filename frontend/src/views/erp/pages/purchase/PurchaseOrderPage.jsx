@@ -37,7 +37,7 @@ export default function PurchaseOrderPage() {
       .get('/api/suppliers')
       .then((response) => {
         const lookup = (response.data || []).reduce((acc, supplier) => {
-          acc[supplier.id] = supplier.name;
+          acc[supplier.id] = { name: supplier.name, balance: supplier.currentBalance };
           return acc;
         }, {});
         setSupplierMap(lookup);
@@ -94,7 +94,20 @@ export default function PurchaseOrderPage() {
         <DataTable
           columns={[
             { field: 'poNo', headerName: 'PO No' },
-            { field: 'supplierId', headerName: 'Supplier', render: (row) => supplierMap[row.supplierId] || row.supplierId },
+            {
+              field: 'supplierId',
+              headerName: 'Supplier',
+              render: (row) => supplierMap[row.supplierId]?.name || row.supplierId
+            },
+            {
+              field: 'supplierBalance',
+              headerName: 'Supplier Balance',
+              render: (row) => {
+                const balance = supplierMap[row.supplierId]?.balance;
+                if (balance === null || balance === undefined) return '-';
+                return Number(balance).toFixed(2);
+              }
+            },
             { field: 'poDate', headerName: 'Order Date' },
             { field: 'status', headerName: 'Status' },
             {

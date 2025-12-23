@@ -114,10 +114,19 @@ const erp = {
       type: 'collapse',
       icon: icons.IconBuildingFactory2,
       children: [
-        { id: 'production-process-templates', title: 'Process Templates', type: 'item', url: '/production/process-templates' },
-        { id: 'production-orders', title: 'Production Orders', type: 'item', url: '/production/production-orders' },
-        { id: 'production-execution', title: 'Process Execution', type: 'item', url: '/production/process-execution' },
-        { id: 'production-reprocess', title: 'Reprocess/Scrap', type: 'item', url: '/production/reprocess-scrap' }
+        { id: 'production-templates', title: 'Process Templates', type: 'item', url: '/production/templates' },
+        { id: 'production-orders', title: 'Production Orders', type: 'item', url: '/production/orders' },
+        { id: 'production-runs', title: 'Process Runs', type: 'item', url: '/production/runs' },
+        { id: 'production-cost-summary', title: 'Cost Summary', type: 'item', url: '/production/cost-summary' }
+      ]
+    },
+    {
+      id: 'accounts',
+      title: 'Accounts',
+      type: 'collapse',
+      icon: icons.IconReportAnalytics,
+      children: [
+        { id: 'accounts-ledgers', title: 'Ledgers', type: 'item', url: '/accounts/ledgers' }
       ]
     },
     {
