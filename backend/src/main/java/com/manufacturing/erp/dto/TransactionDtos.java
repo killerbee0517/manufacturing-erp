@@ -1,5 +1,6 @@
 package com.manufacturing.erp.dto;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
@@ -34,7 +35,7 @@ public class TransactionDtos {
       LocalDate rfqDate,
       String paymentTerms,
       String narration,
-      @NotEmpty List<RfqLineRequest> lines) {}
+      @NotEmpty @Valid List<RfqLineRequest> lines) {}
 
   public record RfqResponse(
       Long id,

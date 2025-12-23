@@ -30,6 +30,16 @@ export default function RfqDetailPage() {
   const [closeOpen, setCloseOpen] = useState(false);
   const [closing, setClosing] = useState(false);
 
+  const getLineAmount = (line) => {
+    const quantity = Number(line.quantity);
+    const rate = Number(line.rateExpected);
+    if (!Number.isFinite(quantity) || !Number.isFinite(rate)) {
+      return '-';
+    }
+    const amount = quantity * rate;
+    return amount ? amount.toFixed(2) : '-';
+  };
+
   const loadRfq = () => {
     setLoading(true);
     apiClient
@@ -178,6 +188,7 @@ export default function RfqDetailPage() {
                 <TableCell>Broker</TableCell>
                 <TableCell>Qty</TableCell>
                 <TableCell>Rate</TableCell>
+                <TableCell>Amount</TableCell>
                 <TableCell>Remarks</TableCell>
               </TableRow>
             </TableHead>
@@ -189,12 +200,13 @@ export default function RfqDetailPage() {
                   <TableCell>{brokerMap[line.brokerId] || line.brokerId || '-'}</TableCell>
                   <TableCell>{line.quantity}</TableCell>
                   <TableCell>{line.rateExpected ?? '-'}</TableCell>
+                  <TableCell>{getLineAmount(line)}</TableCell>
                   <TableCell>{line.remarks ?? '-'}</TableCell>
                 </TableRow>
               ))}
               {!rfq.lines?.length && (
                 <TableRow>
-                  <TableCell colSpan={6}>No line items</TableCell>
+                  <TableCell colSpan={7}>No line items</TableCell>
                 </TableRow>
               )}
             </TableBody>

@@ -12,7 +12,7 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 
 const closureOptions = [
-  { value: 'AWARDED', label: 'Awarded (create Purchase Order)' },
+  { value: 'AWARDED_TO_SUPPLIER', label: 'Awarded to supplier (create Purchase Order)' },
   { value: 'CANCELLED', label: 'Cancelled' },
   { value: 'NO_RESPONSE', label: 'No response from supplier' },
   { value: 'OTHER', label: 'Other' }
@@ -49,7 +49,7 @@ export default function RfqCloseDialog({ open, onClose, onConfirm, loading }) {
               </MenuItem>
             ))}
           </TextField>
-          {reason === 'AWARDED' && (
+          {reason === 'AWARDED_TO_SUPPLIER' && (
             <Typography variant="body2" color="text.secondary">
               A Purchase Order will be created from this RFQ once you confirm.
             </Typography>
