@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.transaction.annotation.Transactional;
 
 @RestController
 @RequestMapping("/api/uoms")
@@ -45,6 +46,7 @@ public class UomController {
   }
 
   @PostMapping
+  @Transactional
   public UomResponse create(@Valid @RequestBody UomRequest request) {
     Uom uom = new Uom();
     uom.setCode(request.code());
@@ -54,6 +56,7 @@ public class UomController {
   }
 
   @PutMapping("/{id}")
+  @Transactional
   public UomResponse update(@PathVariable Long id, @Valid @RequestBody UomRequest request) {
     Uom uom = uomRepository.findById(id)
         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "UOM not found"));

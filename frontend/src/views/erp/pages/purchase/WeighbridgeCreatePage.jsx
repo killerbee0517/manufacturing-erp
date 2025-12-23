@@ -1,10 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
 import Grid from '@mui/material/Grid';
-import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
@@ -12,6 +11,7 @@ import Typography from '@mui/material/Typography';
 import MainCard from 'ui-component/cards/MainCard';
 import PageHeader from 'components/common/PageHeader';
 import apiClient from 'api/client';
+import MasterAutocomplete from 'components/common/MasterAutocomplete';
 
 export default function WeighbridgeCreatePage() {
   const navigate = useNavigate();
@@ -27,16 +27,7 @@ export default function WeighbridgeCreatePage() {
     dateOut: '',
     timeOut: ''
   });
-  const [suppliers, setSuppliers] = useState([]);
-  const [items, setItems] = useState([]);
-  const [vehicles, setVehicles] = useState([]);
   const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    apiClient.get('/api/suppliers').then((res) => setSuppliers(res.data || [])).catch(() => setSuppliers([]));
-    apiClient.get('/api/items').then((res) => setItems(res.data || [])).catch(() => setItems([]));
-    apiClient.get('/api/vehicles').then((res) => setVehicles(res.data || [])).catch(() => setVehicles([]));
-  }, []);
 
   const netWeight = useMemo(() => {
     const gross = Number(header.grossWeight || 0);
@@ -89,49 +80,40 @@ export default function WeighbridgeCreatePage() {
             />
           </Grid>
           <Grid size={{ xs: 12, md: 4 }}>
-            <TextField
-              fullWidth
-              select
+            <MasterAutocomplete
               label="Vehicle"
+              endpoint="/api/vehicles"
               value={header.vehicleNo}
-              onChange={(event) => setHeader((prev) => ({ ...prev, vehicleNo: event.target.value }))}
-            >
-              {vehicles.map((vehicle) => (
-                <MenuItem key={vehicle.id || vehicle.vehicleNo} value={vehicle.vehicleNo || vehicle.name || vehicle.id}>
-                  {vehicle.vehicleNo || vehicle.name || vehicle.registrationNo || vehicle.id}
-                </MenuItem>
-              ))}
-            </TextField>
+              onChange={(nextValue) => setHeader((prev) => ({ ...prev, vehicleNo: nextValue }))}
+              optionLabelKey="vehicleNo"
+              optionValueKey="vehicleNo"
+              placeholder="Search vehicles"
+              required
+            />
           </Grid>
           <Grid size={{ xs: 12, md: 4 }}>
-            <TextField
-              fullWidth
-              select
+            <MasterAutocomplete
               label="Supplier"
+              endpoint="/api/suppliers"
               value={header.supplierId}
-              onChange={(event) => setHeader((prev) => ({ ...prev, supplierId: event.target.value }))}
-            >
-              {suppliers.map((supplier) => (
-                <MenuItem key={supplier.id} value={supplier.id}>
-                  {supplier.name}
-                </MenuItem>
-              ))}
-            </TextField>
+              onChange={(nextValue) => setHeader((prev) => ({ ...prev, supplierId: nextValue }))}
+              optionLabelKey="name"
+              optionValueKey="id"
+              placeholder="Search suppliers"
+              required
+            />
           </Grid>
           <Grid size={{ xs: 12, md: 4 }}>
-            <TextField
-              fullWidth
-              select
+            <MasterAutocomplete
               label="Product"
+              endpoint="/api/items"
               value={header.itemId}
-              onChange={(event) => setHeader((prev) => ({ ...prev, itemId: event.target.value }))}
-            >
-              {items.map((item) => (
-                <MenuItem key={item.id} value={item.id}>
-                  {item.name}
-                </MenuItem>
-              ))}
-            </TextField>
+              onChange={(nextValue) => setHeader((prev) => ({ ...prev, itemId: nextValue }))}
+              optionLabelKey="name"
+              optionValueKey="id"
+              placeholder="Search items"
+              required
+            />
           </Grid>
           <Grid size={{ xs: 12, md: 4 }}>
             <TextField

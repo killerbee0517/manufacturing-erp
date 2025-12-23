@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.transaction.annotation.Transactional;
 
 @RestController
 @RequestMapping("/api/brokers")
@@ -46,6 +47,7 @@ public class BrokerController {
   }
 
   @PostMapping
+  @Transactional
   public MasterDtos.BrokerResponse create(@Valid @RequestBody MasterDtos.BrokerRequest request) {
     Broker broker = new Broker();
     broker.setName(request.name());
@@ -55,6 +57,7 @@ public class BrokerController {
   }
 
   @PutMapping("/{id}")
+  @Transactional
   public MasterDtos.BrokerResponse update(@PathVariable Long id, @Valid @RequestBody MasterDtos.BrokerRequest request) {
     Broker broker = brokerRepository.findById(id)
         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Broker not found"));

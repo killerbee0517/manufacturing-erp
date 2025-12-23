@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.transaction.annotation.Transactional;
 
 @RestController
 @RequestMapping("/api/vehicles")
@@ -44,6 +45,7 @@ public class VehicleController {
   }
 
   @PostMapping
+  @Transactional
   public MasterDtos.VehicleResponse create(@Valid @RequestBody MasterDtos.VehicleRequest request) {
     Vehicle vehicle = new Vehicle();
     applyRequest(vehicle, request);
@@ -52,6 +54,7 @@ public class VehicleController {
   }
 
   @PutMapping("/{id}")
+  @Transactional
   public MasterDtos.VehicleResponse update(@PathVariable Long id, @Valid @RequestBody MasterDtos.VehicleRequest request) {
     Vehicle vehicle = vehicleRepository.findById(id)
         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Vehicle not found"));

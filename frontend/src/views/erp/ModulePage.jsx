@@ -24,6 +24,7 @@ import TableRow from '@mui/material/TableRow';
 import MainCard from 'ui-component/cards/MainCard';
 import { gridSpacing } from 'store/constant';
 import apiClient from 'api/client';
+import MasterAutocomplete from 'components/common/MasterAutocomplete';
 
 const lookupEndpoints = {
   suppliers: '/api/suppliers',
@@ -32,6 +33,7 @@ const lookupEndpoints = {
   locations: '/api/locations',
   customers: '/api/customers',
   banks: '/api/banks',
+  vehicles: '/api/vehicles',
   godowns: '/api/godowns',
   brokers: '/api/brokers',
   roles: '/api/roles',
@@ -39,13 +41,14 @@ const lookupEndpoints = {
   salesOrders: '/api/sales-orders'
 };
 
+const hiddenFieldNames = new Set(['id', 'createdAt', 'updatedAt', 'serialNo', 'rfqNo', 'poNo', 'grnNo']);
+
 export default function ModulePage({ config }) {
   const navigate = useNavigate();
   const [filters, setFilters] = useState({ search: '', from: '', to: '', status: '' });
   const [formState, setFormState] = useState({});
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [lookups, setLookups] = useState({});
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
   const fields = config.fields || [];
@@ -54,27 +57,7 @@ export default function ModulePage({ config }) {
   const useInlineCreate = config.useInlineCreate !== false;
   const showActions = Boolean(config.detailRouteBase || config.editRouteBase);
 
-  const fieldLookups = useMemo(
-    () => fields.filter((field) => field.optionsSource).map((field) => field.optionsSource),
-    [fields]
-  );
-
-  useEffect(() => {
-    if (!fieldLookups.length) return;
-    fieldLookups.forEach((source) => {
-      if (lookups[source]) return;
-      const endpoint = lookupEndpoints[source];
-      if (!endpoint) return;
-      apiClient
-        .get(endpoint)
-        .then((response) => {
-          setLookups((prev) => ({ ...prev, [source]: response.data || [] }));
-        })
-        .catch(() => {
-          setLookups((prev) => ({ ...prev, [source]: [] }));
-        });
-    });
-  }, [fieldLookups, lookups]);
+  const visibleFields = useMemo(() => fields.filter((field) => !hiddenFieldNames.has(field.name)), [fields]);
 
   const loadRows = (params = {}) => {
     if (!config.listEndpoint) {
@@ -183,40 +166,39 @@ export default function ModulePage({ config }) {
                   </TextField>
                 </Stack>
               )}
-              {createEnabled && useInlineCreate && fields.length > 0 && (
+              {createEnabled && useInlineCreate && visibleFields.length > 0 && (
                 <>
                   <Divider />
                   <Box component="form" id="module-form" onSubmit={handleSubmit}>
                     <Grid container spacing={2}>
-                      {fields.map((field) => {
-                        const options =
-                          field.options ||
-                          (field.optionsSource && lookups[field.optionsSource]) ||
-                          [];
+                      {visibleFields.map((field) => {
                         return (
                           <Grid key={field.name} size={{ xs: 12, md: 6 }}>
-                            {field.type === 'select' ? (
+                            {field.type === 'select' && field.optionsSource ? (
+                              <MasterAutocomplete
+                                label={field.label}
+                                endpoint={lookupEndpoints[field.optionsSource]}
+                                value={formState[field.name] || ''}
+                                onChange={(nextValue) => setFormState({ ...formState, [field.name]: nextValue })}
+                                optionLabelKey={field.optionLabel}
+                                optionValueKey={field.optionValue || 'id'}
+                                required={field.required}
+                              />
+                            ) : field.type === 'select' ? (
                               <TextField
                                 fullWidth
                                 select
                                 label={field.label}
                                 value={formState[field.name] || ''}
                                 onChange={(event) => setFormState({ ...formState, [field.name]: event.target.value })}
+                                required={field.required}
                               >
                                 <MenuItem value="">Select</MenuItem>
-                                {options.map((option) => {
-                                  const value = typeof option === 'object'
-                                    ? option[field.optionValue] || option.id || option.name
-                                    : option;
-                                  const label = typeof option === 'object'
-                                    ? option[field.optionLabel] || option.name || option.code || option.vehicleNo || option.ticketNo
-                                    : option;
-                                  return (
-                                    <MenuItem key={value} value={value}>
-                                      {label}
-                                    </MenuItem>
-                                  );
-                                })}
+                                {(field.options || []).map((option) => (
+                                  <MenuItem key={option} value={option}>
+                                    {option}
+                                  </MenuItem>
+                                ))}
                               </TextField>
                             ) : (
                               <TextField
@@ -225,6 +207,7 @@ export default function ModulePage({ config }) {
                                 type={field.type}
                                 value={formState[field.name] || ''}
                                 onChange={(event) => setFormState({ ...formState, [field.name]: event.target.value })}
+                                required={field.required}
                                 InputLabelProps={field.type === 'date' || field.type === 'time' ? { shrink: true } : undefined}
                               />
                             )}

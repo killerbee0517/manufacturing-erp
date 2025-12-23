@@ -4,7 +4,6 @@ import { useNavigate, useParams } from 'react-router-dom';
 import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
 import Grid from '@mui/material/Grid';
-import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
@@ -17,6 +16,7 @@ import Typography from '@mui/material/Typography';
 import MainCard from 'ui-component/cards/MainCard';
 import PageHeader from 'components/common/PageHeader';
 import apiClient from 'api/client';
+import MasterAutocomplete from 'components/common/MasterAutocomplete';
 
 const emptyLine = () => ({
   key: Date.now() + Math.random(),
@@ -33,31 +33,18 @@ export default function RfqEditPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [header, setHeader] = useState({
-    rfqNo: '',
     supplierId: '',
     rfqDate: '',
     paymentTerms: '',
     narration: ''
   });
   const [lines, setLines] = useState([emptyLine()]);
-  const [suppliers, setSuppliers] = useState([]);
-  const [items, setItems] = useState([]);
-  const [uoms, setUoms] = useState([]);
-  const [brokers, setBrokers] = useState([]);
   const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    apiClient.get('/api/suppliers').then((res) => setSuppliers(res.data || [])).catch(() => setSuppliers([]));
-    apiClient.get('/api/items').then((res) => setItems(res.data || [])).catch(() => setItems([]));
-    apiClient.get('/api/uoms').then((res) => setUoms(res.data || [])).catch(() => setUoms([]));
-    apiClient.get('/api/brokers').then((res) => setBrokers(res.data || [])).catch(() => setBrokers([]));
-  }, []);
 
   useEffect(() => {
     apiClient.get(`/api/rfq/${id}`).then((response) => {
       const rfq = response.data;
       setHeader({
-        rfqNo: rfq.rfqNo || '',
         supplierId: rfq.supplierId || '',
         rfqDate: rfq.rfqDate || '',
         paymentTerms: rfq.paymentTerms || '',
@@ -100,7 +87,6 @@ export default function RfqEditPage() {
     setSaving(true);
     try {
       const payload = {
-        rfqNo: header.rfqNo,
         supplierId: Number(header.supplierId),
         rfqDate: header.rfqDate,
         paymentTerms: header.paymentTerms,
@@ -141,28 +127,16 @@ export default function RfqEditPage() {
       <Stack spacing={3}>
         <Grid container spacing={2}>
           <Grid size={{ xs: 12, md: 4 }}>
-            <TextField
-              fullWidth
-              label="RFQ No"
-              value={header.rfqNo}
-              onChange={(event) => setHeader((prev) => ({ ...prev, rfqNo: event.target.value }))}
-              placeholder="Auto-generated"
-            />
-          </Grid>
-          <Grid size={{ xs: 12, md: 4 }}>
-            <TextField
-              fullWidth
-              select
+            <MasterAutocomplete
               label="Supplier"
+              endpoint="/api/suppliers"
               value={header.supplierId}
-              onChange={(event) => setHeader((prev) => ({ ...prev, supplierId: event.target.value }))}
-            >
-              {suppliers.map((supplier) => (
-                <MenuItem key={supplier.id} value={supplier.id}>
-                  {supplier.name}
-                </MenuItem>
-              ))}
-            </TextField>
+              onChange={(nextValue) => setHeader((prev) => ({ ...prev, supplierId: nextValue }))}
+              optionLabelKey="name"
+              optionValueKey="id"
+              placeholder="Search suppliers"
+              required
+            />
           </Grid>
           <Grid size={{ xs: 12, md: 4 }}>
             <TextField
@@ -210,47 +184,40 @@ export default function RfqEditPage() {
               {lines.map((line, index) => (
                 <TableRow key={line.key}>
                   <TableCell>
-                    <TextField
-                      select
+                    <MasterAutocomplete
+                      label="Item"
+                      endpoint="/api/items"
                       value={line.itemId}
-                      onChange={(event) => updateLine(index, 'itemId', event.target.value)}
-                      fullWidth
-                    >
-                      {items.map((item) => (
-                        <MenuItem key={item.id} value={item.id}>
-                          {item.name}
-                        </MenuItem>
-                      ))}
-                    </TextField>
+                      onChange={(nextValue) => updateLine(index, 'itemId', nextValue)}
+                      optionLabelKey="name"
+                      optionValueKey="id"
+                      placeholder="Search items"
+                      size="small"
+                    />
                   </TableCell>
                   <TableCell>
-                    <TextField
-                      select
+                    <MasterAutocomplete
+                      label="UOM"
+                      endpoint="/api/uoms"
                       value={line.uomId}
-                      onChange={(event) => updateLine(index, 'uomId', event.target.value)}
-                      fullWidth
-                    >
-                      {uoms.map((uom) => (
-                        <MenuItem key={uom.id} value={uom.id}>
-                          {uom.code}
-                        </MenuItem>
-                      ))}
-                    </TextField>
+                      onChange={(nextValue) => updateLine(index, 'uomId', nextValue)}
+                      optionLabelKey="code"
+                      optionValueKey="id"
+                      placeholder="Search UOMs"
+                      size="small"
+                    />
                   </TableCell>
                   <TableCell>
-                    <TextField
-                      select
+                    <MasterAutocomplete
+                      label="Broker"
+                      endpoint="/api/brokers"
                       value={line.brokerId}
-                      onChange={(event) => updateLine(index, 'brokerId', event.target.value)}
-                      fullWidth
-                    >
-                      <MenuItem value="">None</MenuItem>
-                      {brokers.map((broker) => (
-                        <MenuItem key={broker.id} value={broker.id}>
-                          {broker.name}
-                        </MenuItem>
-                      ))}
-                    </TextField>
+                      onChange={(nextValue) => updateLine(index, 'brokerId', nextValue)}
+                      optionLabelKey="name"
+                      optionValueKey="id"
+                      placeholder="Search brokers"
+                      size="small"
+                    />
                   </TableCell>
                   <TableCell>
                     <TextField

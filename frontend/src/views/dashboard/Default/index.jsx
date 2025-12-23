@@ -28,6 +28,7 @@ const quickActions = [
   { label: 'Create RFQ', route: '/purchase/rfq/new' },
   { label: 'Create Purchase Order', route: '/purchase/po/new' },
   { label: 'Weighbridge In', route: '/purchase/weighbridge-in/new' },
+  { label: 'Record Arrival', route: '/purchase/arrival/new' },
   { label: 'Create GRN', route: '/purchase/grn/new' }
 ];
 
@@ -126,9 +127,11 @@ export default function Dashboard() {
                           borderRadius: 2,
                           cursor: 'pointer',
                           transition: 'all 0.2s ease',
+                          background: theme.palette.background.paper,
                           '&:hover': {
-                            boxShadow: theme.shadows[6],
-                            borderColor: theme.palette.primary.light
+                            boxShadow: theme.shadows[8],
+                            borderColor: theme.palette.primary.light,
+                            transform: 'translateY(-2px)'
                           }
                         })}
                       >

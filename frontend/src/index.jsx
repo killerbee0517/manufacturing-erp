@@ -25,7 +25,7 @@ import '@fontsource/poppins/500.css';
 import '@fontsource/poppins/600.css';
 import '@fontsource/poppins/700.css';
 
-if (import.meta.env.DEV) {
+if (import.meta.env.DEV && import.meta.env.VITE_USE_MOCKS === 'true') {
   import('api/mockServer').then(({ enableMockServer }) => enableMockServer());
 }
 
