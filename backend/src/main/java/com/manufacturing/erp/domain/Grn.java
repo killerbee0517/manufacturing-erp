@@ -7,8 +7,11 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "grn")
@@ -24,6 +27,9 @@ public class Grn extends BaseEntity {
 
   @ManyToOne
   private PurchaseOrder purchaseOrder;
+
+  @ManyToOne
+  private Godown godown;
 
   @ManyToOne
   private Item item;
@@ -43,6 +49,9 @@ public class Grn extends BaseEntity {
   private java.math.BigDecimal netWeight;
 
   private java.math.BigDecimal quantity;
+
+  @OneToMany(mappedBy = "grn", orphanRemoval = true)
+  private List<GrnLine> lines = new ArrayList<>();
 
   @Enumerated(EnumType.STRING)
   @Column(nullable = false)
@@ -78,6 +87,14 @@ public class Grn extends BaseEntity {
 
   public void setPurchaseOrder(PurchaseOrder purchaseOrder) {
     this.purchaseOrder = purchaseOrder;
+  }
+
+  public Godown getGodown() {
+    return godown;
+  }
+
+  public void setGodown(Godown godown) {
+    this.godown = godown;
   }
 
   public Item getItem() {
@@ -142,6 +159,14 @@ public class Grn extends BaseEntity {
 
   public void setQuantity(java.math.BigDecimal quantity) {
     this.quantity = quantity;
+  }
+
+  public List<GrnLine> getLines() {
+    return lines;
+  }
+
+  public void setLines(List<GrnLine> lines) {
+    this.lines = lines;
   }
 
   public DocumentStatus getStatus() {

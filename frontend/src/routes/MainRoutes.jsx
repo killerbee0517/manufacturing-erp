@@ -22,9 +22,14 @@ const PoDetailPage = Loadable(lazy(() => import('views/erp/pages/purchase/PoDeta
 const PoEditPage = Loadable(lazy(() => import('views/erp/pages/purchase/PoEditPage')));
 const WeighbridgeListPage = Loadable(lazy(() => import('views/erp/pages/purchase/WeighbridgeListPage')));
 const WeighbridgeCreatePage = Loadable(lazy(() => import('views/erp/pages/purchase/WeighbridgeCreatePage')));
+const WeighbridgeDetailPage = Loadable(lazy(() => import('views/erp/pages/purchase/WeighbridgeDetailPage')));
+const WeighbridgeEditPage = Loadable(lazy(() => import('views/erp/pages/purchase/WeighbridgeEditPage')));
 const GrnPage = Loadable(lazy(() => import('views/erp/pages/purchase/GrnPage')));
 const GrnCreatePage = Loadable(lazy(() => import('views/erp/pages/purchase/GrnCreatePage')));
+const GrnDetailPage = Loadable(lazy(() => import('views/erp/pages/purchase/GrnDetailPage')));
 const PurchaseArrivalPage = Loadable(lazy(() => import('views/erp/pages/purchase/PurchaseArrivalPage')));
+const PurchaseArrivalCreatePage = Loadable(lazy(() => import('views/erp/pages/purchase/PurchaseArrivalCreatePage')));
+const PurchaseArrivalDetailPage = Loadable(lazy(() => import('views/erp/pages/purchase/PurchaseArrivalDetailPage')));
 const PurchaseInvoicePage = Loadable(lazy(() => import('views/erp/pages/purchase/PurchaseInvoicePage')));
 const DebitNotePage = Loadable(lazy(() => import('views/erp/pages/purchase/DebitNotePage')));
 const SalesOrderPage = Loadable(lazy(() => import('views/erp/pages/sales/SalesOrderPage')));
@@ -97,9 +102,14 @@ const MainRoutes = {
         { path: 'po/:id/edit', element: <PoEditPage /> },
         { path: 'weighbridge-in', element: <WeighbridgeListPage /> },
         { path: 'weighbridge-in/new', element: <WeighbridgeCreatePage /> },
+        { path: 'weighbridge-in/:id', element: <WeighbridgeDetailPage /> },
+        { path: 'weighbridge-in/:id/edit', element: <WeighbridgeEditPage /> },
         { path: 'grn', element: <GrnPage /> },
         { path: 'grn/new', element: <GrnCreatePage /> },
+        { path: 'grn/:id', element: <GrnDetailPage /> },
         { path: 'arrival', element: <PurchaseArrivalPage /> },
+        { path: 'arrival/new', element: <PurchaseArrivalCreatePage /> },
+        { path: 'arrival/:id', element: <PurchaseArrivalDetailPage /> },
         { path: 'purchase-invoice', element: <PurchaseInvoicePage /> },
         { path: 'debit-note', element: <DebitNotePage /> }
       ]

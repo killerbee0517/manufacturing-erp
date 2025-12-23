@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 
 import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
@@ -13,21 +13,45 @@ import PageHeader from 'components/common/PageHeader';
 import apiClient from 'api/client';
 import MasterAutocomplete from 'components/common/MasterAutocomplete';
 
-export default function WeighbridgeCreatePage() {
+export default function WeighbridgeEditPage() {
+  const { id } = useParams();
   const navigate = useNavigate();
   const [header, setHeader] = useState({
     serialNo: '',
     vehicleId: '',
     supplierId: '',
     itemId: '',
-    dateIn: new Date().toISOString().slice(0, 10),
-    timeIn: new Date().toISOString().slice(11, 16),
+    dateIn: '',
+    timeIn: '',
     grossWeight: '',
     unloadedWeight: '',
     secondDate: '',
     secondTime: ''
   });
+  const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setLoading(true);
+    apiClient
+      .get(`/api/weighbridge/tickets/${id}`)
+      .then((response) => {
+        const ticket = response.data;
+        setHeader({
+          serialNo: ticket.serialNo || '',
+          vehicleId: ticket.vehicleId || '',
+          supplierId: ticket.supplierId || '',
+          itemId: ticket.itemId || '',
+          dateIn: ticket.dateIn || '',
+          timeIn: ticket.timeIn || '',
+          grossWeight: ticket.grossWeight ?? '',
+          unloadedWeight: ticket.unloadedWeight ?? '',
+          secondDate: ticket.secondDate || '',
+          secondTime: ticket.secondTime || ''
+        });
+      })
+      .finally(() => setLoading(false));
+  }, [id]);
 
   const netWeight = useMemo(() => {
     const gross = Number(header.grossWeight || 0);
@@ -50,21 +74,33 @@ export default function WeighbridgeCreatePage() {
         secondDate: header.secondDate || null,
         secondTime: header.secondTime || null
       };
-      await apiClient.post('/api/weighbridge/tickets', payload);
-      navigate('/purchase/weighbridge-in');
+      await apiClient.put(`/api/weighbridge/tickets/${id}`, payload);
+      navigate(`/purchase/weighbridge-in/${id}`);
     } finally {
       setSaving(false);
     }
   };
 
+  if (loading) {
+    return (
+      <MainCard>
+        <Typography>Loading...</Typography>
+      </MainCard>
+    );
+  }
+
   return (
     <MainCard>
       <PageHeader
-        title="Weighbridge In"
-        breadcrumbs={[{ label: 'Purchase', to: '/purchase/weighbridge-in' }, { label: 'New Entry' }]}
+        title="Edit Weighbridge Entry"
+        breadcrumbs={[
+          { label: 'Purchase', to: '/purchase/weighbridge-in' },
+          { label: `Ticket ${id}`, to: `/purchase/weighbridge-in/${id}` },
+          { label: 'Edit' }
+        ]}
         actions={
           <Button variant="contained" color="secondary" onClick={handleSave} disabled={saving}>
-            Save Entry
+            Save Changes
           </Button>
         }
       />

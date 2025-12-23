@@ -16,10 +16,10 @@ import java.time.LocalTime;
 @Table(name = "weighbridge_tickets")
 public class WeighbridgeTicket extends BaseEntity {
   @Column(nullable = false)
-  private String ticketNo;
+  private String serialNo;
 
-  @Column(nullable = false)
-  private String vehicleNo;
+  @ManyToOne
+  private Vehicle vehicle;
 
   @ManyToOne
   private Supplier supplier;
@@ -33,15 +33,15 @@ public class WeighbridgeTicket extends BaseEntity {
   @Column(nullable = false)
   private LocalTime timeIn;
 
-  private LocalDate dateOut;
+  private LocalDate secondDate;
 
-  private LocalTime timeOut;
+  private LocalTime secondTime;
 
   @Column(nullable = false)
   private BigDecimal grossWeight;
 
   @Column(nullable = false)
-  private BigDecimal tareWeight;
+  private BigDecimal unloadedWeight;
 
   @Column(nullable = false)
   private BigDecimal netWeight;
@@ -50,20 +50,20 @@ public class WeighbridgeTicket extends BaseEntity {
   @Column(nullable = false)
   private DocumentStatus status;
 
-  public String getTicketNo() {
-    return ticketNo;
+  public String getSerialNo() {
+    return serialNo;
   }
 
-  public void setTicketNo(String ticketNo) {
-    this.ticketNo = ticketNo;
+  public void setSerialNo(String serialNo) {
+    this.serialNo = serialNo;
   }
 
-  public String getVehicleNo() {
-    return vehicleNo;
+  public Vehicle getVehicle() {
+    return vehicle;
   }
 
-  public void setVehicleNo(String vehicleNo) {
-    this.vehicleNo = vehicleNo;
+  public void setVehicle(Vehicle vehicle) {
+    this.vehicle = vehicle;
   }
 
   public Supplier getSupplier() {
@@ -98,20 +98,20 @@ public class WeighbridgeTicket extends BaseEntity {
     this.timeIn = timeIn;
   }
 
-  public LocalDate getDateOut() {
-    return dateOut;
+  public LocalDate getSecondDate() {
+    return secondDate;
   }
 
-  public void setDateOut(LocalDate dateOut) {
-    this.dateOut = dateOut;
+  public void setSecondDate(LocalDate secondDate) {
+    this.secondDate = secondDate;
   }
 
-  public LocalTime getTimeOut() {
-    return timeOut;
+  public LocalTime getSecondTime() {
+    return secondTime;
   }
 
-  public void setTimeOut(LocalTime timeOut) {
-    this.timeOut = timeOut;
+  public void setSecondTime(LocalTime secondTime) {
+    this.secondTime = secondTime;
   }
 
   public BigDecimal getGrossWeight() {
@@ -122,12 +122,12 @@ public class WeighbridgeTicket extends BaseEntity {
     this.grossWeight = grossWeight;
   }
 
-  public BigDecimal getTareWeight() {
-    return tareWeight;
+  public BigDecimal getUnloadedWeight() {
+    return unloadedWeight;
   }
 
-  public void setTareWeight(BigDecimal tareWeight) {
-    this.tareWeight = tareWeight;
+  public void setUnloadedWeight(BigDecimal unloadedWeight) {
+    this.unloadedWeight = unloadedWeight;
   }
 
   public BigDecimal getNetWeight() {

@@ -39,6 +39,6 @@ public class StockTransferService {
         .orElseThrow(() -> new IllegalArgumentException("UOM KG missing"));
 
     stockLedgerService.postEntry("STOCK_TRANSFER", 0L, null, LedgerTxnType.MOVE, item, uom,
-        fromLocation, toLocation, request.quantity(), request.weight(), StockStatus.UNRESTRICTED);
+        fromLocation, toLocation, null, null, request.quantity(), request.weight(), StockStatus.UNRESTRICTED);
   }
 }

@@ -45,6 +45,12 @@ public class StockLedger extends BaseEntity {
   @ManyToOne
   private Location toLocation;
 
+  @ManyToOne
+  private Godown fromGodown;
+
+  @ManyToOne
+  private Godown toGodown;
+
   @Enumerated(EnumType.STRING)
   @Column(nullable = false)
   private StockStatus status;
@@ -130,6 +136,22 @@ public class StockLedger extends BaseEntity {
 
   public void setToLocation(Location toLocation) {
     this.toLocation = toLocation;
+  }
+
+  public Godown getFromGodown() {
+    return fromGodown;
+  }
+
+  public void setFromGodown(Godown fromGodown) {
+    this.fromGodown = fromGodown;
+  }
+
+  public Godown getToGodown() {
+    return toGodown;
+  }
+
+  public void setToGodown(Godown toGodown) {
+    this.toGodown = toGodown;
   }
 
   public StockStatus getStatus() {

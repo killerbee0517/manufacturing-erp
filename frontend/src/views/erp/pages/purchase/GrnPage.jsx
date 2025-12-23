@@ -14,7 +14,7 @@ export default function GrnPage() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
   const [supplierMap, setSupplierMap] = useState({});
-  const [itemMap, setItemMap] = useState({});
+  const [poMap, setPoMap] = useState({});
 
   useEffect(() => {
     setLoading(true);
@@ -36,15 +36,16 @@ export default function GrnPage() {
       .catch(() => setSupplierMap({}));
 
     apiClient
-      .get('/api/items')
+      .get('/api/purchase-orders')
       .then((response) => {
-        const lookup = (response.data || []).reduce((acc, item) => {
-          acc[item.id] = item.name;
+        const payload = response.data?.content || response.data || [];
+        const lookup = payload.reduce((acc, po) => {
+          acc[po.id] = po.poNo;
           return acc;
         }, {});
-        setItemMap(lookup);
+        setPoMap(lookup);
       })
-      .catch(() => setItemMap({}));
+      .catch(() => setPoMap({}));
   }, []);
 
   return (
@@ -63,13 +64,14 @@ export default function GrnPage() {
           columns={[
             { field: 'grnNo', headerName: 'GRN No' },
             { field: 'supplierId', headerName: 'Supplier', render: (row) => supplierMap[row.supplierId] || row.supplierId },
-            { field: 'itemId', headerName: 'Item', render: (row) => itemMap[row.itemId] || row.itemId },
+            { field: 'purchaseOrderId', headerName: 'PO', render: (row) => poMap[row.purchaseOrderId] || row.purchaseOrderId },
             { field: 'grnDate', headerName: 'Date' },
             { field: 'status', headerName: 'Status' }
           ]}
           rows={rows}
           loading={loading}
           emptyMessage="No GRNs found."
+          onRowClick={(row) => navigate(`/purchase/grn/${row.id}`)}
         />
       </Stack>
     </MainCard>
