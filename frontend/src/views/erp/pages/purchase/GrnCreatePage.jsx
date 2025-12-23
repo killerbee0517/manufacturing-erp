@@ -6,37 +6,89 @@ import Divider from '@mui/material/Divider';
 import Grid from '@mui/material/Grid';
 import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
+import Table from '@mui/material/Table';
+import TableBody from '@mui/material/TableBody';
+import TableCell from '@mui/material/TableCell';
+import TableHead from '@mui/material/TableHead';
+import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
+import Typography from '@mui/material/Typography';
 
 import MainCard from 'ui-component/cards/MainCard';
 import PageHeader from 'components/common/PageHeader';
 import apiClient from 'api/client';
 import MasterAutocomplete from 'components/common/MasterAutocomplete';
 
+const toLine = (line) => ({
+  key: `${line.id}-${Date.now()}`,
+  itemId: line.itemId,
+  uomId: line.uomId,
+  quantity: line.quantity,
+  weight: ''
+});
+
 export default function GrnCreatePage() {
   const navigate = useNavigate();
   const [header, setHeader] = useState({
-    supplierId: '',
     purchaseOrderId: '',
+    supplierId: '',
     weighbridgeTicketId: '',
+    godownId: '',
     grnDate: new Date().toISOString().slice(0, 10),
-    itemId: '',
-    uomId: '',
-    quantity: '',
     firstWeight: '',
     secondWeight: '',
     narration: ''
   });
   const [purchaseOrders, setPurchaseOrders] = useState([]);
   const [tickets, setTickets] = useState([]);
+  const [lines, setLines] = useState([]);
   const [saving, setSaving] = useState(false);
+  const [supplierMap, setSupplierMap] = useState({});
+  const [itemMap, setItemMap] = useState({});
+  const [uomMap, setUomMap] = useState({});
 
   useEffect(() => {
-    apiClient.get('/api/purchase-orders').then((res) => {
-      const payload = res.data?.content || res.data || [];
-      setPurchaseOrders(payload);
-    }).catch(() => setPurchaseOrders([]));
+    apiClient
+      .get('/api/purchase-orders')
+      .then((res) => {
+        const payload = res.data?.content || res.data || [];
+        setPurchaseOrders(payload);
+      })
+      .catch(() => setPurchaseOrders([]));
     apiClient.get('/api/weighbridge/tickets').then((res) => setTickets(res.data || [])).catch(() => setTickets([]));
+
+    apiClient
+      .get('/api/suppliers')
+      .then((response) => {
+        const lookup = (response.data || []).reduce((acc, supplier) => {
+          acc[supplier.id] = supplier.name;
+          return acc;
+        }, {});
+        setSupplierMap(lookup);
+      })
+      .catch(() => setSupplierMap({}));
+
+    apiClient
+      .get('/api/items')
+      .then((response) => {
+        const lookup = (response.data || []).reduce((acc, item) => {
+          acc[item.id] = item.name;
+          return acc;
+        }, {});
+        setItemMap(lookup);
+      })
+      .catch(() => setItemMap({}));
+
+    apiClient
+      .get('/api/uoms')
+      .then((response) => {
+        const lookup = (response.data || []).reduce((acc, uom) => {
+          acc[uom.id] = uom.code;
+          return acc;
+        }, {});
+        setUomMap(lookup);
+      })
+      .catch(() => setUomMap({}));
   }, []);
 
   const netWeight = useMemo(() => {
@@ -46,24 +98,48 @@ export default function GrnCreatePage() {
     return Math.abs(second - first);
   }, [header.firstWeight, header.secondWeight]);
 
+  const handlePurchaseOrderChange = async (poId) => {
+    setHeader((prev) => ({ ...prev, purchaseOrderId: poId }));
+    if (!poId) {
+      setLines([]);
+      setHeader((prev) => ({ ...prev, supplierId: '' }));
+      return;
+    }
+    const response = await apiClient.get(`/api/purchase-orders/${poId}`);
+    const po = response.data;
+    setHeader((prev) => ({ ...prev, supplierId: po.supplierId || '' }));
+    setLines((po.lines || []).map(toLine));
+  };
+
+  const updateLine = (index, key, value) => {
+    setLines((prev) => {
+      const next = [...prev];
+      next[index] = { ...next[index], [key]: value };
+      return next;
+    });
+  };
+
   const handleSave = async () => {
     setSaving(true);
     try {
       const payload = {
-        supplierId: Number(header.supplierId),
-        purchaseOrderId: header.purchaseOrderId ? Number(header.purchaseOrderId) : null,
+        purchaseOrderId: Number(header.purchaseOrderId),
         weighbridgeTicketId: header.weighbridgeTicketId ? Number(header.weighbridgeTicketId) : null,
+        godownId: Number(header.godownId),
         grnDate: header.grnDate,
-        itemId: Number(header.itemId),
-        uomId: Number(header.uomId),
-        quantity: Number(header.quantity),
         firstWeight: header.firstWeight ? Number(header.firstWeight) : null,
         secondWeight: header.secondWeight ? Number(header.secondWeight) : null,
         netWeight,
-        narration: header.narration
+        narration: header.narration,
+        lines: lines.map((line) => ({
+          itemId: Number(line.itemId),
+          uomId: Number(line.uomId),
+          quantity: Number(line.quantity),
+          weight: line.weight ? Number(line.weight) : null
+        }))
       };
-      await apiClient.post('/api/grn', payload);
-      navigate('/purchase/grn');
+      const response = await apiClient.post('/api/grn', payload);
+      navigate(`/purchase/grn/${response.data.id}`);
     } finally {
       setSaving(false);
     }
@@ -83,15 +159,27 @@ export default function GrnCreatePage() {
       <Stack spacing={3}>
         <Grid container spacing={2}>
           <Grid size={{ xs: 12, md: 4 }}>
-            <MasterAutocomplete
-              label="Supplier / Party"
-              endpoint="/api/suppliers"
-              value={header.supplierId}
-              onChange={(nextValue) => setHeader((prev) => ({ ...prev, supplierId: nextValue }))}
-              optionLabelKey="name"
-              optionValueKey="id"
-              placeholder="Search suppliers"
-              required
+            <TextField
+              fullWidth
+              select
+              label="Purchase Order"
+              value={header.purchaseOrderId}
+              onChange={(event) => handlePurchaseOrderChange(event.target.value)}
+            >
+              <MenuItem value="">Select PO</MenuItem>
+              {purchaseOrders.map((po) => (
+                <MenuItem key={po.id} value={po.id}>
+                  {po.poNo}
+                </MenuItem>
+              ))}
+            </TextField>
+          </Grid>
+          <Grid size={{ xs: 12, md: 4 }}>
+            <TextField
+              fullWidth
+              label="Supplier"
+              value={supplierMap[header.supplierId] || ''}
+              InputProps={{ readOnly: true }}
             />
           </Grid>
           <Grid size={{ xs: 12, md: 4 }}>
@@ -105,20 +193,16 @@ export default function GrnCreatePage() {
             />
           </Grid>
           <Grid size={{ xs: 12, md: 4 }}>
-            <TextField
-              fullWidth
-              select
-              label="Purchase Order"
-              value={header.purchaseOrderId}
-              onChange={(event) => setHeader((prev) => ({ ...prev, purchaseOrderId: event.target.value }))}
-            >
-              <MenuItem value="">None</MenuItem>
-              {purchaseOrders.map((po) => (
-                <MenuItem key={po.id} value={po.id}>
-                  {po.poNo}
-                </MenuItem>
-              ))}
-            </TextField>
+            <MasterAutocomplete
+              label="Godown"
+              endpoint="/api/godowns"
+              value={header.godownId}
+              onChange={(nextValue) => setHeader((prev) => ({ ...prev, godownId: nextValue }))}
+              optionLabelKey="name"
+              optionValueKey="id"
+              placeholder="Select godown"
+              required
+            />
           </Grid>
           <Grid size={{ xs: 12, md: 4 }}>
             <TextField
@@ -131,7 +215,7 @@ export default function GrnCreatePage() {
               <MenuItem value="">None</MenuItem>
               {tickets.map((ticket) => (
                 <MenuItem key={ticket.id} value={ticket.id}>
-                  {ticket.ticketNo}
+                  {ticket.serialNo}
                 </MenuItem>
               ))}
             </TextField>
@@ -139,39 +223,6 @@ export default function GrnCreatePage() {
         </Grid>
         <Divider />
         <Grid container spacing={2}>
-          <Grid size={{ xs: 12, md: 4 }}>
-            <MasterAutocomplete
-              label="Item"
-              endpoint="/api/items"
-              value={header.itemId}
-              onChange={(nextValue) => setHeader((prev) => ({ ...prev, itemId: nextValue }))}
-              optionLabelKey="name"
-              optionValueKey="id"
-              placeholder="Search items"
-              required
-            />
-          </Grid>
-          <Grid size={{ xs: 12, md: 4 }}>
-            <MasterAutocomplete
-              label="UOM"
-              endpoint="/api/uoms"
-              value={header.uomId}
-              onChange={(nextValue) => setHeader((prev) => ({ ...prev, uomId: nextValue }))}
-              optionLabelKey="code"
-              optionValueKey="id"
-              placeholder="Search UOMs"
-              required
-            />
-          </Grid>
-          <Grid size={{ xs: 12, md: 4 }}>
-            <TextField
-              fullWidth
-              type="number"
-              label="Quantity"
-              value={header.quantity}
-              onChange={(event) => setHeader((prev) => ({ ...prev, quantity: event.target.value }))}
-            />
-          </Grid>
           <Grid size={{ xs: 12, md: 4 }}>
             <TextField
               fullWidth
@@ -191,12 +242,7 @@ export default function GrnCreatePage() {
             />
           </Grid>
           <Grid size={{ xs: 12, md: 4 }}>
-            <TextField
-              fullWidth
-              label="Net Weight"
-              value={netWeight}
-              InputProps={{ readOnly: true }}
-            />
+            <TextField fullWidth label="Net Weight" value={netWeight} InputProps={{ readOnly: true }} />
           </Grid>
           <Grid size={{ xs: 12 }}>
             <TextField
@@ -207,6 +253,48 @@ export default function GrnCreatePage() {
             />
           </Grid>
         </Grid>
+        <Divider />
+        <Stack spacing={1}>
+          <Typography variant="h5">Line Items</Typography>
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell>Item</TableCell>
+                <TableCell>UOM</TableCell>
+                <TableCell>Quantity</TableCell>
+                <TableCell>Weight</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {lines.map((line, index) => (
+                <TableRow key={line.key}>
+                  <TableCell>{itemMap[line.itemId] || line.itemId}</TableCell>
+                  <TableCell>{uomMap[line.uomId] || line.uomId}</TableCell>
+                  <TableCell>
+                    <TextField
+                      type="number"
+                      value={line.quantity}
+                      onChange={(event) => updateLine(index, 'quantity', event.target.value)}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <TextField
+                      type="number"
+                      value={line.weight}
+                      onChange={(event) => updateLine(index, 'weight', event.target.value)}
+                      placeholder="Optional"
+                    />
+                  </TableCell>
+                </TableRow>
+              ))}
+              {!lines.length && (
+                <TableRow>
+                  <TableCell colSpan={4}>Select a purchase order to load line items.</TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </Stack>
       </Stack>
     </MainCard>
   );

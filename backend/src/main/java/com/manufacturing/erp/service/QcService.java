@@ -55,7 +55,8 @@ public class QcService {
       Uom uom = uomRepository.findByCode("KG")
           .orElseThrow(() -> new IllegalArgumentException("UOM KG missing"));
       stockLedgerService.postEntry("QC", grnLine.getGrn().getId(), grnLine.getId(), LedgerTxnType.MOVE,
-          grnLine.getItem(), uom, qcHold, unrestricted, grnLine.getQuantity(), grnLine.getWeight(), StockStatus.UNRESTRICTED);
+          grnLine.getItem(), uom, qcHold, unrestricted, null, null,
+          grnLine.getQuantity(), grnLine.getWeight(), StockStatus.UNRESTRICTED);
     }
 
     return saved;

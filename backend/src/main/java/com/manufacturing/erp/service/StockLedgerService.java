@@ -2,6 +2,7 @@ package com.manufacturing.erp.service;
 
 import com.manufacturing.erp.domain.Enums.LedgerTxnType;
 import com.manufacturing.erp.domain.Enums.StockStatus;
+import com.manufacturing.erp.domain.Godown;
 import com.manufacturing.erp.domain.Item;
 import com.manufacturing.erp.domain.Location;
 import com.manufacturing.erp.domain.StockLedger;
@@ -21,6 +22,7 @@ public class StockLedgerService {
 
   public StockLedger postEntry(String docType, Long docId, Long docLineId, LedgerTxnType txnType,
                                Item item, Uom uom, Location fromLocation, Location toLocation,
+                               Godown fromGodown, Godown toGodown,
                                BigDecimal quantity, BigDecimal weight, StockStatus status) {
     StockLedger ledger = new StockLedger();
     ledger.setDocType(docType);
@@ -31,6 +33,8 @@ public class StockLedgerService {
     ledger.setUom(uom);
     ledger.setFromLocation(fromLocation);
     ledger.setToLocation(toLocation);
+    ledger.setFromGodown(fromGodown);
+    ledger.setToGodown(toGodown);
     ledger.setQuantity(quantity);
     ledger.setWeight(weight);
     ledger.setStatus(status);

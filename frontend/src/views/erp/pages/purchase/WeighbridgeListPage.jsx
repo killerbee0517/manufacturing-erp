@@ -15,6 +15,7 @@ export default function WeighbridgeListPage() {
   const [loading, setLoading] = useState(false);
   const [supplierMap, setSupplierMap] = useState({});
   const [itemMap, setItemMap] = useState({});
+  const [vehicleMap, setVehicleMap] = useState({});
 
   useEffect(() => {
     setLoading(true);
@@ -45,6 +46,17 @@ export default function WeighbridgeListPage() {
         setItemMap(lookup);
       })
       .catch(() => setItemMap({}));
+
+    apiClient
+      .get('/api/vehicles')
+      .then((response) => {
+        const lookup = (response.data || []).reduce((acc, vehicle) => {
+          acc[vehicle.id] = vehicle.vehicleNo;
+          return acc;
+        }, {});
+        setVehicleMap(lookup);
+      })
+      .catch(() => setVehicleMap({}));
   }, []);
 
   return (
@@ -61,8 +73,8 @@ export default function WeighbridgeListPage() {
       <Stack spacing={2}>
         <DataTable
           columns={[
-            { field: 'ticketNo', headerName: 'Ticket No' },
-            { field: 'vehicleNo', headerName: 'Vehicle' },
+            { field: 'serialNo', headerName: 'Ticket No' },
+            { field: 'vehicleId', headerName: 'Vehicle', render: (row) => vehicleMap[row.vehicleId] || row.vehicleId },
             { field: 'supplierId', headerName: 'Supplier', render: (row) => supplierMap[row.supplierId] || row.supplierId },
             { field: 'itemId', headerName: 'Item', render: (row) => itemMap[row.itemId] || row.itemId },
             { field: 'grossWeight', headerName: 'Gross' },
@@ -72,6 +84,7 @@ export default function WeighbridgeListPage() {
           rows={rows}
           loading={loading}
           emptyMessage="No weighbridge entries found."
+          onRowClick={(row) => navigate(`/purchase/weighbridge-in/${row.id}`)}
         />
       </Stack>
     </MainCard>
