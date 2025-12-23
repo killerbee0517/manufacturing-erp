@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.transaction.annotation.Transactional;
 
 @RestController
 @RequestMapping("/api/items")
@@ -52,6 +53,7 @@ public class ItemController {
   }
 
   @PostMapping
+  @Transactional
   public MasterDtos.ItemResponse create(@Valid @RequestBody MasterDtos.ItemRequest request) {
     Uom uom = uomRepository.findById(request.uomId())
         .orElseThrow(() -> new IllegalArgumentException("UOM not found"));
@@ -64,6 +66,7 @@ public class ItemController {
   }
 
   @PutMapping("/{id}")
+  @Transactional
   public MasterDtos.ItemResponse update(@PathVariable Long id, @Valid @RequestBody MasterDtos.ItemRequest request) {
     Item item = itemRepository.findById(id)
         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Item not found"));

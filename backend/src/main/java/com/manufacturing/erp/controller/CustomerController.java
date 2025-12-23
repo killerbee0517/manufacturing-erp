@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.transaction.annotation.Transactional;
 
 @RestController
 @RequestMapping("/api/customers")
@@ -47,6 +48,7 @@ public class CustomerController {
   }
 
   @PostMapping
+  @Transactional
   public MasterDtos.CustomerResponse create(@Valid @RequestBody MasterDtos.CustomerRequest request) {
     Customer customer = new Customer();
     applyRequest(customer, request);
@@ -55,6 +57,7 @@ public class CustomerController {
   }
 
   @PutMapping("/{id}")
+  @Transactional
   public MasterDtos.CustomerResponse update(@PathVariable Long id, @Valid @RequestBody MasterDtos.CustomerRequest request) {
     Customer customer = customerRepository.findById(id)
         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Customer not found"));

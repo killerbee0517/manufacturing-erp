@@ -11,11 +11,11 @@ import TextField from '@mui/material/TextField';
 import MainCard from 'ui-component/cards/MainCard';
 import PageHeader from 'components/common/PageHeader';
 import apiClient from 'api/client';
+import MasterAutocomplete from 'components/common/MasterAutocomplete';
 
 export default function GrnCreatePage() {
   const navigate = useNavigate();
   const [header, setHeader] = useState({
-    grnNo: '',
     supplierId: '',
     purchaseOrderId: '',
     weighbridgeTicketId: '',
@@ -27,17 +27,11 @@ export default function GrnCreatePage() {
     secondWeight: '',
     narration: ''
   });
-  const [suppliers, setSuppliers] = useState([]);
-  const [items, setItems] = useState([]);
-  const [uoms, setUoms] = useState([]);
   const [purchaseOrders, setPurchaseOrders] = useState([]);
   const [tickets, setTickets] = useState([]);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    apiClient.get('/api/suppliers').then((res) => setSuppliers(res.data || [])).catch(() => setSuppliers([]));
-    apiClient.get('/api/items').then((res) => setItems(res.data || [])).catch(() => setItems([]));
-    apiClient.get('/api/uoms').then((res) => setUoms(res.data || [])).catch(() => setUoms([]));
     apiClient.get('/api/purchase-orders').then((res) => {
       const payload = res.data?.content || res.data || [];
       setPurchaseOrders(payload);
@@ -56,7 +50,6 @@ export default function GrnCreatePage() {
     setSaving(true);
     try {
       const payload = {
-        grnNo: header.grnNo || undefined,
         supplierId: Number(header.supplierId),
         purchaseOrderId: header.purchaseOrderId ? Number(header.purchaseOrderId) : null,
         weighbridgeTicketId: header.weighbridgeTicketId ? Number(header.weighbridgeTicketId) : null,
@@ -90,28 +83,16 @@ export default function GrnCreatePage() {
       <Stack spacing={3}>
         <Grid container spacing={2}>
           <Grid size={{ xs: 12, md: 4 }}>
-            <TextField
-              fullWidth
-              label="GRN No"
-              value={header.grnNo}
-              onChange={(event) => setHeader((prev) => ({ ...prev, grnNo: event.target.value }))}
-              placeholder="Auto-generated"
-            />
-          </Grid>
-          <Grid size={{ xs: 12, md: 4 }}>
-            <TextField
-              fullWidth
-              select
+            <MasterAutocomplete
               label="Supplier / Party"
+              endpoint="/api/suppliers"
               value={header.supplierId}
-              onChange={(event) => setHeader((prev) => ({ ...prev, supplierId: event.target.value }))}
-            >
-              {suppliers.map((supplier) => (
-                <MenuItem key={supplier.id} value={supplier.id}>
-                  {supplier.name}
-                </MenuItem>
-              ))}
-            </TextField>
+              onChange={(nextValue) => setHeader((prev) => ({ ...prev, supplierId: nextValue }))}
+              optionLabelKey="name"
+              optionValueKey="id"
+              placeholder="Search suppliers"
+              required
+            />
           </Grid>
           <Grid size={{ xs: 12, md: 4 }}>
             <TextField
@@ -159,34 +140,28 @@ export default function GrnCreatePage() {
         <Divider />
         <Grid container spacing={2}>
           <Grid size={{ xs: 12, md: 4 }}>
-            <TextField
-              fullWidth
-              select
+            <MasterAutocomplete
               label="Item"
+              endpoint="/api/items"
               value={header.itemId}
-              onChange={(event) => setHeader((prev) => ({ ...prev, itemId: event.target.value }))}
-            >
-              {items.map((item) => (
-                <MenuItem key={item.id} value={item.id}>
-                  {item.name}
-                </MenuItem>
-              ))}
-            </TextField>
+              onChange={(nextValue) => setHeader((prev) => ({ ...prev, itemId: nextValue }))}
+              optionLabelKey="name"
+              optionValueKey="id"
+              placeholder="Search items"
+              required
+            />
           </Grid>
           <Grid size={{ xs: 12, md: 4 }}>
-            <TextField
-              fullWidth
-              select
+            <MasterAutocomplete
               label="UOM"
+              endpoint="/api/uoms"
               value={header.uomId}
-              onChange={(event) => setHeader((prev) => ({ ...prev, uomId: event.target.value }))}
-            >
-              {uoms.map((uom) => (
-                <MenuItem key={uom.id} value={uom.id}>
-                  {uom.code}
-                </MenuItem>
-              ))}
-            </TextField>
+              onChange={(nextValue) => setHeader((prev) => ({ ...prev, uomId: nextValue }))}
+              optionLabelKey="code"
+              optionValueKey="id"
+              placeholder="Search UOMs"
+              required
+            />
           </Grid>
           <Grid size={{ xs: 12, md: 4 }}>
             <TextField

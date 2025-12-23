@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.transaction.annotation.Transactional;
 
 @RestController
 @RequestMapping("/api/godowns")
@@ -44,6 +45,7 @@ public class GodownController {
   }
 
   @PostMapping
+  @Transactional
   public MasterDtos.GodownResponse create(@Valid @RequestBody MasterDtos.GodownRequest request) {
     Godown godown = new Godown();
     applyRequest(godown, request);
@@ -52,6 +54,7 @@ public class GodownController {
   }
 
   @PutMapping("/{id}")
+  @Transactional
   public MasterDtos.GodownResponse update(@PathVariable Long id, @Valid @RequestBody MasterDtos.GodownRequest request) {
     Godown godown = godownRepository.findById(id)
         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Godown not found"));

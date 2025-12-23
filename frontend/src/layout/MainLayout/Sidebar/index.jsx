@@ -75,7 +75,7 @@ function Sidebar() {
           slotProps={{
             paper: {
               sx: {
-                mt: downMD ? 0 : 11,
+                mt: 0,
                 zIndex: 1099,
                 width: drawerWidth,
                 bgcolor: 'background.default',

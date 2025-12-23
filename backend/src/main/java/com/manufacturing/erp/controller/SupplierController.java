@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.transaction.annotation.Transactional;
 
 @RestController
 @RequestMapping("/api/suppliers")
@@ -47,6 +48,7 @@ public class SupplierController {
   }
 
   @PostMapping
+  @Transactional
   public MasterDtos.SupplierResponse create(@Valid @RequestBody MasterDtos.SupplierRequest request) {
     Supplier supplier = new Supplier();
     applyRequest(supplier, request);
@@ -55,6 +57,7 @@ public class SupplierController {
   }
 
   @PutMapping("/{id}")
+  @Transactional
   public MasterDtos.SupplierResponse update(@PathVariable Long id, @Valid @RequestBody MasterDtos.SupplierRequest request) {
     Supplier supplier = supplierRepository.findById(id)
         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Supplier not found"));
