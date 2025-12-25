@@ -6,6 +6,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
+import com.manufacturing.erp.domain.PurchaseOrderLine;
 
 @Entity
 @Table(name = "grn_lines")
@@ -14,22 +15,26 @@ public class GrnLine extends BaseEntity {
   private Grn grn;
 
   @ManyToOne
+  private PurchaseOrderLine purchaseOrderLine;
+
+  @ManyToOne
   private Item item;
 
   @ManyToOne
   private Uom uom;
 
-  @Column(nullable = false)
   private String bagType;
 
-  @Column(nullable = false)
   private Integer bagCount;
 
-  @Column(nullable = false)
+  @Column(name = "received_qty")
   private BigDecimal quantity;
 
-  @Column(nullable = false)
   private BigDecimal weight;
+
+  private BigDecimal rate;
+
+  private BigDecimal amount;
 
   public Grn getGrn() {
     return grn;
@@ -85,5 +90,29 @@ public class GrnLine extends BaseEntity {
 
   public void setWeight(BigDecimal weight) {
     this.weight = weight;
+  }
+
+  public BigDecimal getRate() {
+    return rate;
+  }
+
+  public void setRate(BigDecimal rate) {
+    this.rate = rate;
+  }
+
+  public BigDecimal getAmount() {
+    return amount;
+  }
+
+  public void setAmount(BigDecimal amount) {
+    this.amount = amount;
+  }
+
+  public PurchaseOrderLine getPurchaseOrderLine() {
+    return purchaseOrderLine;
+  }
+
+  public void setPurchaseOrderLine(PurchaseOrderLine purchaseOrderLine) {
+    this.purchaseOrderLine = purchaseOrderLine;
   }
 }

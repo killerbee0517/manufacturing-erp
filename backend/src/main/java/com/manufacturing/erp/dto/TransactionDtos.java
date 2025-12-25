@@ -29,28 +29,40 @@ public class TransactionDtos {
       BigDecimal rateExpected,
       String remarks) {}
 
+  public record RfqSupplierInvite(Long supplierId, String status, String remarks) {}
+
+  public record RfqAwardLine(
+      Long rfqLineId,
+      Long supplierId,
+      BigDecimal quantity,
+      BigDecimal rate,
+      String status) {}
+
   public record RfqRequest(
       String rfqNo,
-      @NotNull Long supplierId,
       LocalDate rfqDate,
       String paymentTerms,
       String narration,
+      @NotEmpty List<Long> supplierIds,
       @NotEmpty @Valid List<RfqLineRequest> lines) {}
 
   public record RfqResponse(
       Long id,
       String rfqNo,
-      Long supplierId,
+      List<RfqSupplierInvite> suppliers,
       LocalDate rfqDate,
       String paymentTerms,
       String narration,
       String closureReason,
       String status,
-      List<RfqLineResponse> lines) {}
+      List<RfqLineResponse> lines,
+      List<RfqAwardLine> awards,
+      java.util.Map<Long, Long> createdPoIds) {}
 
   public record RfqCloseRequest(@NotBlank String closureReason) {}
 
   public record RfqCloseResponse(Long id, String status, String closureReason, Long purchaseOrderId) {}
+  public record RfqAwardRequest(@NotEmpty List<RfqAwardLine> awards, String remarks) {}
 
   public record PurchaseOrderLineRequest(
       Long id,

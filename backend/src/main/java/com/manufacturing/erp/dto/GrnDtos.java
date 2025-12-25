@@ -10,7 +10,10 @@ public class GrnDtos {
       @NotNull Long itemId,
       @NotNull Long uomId,
       @NotNull BigDecimal quantity,
-      BigDecimal weight) {}
+      BigDecimal weight,
+      Long poLineId,
+      BigDecimal rate,
+      BigDecimal amount) {}
 
   public record GrnLineResponse(
       Long id,
@@ -23,11 +26,16 @@ public class GrnDtos {
       String grnNo,
       @NotNull Long purchaseOrderId,
       Long weighbridgeTicketId,
-      @NotNull Long godownId,
+      Long godownId,
       @NotNull LocalDate grnDate,
       BigDecimal firstWeight,
       BigDecimal secondWeight,
       BigDecimal netWeight,
+      String narration,
+      @NotNull List<GrnLineRequest> lines) {}
+
+  public record ConfirmGrnRequest(
+      @NotNull Long godownId,
       String narration,
       @NotNull List<GrnLineRequest> lines) {}
 

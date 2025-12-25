@@ -9,6 +9,7 @@ import com.manufacturing.erp.domain.GrnLine;
 import com.manufacturing.erp.domain.Item;
 import com.manufacturing.erp.domain.Location;
 import com.manufacturing.erp.domain.PurchaseOrder;
+import com.manufacturing.erp.domain.PurchaseOrderLine;
 import com.manufacturing.erp.domain.Supplier;
 import com.manufacturing.erp.domain.Uom;
 import com.manufacturing.erp.domain.WeighbridgeTicket;
@@ -19,6 +20,7 @@ import com.manufacturing.erp.repository.GodownRepository;
 import com.manufacturing.erp.repository.ItemRepository;
 import com.manufacturing.erp.repository.LocationRepository;
 import com.manufacturing.erp.repository.PurchaseOrderRepository;
+import com.manufacturing.erp.repository.PurchaseOrderLineRepository;
 import com.manufacturing.erp.repository.UomRepository;
 import com.manufacturing.erp.repository.WeighbridgeTicketRepository;
 import java.math.BigDecimal;
@@ -36,6 +38,7 @@ public class GrnService {
   private final StockLedgerService stockLedgerService;
   private final PurchaseOrderRepository purchaseOrderRepository;
   private final GodownRepository godownRepository;
+  private final PurchaseOrderLineRepository purchaseOrderLineRepository;
 
   public GrnService(GrnRepository grnRepository,
                     GrnLineRepository grnLineRepository,
@@ -45,7 +48,8 @@ public class GrnService {
                     UomRepository uomRepository,
                     StockLedgerService stockLedgerService,
                     PurchaseOrderRepository purchaseOrderRepository,
-                    GodownRepository godownRepository) {
+                    GodownRepository godownRepository,
+                    PurchaseOrderLineRepository purchaseOrderLineRepository) {
     this.grnRepository = grnRepository;
     this.grnLineRepository = grnLineRepository;
     this.weighbridgeTicketRepository = weighbridgeTicketRepository;
@@ -55,6 +59,7 @@ public class GrnService {
     this.stockLedgerService = stockLedgerService;
     this.purchaseOrderRepository = purchaseOrderRepository;
     this.godownRepository = godownRepository;
+    this.purchaseOrderLineRepository = purchaseOrderLineRepository;
   }
 
   @Transactional
@@ -66,10 +71,9 @@ public class GrnService {
         ? weighbridgeTicketRepository.findById(request.weighbridgeTicketId())
             .orElseThrow(() -> new IllegalArgumentException("Weighbridge ticket not found"))
         : null;
-    Location qcHold = locationRepository.findByCode("QC_HOLD")
-        .orElseThrow(() -> new IllegalArgumentException("QC_HOLD location missing"));
-    Godown godown = godownRepository.findById(request.godownId())
-        .orElseThrow(() -> new IllegalArgumentException("Godown not found"));
+    Godown godown = request.godownId() != null
+        ? godownRepository.findById(request.godownId()).orElseThrow(() -> new IllegalArgumentException("Godown not found"))
+        : null;
 
     Grn grn = new Grn();
     grn.setGrnNo(resolveGrnNo(request.grnNo()));
@@ -82,7 +86,7 @@ public class GrnService {
     grn.setFirstWeight(request.firstWeight());
     grn.setSecondWeight(request.secondWeight());
     grn.setNetWeight(resolveNetWeight(request));
-    grn.setStatus(DocumentStatus.POSTED);
+    grn.setStatus(DocumentStatus.DRAFT);
     Grn saved = grnRepository.save(grn);
 
     for (GrnDtos.GrnLineRequest lineRequest : request.lines()) {
@@ -90,24 +94,99 @@ public class GrnService {
           .orElseThrow(() -> new IllegalArgumentException("Item not found"));
       Uom uom = uomRepository.findById(lineRequest.uomId())
           .orElseThrow(() -> new IllegalArgumentException("UOM not found"));
+      PurchaseOrderLine poLine = lineRequest.poLineId() != null
+          ? purchaseOrderLineRepository.findById(lineRequest.poLineId())
+              .orElseThrow(() -> new IllegalArgumentException("PO line not found"))
+          : null;
       GrnLine line = new GrnLine();
       line.setGrn(saved);
+      line.setPurchaseOrderLine(poLine);
       line.setItem(item);
       line.setUom(uom);
       line.setBagType("N/A");
       line.setBagCount(0);
       line.setQuantity(lineRequest.quantity());
-      BigDecimal weight = lineRequest.weight() != null ? lineRequest.weight() : lineRequest.quantity();
-      line.setWeight(weight);
+      line.setWeight(lineRequest.weight() != null ? lineRequest.weight() : lineRequest.quantity());
+      line.setRate(lineRequest.rate());
+      line.setAmount(lineRequest.amount() != null ? lineRequest.amount() : resolveAmount(lineRequest));
       GrnLine savedLine = grnLineRepository.save(line);
       saved.getLines().add(savedLine);
-
-      stockLedgerService.postEntry("GRN", saved.getId(), savedLine.getId(), LedgerTxnType.IN,
-          savedLine.getItem(), uom, null, qcHold, null, godown,
-          savedLine.getQuantity(), savedLine.getWeight(), StockStatus.QC_HOLD);
     }
 
     return saved;
+  }
+
+  @Transactional
+  public Grn createDraftFromWeighbridge(WeighbridgeTicket ticket) {
+    PurchaseOrder po = ticket.getPurchaseOrder();
+    if (po == null) {
+      throw new IllegalStateException("Weighbridge ticket must reference a purchase order");
+    }
+    Grn grn = new Grn();
+    grn.setGrnNo(resolveGrnNo(null));
+    grn.setSupplier(po.getSupplier());
+    grn.setPurchaseOrder(po);
+    grn.setWeighbridgeTicket(ticket);
+    grn.setGrnDate(java.time.LocalDate.now());
+    grn.setFirstWeight(ticket.getGrossWeight());
+    grn.setSecondWeight(ticket.getUnloadedWeight());
+    grn.setNetWeight(ticket.getNetWeight());
+    grn.setStatus(DocumentStatus.DRAFT);
+    Grn saved = grnRepository.save(grn);
+
+    for (PurchaseOrderLine poLine : po.getLines()) {
+      GrnLine line = new GrnLine();
+      line.setGrn(saved);
+      line.setPurchaseOrderLine(poLine);
+      line.setItem(poLine.getItem());
+      line.setUom(poLine.getUom());
+      line.setQuantity(BigDecimal.ZERO);
+      line.setWeight(BigDecimal.ZERO);
+      line.setRate(poLine.getRate());
+      line.setAmount(BigDecimal.ZERO);
+      grnLineRepository.save(line);
+      saved.getLines().add(line);
+    }
+    return saved;
+  }
+
+  @Transactional
+  public Grn confirm(Long grnId, GrnDtos.ConfirmGrnRequest request) {
+    Grn grn = grnRepository.findById(grnId)
+        .orElseThrow(() -> new IllegalArgumentException("GRN not found"));
+    if (grn.getStatus() == DocumentStatus.POSTED) {
+      return grn;
+    }
+    Godown godown = godownRepository.findById(request.godownId())
+        .orElseThrow(() -> new IllegalArgumentException("Godown not found"));
+    Location qcHold = locationRepository.findByCode("QC_HOLD")
+        .orElseThrow(() -> new IllegalArgumentException("QC_HOLD location missing"));
+
+    Map<Long, GrnLine> byPoLine = grn.getLines().stream()
+        .filter(l -> l.getPurchaseOrderLine() != null)
+        .collect(java.util.stream.Collectors.toMap(l -> l.getPurchaseOrderLine().getId(), l -> l));
+    Map<Long, GrnLine> byItem = grn.getLines().stream()
+        .collect(java.util.stream.Collectors.toMap(l -> l.getItem().getId(), l -> l, (a, b) -> a));
+
+    for (GrnDtos.GrnLineRequest lineRequest : request.lines()) {
+      GrnLine line = lineRequest.poLineId() != null ? byPoLine.get(lineRequest.poLineId()) : byItem.get(lineRequest.itemId());
+      if (line == null) {
+        throw new IllegalArgumentException("Invalid GRN line");
+      }
+      line.setQuantity(lineRequest.quantity());
+      line.setWeight(lineRequest.weight() != null ? lineRequest.weight() : lineRequest.quantity());
+      line.setRate(lineRequest.rate());
+      line.setAmount(lineRequest.amount() != null ? lineRequest.amount() : resolveAmount(lineRequest));
+      grnLineRepository.save(line);
+
+      stockLedgerService.postEntry("GRN", grn.getId(), line.getId(), LedgerTxnType.IN,
+          line.getItem(), line.getUom(), null, qcHold, null, godown,
+          line.getQuantity(), line.getWeight(), StockStatus.QC_HOLD);
+    }
+    grn.setGodown(godown);
+    grn.setNarration(request.narration());
+    grn.setStatus(DocumentStatus.POSTED);
+    return grnRepository.save(grn);
   }
 
   private String resolveGrnNo(String provided) {
@@ -124,6 +203,16 @@ public class GrnService {
     }
     if (request.firstWeight() != null && request.secondWeight() != null) {
       return request.secondWeight().subtract(request.firstWeight()).abs();
+    }
+    return BigDecimal.ZERO;
+  }
+
+  private BigDecimal resolveAmount(GrnDtos.GrnLineRequest request) {
+    if (request.amount() != null) {
+      return request.amount();
+    }
+    if (request.rate() != null && request.quantity() != null) {
+      return request.rate().multiply(request.quantity());
     }
     return BigDecimal.ZERO;
   }

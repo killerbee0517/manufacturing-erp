@@ -118,7 +118,18 @@ export default function RfqPage() {
         <DataTable
           columns={[
             { field: 'rfqNo', headerName: 'RFQ No' },
-            { field: 'supplierId', headerName: 'Supplier', render: (row) => supplierMap[row.supplierId] || row.supplierId },
+            {
+              field: 'suppliers',
+              headerName: 'Suppliers',
+              render: (row) => {
+                const suppliers = row.suppliers || [];
+                if (!suppliers.length) return '-';
+                return suppliers
+                  .map((s) => supplierMap[s.supplierId] || s.supplierId)
+                  .filter(Boolean)
+                  .join(', ');
+              }
+            },
             { field: 'rfqDate', headerName: 'Date' },
             { field: 'status', headerName: 'Status' },
             {

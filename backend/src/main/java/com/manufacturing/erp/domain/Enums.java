@@ -10,7 +10,12 @@ public class Enums {
     RELEASED,
     POSTED,
     CLOSED,
-    CANCELLED
+    CANCELLED,
+    PARTIALLY_AWARDED,
+    AWARDED,
+    REJECTED,
+    IN_PROGRESS,
+    UNLOADED
   }
 
   public enum QcStatus {

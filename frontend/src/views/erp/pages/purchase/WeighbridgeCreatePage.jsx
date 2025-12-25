@@ -17,8 +17,8 @@ export default function WeighbridgeCreatePage() {
   const navigate = useNavigate();
   const [header, setHeader] = useState({
     serialNo: '',
+    poId: '',
     vehicleId: '',
-    supplierId: '',
     itemId: '',
     dateIn: new Date().toISOString().slice(0, 10),
     timeIn: new Date().toISOString().slice(11, 16),
@@ -28,6 +28,7 @@ export default function WeighbridgeCreatePage() {
     secondTime: ''
   });
   const [saving, setSaving] = useState(false);
+  const [poInfo, setPoInfo] = useState(null);
 
   const netWeight = useMemo(() => {
     const gross = Number(header.grossWeight || 0);
@@ -40,13 +41,14 @@ export default function WeighbridgeCreatePage() {
     try {
       const payload = {
         serialNo: header.serialNo || undefined,
+        poId: Number(header.poId),
         vehicleId: Number(header.vehicleId),
-        supplierId: Number(header.supplierId),
-        itemId: Number(header.itemId),
+        supplierId: header.supplierId ? Number(header.supplierId) : null,
+        itemId: header.itemId ? Number(header.itemId) : null,
         dateIn: header.dateIn,
         timeIn: header.timeIn,
         grossWeight: Number(header.grossWeight),
-        unloadedWeight: Number(header.unloadedWeight),
+        unloadedWeight: header.unloadedWeight ? Number(header.unloadedWeight) : null,
         secondDate: header.secondDate || null,
         secondTime: header.secondTime || null
       };
@@ -71,6 +73,18 @@ export default function WeighbridgeCreatePage() {
       <Stack spacing={3}>
         <Grid container spacing={2}>
           <Grid size={{ xs: 12, md: 4 }}>
+            <MasterAutocomplete
+              label="Purchase Order"
+              endpoint="/api/purchase-orders"
+              value={header.poId}
+              onChange={(nextValue) => handlePoChange(nextValue)}
+              optionLabelKey="poNo"
+              optionValueKey="id"
+              placeholder="Select PO"
+              required
+            />
+          </Grid>
+          <Grid size={{ xs: 12, md: 4 }}>
             <TextField
               fullWidth
               label="Serial / Ticket No"
@@ -92,15 +106,12 @@ export default function WeighbridgeCreatePage() {
             />
           </Grid>
           <Grid size={{ xs: 12, md: 4 }}>
-            <MasterAutocomplete
+            <TextField
+              fullWidth
               label="Supplier"
-              endpoint="/api/suppliers"
-              value={header.supplierId}
-              onChange={(nextValue) => setHeader((prev) => ({ ...prev, supplierId: nextValue }))}
-              optionLabelKey="name"
-              optionValueKey="id"
-              placeholder="Search suppliers"
-              required
+              value={poInfo?.supplierName || ''}
+              InputProps={{ readOnly: true }}
+              placeholder="Auto from PO"
             />
           </Grid>
           <Grid size={{ xs: 12, md: 4 }}>
@@ -193,3 +204,18 @@ export default function WeighbridgeCreatePage() {
     </MainCard>
   );
 }
+  const handlePoChange = async (poId) => {
+    setHeader((prev) => ({ ...prev, poId, supplierId: '' }));
+    if (!poId) {
+      setPoInfo(null);
+      return;
+    }
+    const response = await apiClient.get(`/api/purchase-orders/${poId}`);
+    const po = response.data;
+    setPoInfo(po);
+    setHeader((prev) => ({
+      ...prev,
+      supplierId: po.supplierId || '',
+      itemId: po.lines?.length === 1 ? po.lines[0].itemId : ''
+    }));
+  };

@@ -57,6 +57,7 @@ public class WeighbridgeController {
         ticket.getId(),
         ticket.getSerialNo(),
         ticket.getVehicle() != null ? ticket.getVehicle().getId() : null,
+        ticket.getPurchaseOrder() != null ? ticket.getPurchaseOrder().getId() : null,
         ticket.getSupplier() != null ? ticket.getSupplier().getId() : null,
         ticket.getItem() != null ? ticket.getItem().getId() : null,
         ticket.getDateIn(),
@@ -65,6 +66,7 @@ public class WeighbridgeController {
         ticket.getSecondTime(),
         ticket.getGrossWeight(),
         ticket.getUnloadedWeight(),
-        ticket.getNetWeight());
+        ticket.getNetWeight(),
+        ticket.getStatus() != null ? ticket.getStatus().name() : null);
   }
 }

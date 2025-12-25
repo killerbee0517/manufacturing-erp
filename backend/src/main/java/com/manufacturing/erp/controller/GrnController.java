@@ -2,6 +2,7 @@ package com.manufacturing.erp.controller;
 
 import com.manufacturing.erp.dto.GrnDtos;
 import com.manufacturing.erp.repository.GrnRepository;
+import com.manufacturing.erp.repository.WeighbridgeTicketRepository;
 import com.manufacturing.erp.service.GrnService;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -17,10 +18,13 @@ import org.springframework.web.bind.annotation.RestController;
 public class GrnController {
   private final GrnService grnService;
   private final GrnRepository grnRepository;
+  private final WeighbridgeTicketRepository weighbridgeTicketRepository;
 
-  public GrnController(GrnService grnService, GrnRepository grnRepository) {
+  public GrnController(GrnService grnService, GrnRepository grnRepository,
+                       WeighbridgeTicketRepository weighbridgeTicketRepository) {
     this.grnService = grnService;
     this.grnRepository = grnRepository;
+    this.weighbridgeTicketRepository = weighbridgeTicketRepository;
   }
 
   @GetMapping
@@ -40,6 +44,20 @@ public class GrnController {
   @PostMapping
   public GrnDtos.GrnResponse create(@Valid @RequestBody GrnDtos.CreateGrnRequest request) {
     var grn = grnService.createGrn(request);
+    return toResponse(grn);
+  }
+
+  @PostMapping("/from-weighbridge/{weighbridgeId}")
+  public GrnDtos.GrnResponse createFromWeighbridge(@PathVariable Long weighbridgeId) {
+    var ticket = weighbridgeTicketRepository.findById(weighbridgeId)
+        .orElseThrow(() -> new IllegalArgumentException("Weighbridge ticket not found"));
+    var grn = grnService.createDraftFromWeighbridge(ticket);
+    return toResponse(grn);
+  }
+
+  @PostMapping("/{id}/confirm")
+  public GrnDtos.GrnResponse confirm(@PathVariable Long id, @Valid @RequestBody GrnDtos.ConfirmGrnRequest request) {
+    var grn = grnService.confirm(id, request);
     return toResponse(grn);
   }
 

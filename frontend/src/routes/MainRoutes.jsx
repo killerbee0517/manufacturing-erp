@@ -14,6 +14,7 @@ const RfqPage = Loadable(lazy(() => import('views/erp/pages/purchase/RfqPage')))
 const RfqCreatePage = Loadable(lazy(() => import('views/erp/pages/purchase/RfqCreatePage')));
 const RfqDetailPage = Loadable(lazy(() => import('views/erp/pages/purchase/RfqDetailPage')));
 const RfqEditPage = Loadable(lazy(() => import('views/erp/pages/purchase/RfqEditPage')));
+const RfqAwardPage = Loadable(lazy(() => import('views/erp/pages/purchase/RfqAwardPage')));
 const PurchaseOrderPage = Loadable(lazy(() => import('views/erp/pages/purchase/PurchaseOrderPage')));
 const PoCreatePage = Loadable(lazy(() => import('views/erp/pages/purchase/PoCreatePage')));
 const PoDetailPage = Loadable(lazy(() => import('views/erp/pages/purchase/PoDetailPage')));
@@ -93,6 +94,7 @@ const MainRoutes = {
         { path: 'rfq/new', element: <RfqCreatePage /> },
         { path: 'rfq/:id', element: <RfqDetailPage /> },
         { path: 'rfq/:id/edit', element: <RfqEditPage /> },
+        { path: 'rfq/:id/award', element: <RfqAwardPage /> },
         { path: 'po', element: <PurchaseOrderPage /> },
         { path: 'po/new', element: <PoCreatePage /> },
         { path: 'po/:id', element: <PoDetailPage /> },

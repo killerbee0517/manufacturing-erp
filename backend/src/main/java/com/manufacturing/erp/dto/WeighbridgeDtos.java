@@ -8,13 +8,14 @@ import java.time.LocalTime;
 public class WeighbridgeDtos {
   public record CreateTicketRequest(
       String serialNo,
+      @NotNull Long poId,
       @NotNull Long vehicleId,
-      @NotNull Long supplierId,
-      @NotNull Long itemId,
+      Long supplierId,
+      Long itemId,
       @NotNull LocalDate dateIn,
       @NotNull LocalTime timeIn,
       @NotNull BigDecimal grossWeight,
-      @NotNull BigDecimal unloadedWeight,
+      BigDecimal unloadedWeight,
       LocalDate secondDate,
       LocalTime secondTime) {}
 
@@ -22,6 +23,7 @@ public class WeighbridgeDtos {
       Long id,
       String serialNo,
       Long vehicleId,
+      Long poId,
       Long supplierId,
       Long itemId,
       LocalDate dateIn,
@@ -30,5 +32,6 @@ public class WeighbridgeDtos {
       LocalTime secondTime,
       BigDecimal grossWeight,
       BigDecimal unloadedWeight,
-      BigDecimal netWeight) {}
+      BigDecimal netWeight,
+      String status) {}
 }

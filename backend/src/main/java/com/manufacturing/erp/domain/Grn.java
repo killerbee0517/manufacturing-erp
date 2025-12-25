@@ -6,6 +6,7 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
@@ -23,12 +24,15 @@ public class Grn extends BaseEntity {
   private Supplier supplier;
 
   @ManyToOne
+  @JoinColumn(name = "weighbridge_ticket_id")
   private WeighbridgeTicket weighbridgeTicket;
 
   @ManyToOne
+  @JoinColumn(name = "purchase_order_id")
   private PurchaseOrder purchaseOrder;
 
   @ManyToOne
+  @JoinColumn(name = "godown_id")
   private Godown godown;
 
   @ManyToOne
