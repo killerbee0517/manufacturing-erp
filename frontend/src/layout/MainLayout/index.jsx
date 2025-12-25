@@ -9,7 +9,6 @@ import Toolbar from '@mui/material/Toolbar';
 import Box from '@mui/material/Box';
 
 // project imports
-import Footer from './Footer';
 import Header from './Header';
 import Sidebar from './Sidebar';
 import MainContentStyled from './MainContentStyled';
@@ -47,7 +46,7 @@ export default function MainLayout() {
     <Box sx={{ display: 'flex' }}>
       {/* header */}
       <AppBar enableColorOnDark position="fixed" color="inherit" elevation={0} sx={{ bgcolor: 'background.default' }}>
-        <Toolbar sx={{ p: 2 }}>
+        <Toolbar sx={{ px: 2, py: 1.25 }}>
           <Header />
         </Toolbar>
       </AppBar>
@@ -61,7 +60,6 @@ export default function MainLayout() {
           {/* breadcrumb */}
           <Breadcrumbs />
           <Outlet />
-          <Footer />
         </Box>
       </MainContentStyled>
     </Box>
