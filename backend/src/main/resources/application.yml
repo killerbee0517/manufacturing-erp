@@ -24,6 +24,7 @@ app:
     issuer: manufacturing-erp
     secret: ${APP_JWT_SECRET:change-me-please-change-me-please-change-me}
     expiresMinutes: 480
+    refreshExpiresMinutes: 4320
 
 springdoc:
   swagger-ui:

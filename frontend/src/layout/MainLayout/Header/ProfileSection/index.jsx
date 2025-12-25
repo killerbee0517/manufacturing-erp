@@ -41,6 +41,7 @@ export default function ProfileSection() {
   const handleLogout = () => {
     handleClose();
     localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
     navigate('/login', { replace: true });
   };
 

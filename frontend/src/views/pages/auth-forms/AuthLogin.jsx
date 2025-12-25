@@ -50,9 +50,11 @@ export default function AuthLogin() {
       });
       setError('');
       localStorage.setItem('token', response.data.token);
+      localStorage.setItem('refreshToken', response.data.refreshToken);
       navigate('/dashboard', { replace: true });
     } catch {
       localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
       setError('Invalid username or password.');
     }
   };

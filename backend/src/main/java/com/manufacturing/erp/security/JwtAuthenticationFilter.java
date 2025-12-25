@@ -30,13 +30,20 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
       String token = header.substring(7);
       try {
         Claims claims = jwtService.parseToken(token);
-        String username = claims.getSubject();
-        List<String> roles = claims.get("roles", List.class);
-        var authorities = roles.stream()
-            .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
-            .toList();
-        var auth = new UsernamePasswordAuthenticationToken(username, null, authorities);
-        SecurityContextHolder.getContext().setAuthentication(auth);
+        if (jwtService.isAccessToken(claims)) {
+          String username = claims.getSubject();
+          List<String> roles = claims.get("roles", List.class);
+          if (roles == null) {
+            roles = List.of();
+          }
+          var authorities = roles.stream()
+              .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
+              .toList();
+          var auth = new UsernamePasswordAuthenticationToken(username, null, authorities);
+          SecurityContextHolder.getContext().setAuthentication(auth);
+        } else {
+          SecurityContextHolder.clearContext();
+        }
       } catch (Exception ignored) {
         SecurityContextHolder.clearContext();
       }

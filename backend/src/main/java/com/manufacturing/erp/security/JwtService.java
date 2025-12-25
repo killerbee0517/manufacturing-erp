@@ -14,6 +14,10 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class JwtService {
+  private static final String TOKEN_TYPE_CLAIM = "tokenType";
+  private static final String ACCESS_TOKEN = "access";
+  private static final String REFRESH_TOKEN = "refresh";
+
   private final JwtProperties jwtProperties;
   private final SecretKey secretKey;
 
@@ -22,15 +26,32 @@ public class JwtService {
     this.secretKey = Keys.hmacShaKeyFor(jwtProperties.getSecret().getBytes(StandardCharsets.UTF_8));
   }
 
-  public String generateToken(String username, List<String> roles) {
+  public String generateAccessToken(String username, List<String> roles) {
+    return buildToken(username, Map.of("roles", roles, TOKEN_TYPE_CLAIM, ACCESS_TOKEN), jwtProperties.getExpiresMinutes());
+  }
+
+  public String generateRefreshToken(String username) {
+    return buildToken(username, Map.of(TOKEN_TYPE_CLAIM, REFRESH_TOKEN), jwtProperties.getRefreshExpiresMinutes());
+  }
+
+  public boolean isRefreshToken(Claims claims) {
+    return REFRESH_TOKEN.equals(claims.get(TOKEN_TYPE_CLAIM, String.class));
+  }
+
+  public boolean isAccessToken(Claims claims) {
+    String tokenType = claims.get(TOKEN_TYPE_CLAIM, String.class);
+    return tokenType == null || ACCESS_TOKEN.equals(tokenType);
+  }
+
+  private String buildToken(String username, Map<String, Object> claims, long expiresMinutes) {
     Instant now = Instant.now();
-    Instant expiry = now.plusSeconds(jwtProperties.getExpiresMinutes() * 60);
+    Instant expiry = now.plusSeconds(expiresMinutes * 60);
     return Jwts.builder()
         .issuer(jwtProperties.getIssuer())
         .subject(username)
         .issuedAt(Date.from(now))
         .expiration(Date.from(expiry))
-        .claims(Map.of("roles", roles))
+        .claims(claims)
         .signWith(secretKey)
         .compact();
   }
