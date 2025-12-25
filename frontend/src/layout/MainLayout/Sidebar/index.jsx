@@ -1,16 +1,16 @@
 import { memo, useMemo } from 'react';
 
 import useMediaQuery from '@mui/material/useMediaQuery';
-import Chip from '@mui/material/Chip';
 import Drawer from '@mui/material/Drawer';
-import Stack from '@mui/material/Stack';
 import Box from '@mui/material/Box';
 
 // project imports
 import MenuList from '../MenuList';
+import NavItem from '../MenuList/NavItem';
 import LogoSection from '../LogoSection';
 import MiniDrawerStyled from './MiniDrawerStyled';
 
+import menuItems from 'menu-items';
 import useConfig from 'hooks/useConfig';
 import { drawerWidth } from 'store/constant';
 import SimpleBar from 'ui-component/third-party/SimpleBar';
@@ -39,30 +39,61 @@ function Sidebar() {
   );
 
   const drawer = useMemo(() => {
-    const drawerContent = (
-      <Stack direction="row" sx={{ justifyContent: 'center', mb: 2 }}>
-        <Chip label={import.meta.env.VITE_APP_VERSION} size="small" color="default" />
-      </Stack>
-    );
+    const rootMenu = menuItems.items?.[0];
+    const settingsLink = rootMenu?.children?.find((child) => child.id === 'settings');
+    const primaryMenu = rootMenu
+      ? {
+          items: [{ ...rootMenu, children: rootMenu.children?.filter((child) => child.id !== 'settings') }]
+        }
+      : { items: [] };
 
     const drawerSX = { px: 2, py: 1 };
 
     return (
       <>
         {downMD ? (
-          <Box sx={drawerSX}>
-            <MenuList />
-            {drawerOpen && drawerContent}
+          <Box sx={{ ...drawerSX, display: 'flex', flexDirection: 'column', gap: 1, height: '100vh' }}>
+            <Box sx={{ flexGrow: 1 }}>
+              <MenuList itemsConfig={primaryMenu} />
+            </Box>
+            {settingsLink && (
+              <Box
+                sx={{
+                  pt: 1.5,
+                  borderTop: (theme) => `1px dashed ${theme.palette.divider}`
+                }}
+              >
+                <NavItem item={settingsLink} level={1} />
+              </Box>
+            )}
           </Box>
         ) : (
-          <SimpleBar sx={{ height: '100vh', ...drawerSX }}>
-            <MenuList />
-            {drawerOpen && drawerContent}
+          <SimpleBar
+            sx={{
+              height: '100vh',
+              display: 'flex',
+              flexDirection: 'column',
+              ...drawerSX
+            }}
+          >
+            <Box sx={{ flexGrow: 1 }}>
+              <MenuList itemsConfig={primaryMenu} />
+            </Box>
+            {settingsLink && (
+              <Box
+                sx={{
+                  pt: 1.5,
+                  borderTop: (theme) => `1px dashed ${theme.palette.divider}`
+                }}
+              >
+                <NavItem item={settingsLink} level={1} />
+              </Box>
+            )}
           </SimpleBar>
         )}
       </>
     );
-  }, [downMD, drawerOpen]);
+  }, [downMD]);
 
   return (
     <Box component="nav" sx={{ flexShrink: { md: 0 }, width: { xs: 'auto', md: drawerWidth } }} aria-label="mailbox folders">

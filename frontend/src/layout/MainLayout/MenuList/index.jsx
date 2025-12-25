@@ -1,3 +1,4 @@
+import PropTypes from 'prop-types';
 import { Activity, memo, useState } from 'react';
 
 import Divider from '@mui/material/Divider';
@@ -14,7 +15,7 @@ import { useGetMenuMaster } from 'api/menu';
 
 // ==============================|| SIDEBAR MENU LIST ||============================== //
 
-function MenuList() {
+function MenuList({ itemsConfig = menuItems }) {
   const { menuMaster } = useGetMenuMaster();
   const drawerOpen = menuMaster.isDashboardDrawerOpened;
 
@@ -22,14 +23,14 @@ function MenuList() {
 
   const lastItem = null;
 
-  let lastItemIndex = menuItems.items.length - 1;
+  let lastItemIndex = itemsConfig.items.length - 1;
   let remItems = [];
   let lastItemId;
 
-  if (lastItem && lastItem < menuItems.items.length) {
-    lastItemId = menuItems.items[lastItem - 1].id;
+  if (lastItem && lastItem < itemsConfig.items.length) {
+    lastItemId = itemsConfig.items[lastItem - 1].id;
     lastItemIndex = lastItem - 1;
-    remItems = menuItems.items.slice(lastItem - 1, menuItems.items.length).map((item) => ({
+    remItems = itemsConfig.items.slice(lastItem - 1, itemsConfig.items.length).map((item) => ({
       title: item.title,
       elements: item.children,
       icon: item.icon,
@@ -39,7 +40,7 @@ function MenuList() {
     }));
   }
 
-  const navItems = menuItems.items.slice(0, lastItemIndex + 1).map((item, index) => {
+  const navItems = itemsConfig.items.slice(0, lastItemIndex + 1).map((item, index) => {
     switch (item.type) {
       case 'group':
         if (item.url && item.id !== lastItemId) {
@@ -73,7 +74,13 @@ function MenuList() {
     }
   });
 
-  return <Box {...(drawerOpen && { sx: { mt: 1.5 } })}>{navItems}</Box>;
+  return <Box {...(drawerOpen && { sx: { mt: 0.5 } })}>{navItems}</Box>;
 }
+
+MenuList.propTypes = {
+  itemsConfig: PropTypes.shape({
+    items: PropTypes.array
+  })
+};
 
 export default memo(MenuList);

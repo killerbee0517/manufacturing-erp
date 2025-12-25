@@ -1,24 +1,26 @@
 import PropTypes from 'prop-types';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import useSWR from 'swr';
 
 // material-ui
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
+import CircularProgress from '@mui/material/CircularProgress';
 import Divider from '@mui/material/Divider';
 import Grid from '@mui/material/Grid';
 import MenuItem from '@mui/material/MenuItem';
 import Snackbar from '@mui/material/Snackbar';
 import Stack from '@mui/material/Stack';
-import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
 import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
+import TextField from '@mui/material/TextField';
+import Typography from '@mui/material/Typography';
 
 // project imports
 import MainCard from 'ui-component/cards/MainCard';
@@ -43,65 +45,95 @@ const lookupEndpoints = {
 
 const hiddenFieldNames = new Set(['id', 'createdAt', 'updatedAt', 'serialNo', 'rfqNo', 'poNo', 'grnNo']);
 
+const buildEndpoint = (base, id) => {
+  if (!base) return '';
+  const normalized = base.endsWith('/') ? base.slice(0, -1) : base;
+  return id ? `${normalized}/${id}` : normalized;
+};
+
 export default function ModulePage({ config }) {
   const navigate = useNavigate();
-  const [filters, setFilters] = useState({ search: '', from: '', to: '', status: '' });
+  const [filters, setFilters] = useState({ search: '', status: '' });
+  const [debouncedFilters, setDebouncedFilters] = useState({ search: '', status: '' });
   const [formState, setFormState] = useState({});
-  const [rows, setRows] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [actionLoading, setActionLoading] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
   const fields = config.fields || [];
   const columns = config.columns || [];
   const createEnabled = Boolean(config.createEndpoint);
   const useInlineCreate = config.useInlineCreate !== false;
-  const showActions = Boolean(config.detailRouteBase || config.editRouteBase);
+  const hasWriteEndpoint = Boolean(config.createEndpoint || config.updateEndpoint);
+  const allowInlineEdit = (config.inlineEditable ?? useInlineCreate) && hasWriteEndpoint;
+  const hasNavigationActions = Boolean(config.detailRouteBase || config.editRouteBase);
+  const showActions = hasNavigationActions || allowInlineEdit;
+  const isEditing = Boolean(editingId);
 
   const visibleFields = useMemo(() => fields.filter((field) => !hiddenFieldNames.has(field.name)), [fields]);
 
-  const loadRows = (params = {}) => {
-    if (!config.listEndpoint) {
-      setRows([]);
-      return;
-    }
-    setLoading(true);
-    apiClient
-      .get(config.listEndpoint, { params })
-      .then((response) => {
-        const payload = response.data || [];
-        setRows(payload.content || payload);
-      })
-      .catch(() => {
-        setRows([]);
-      })
-      .finally(() => setLoading(false));
-  };
-
   useEffect(() => {
-    loadRows();
-  }, [config.listEndpoint]);
-
-  useEffect(() => {
-    if (!config.enableFilters) return;
     const handle = setTimeout(() => {
-      loadRows({
-        q: filters.search || undefined,
-        status: filters.status || undefined
-      });
+      setDebouncedFilters(filters);
     }, 300);
     return () => clearTimeout(handle);
-  }, [filters, config.enableFilters]);
+  }, [filters]);
+
+  useEffect(() => {
+    setFormState({});
+    setEditingId(null);
+    setFilters({ search: '', status: '' });
+    setDebouncedFilters({ search: '', status: '' });
+  }, [config.listEndpoint, config.createEndpoint]);
+
+  const listKey = useMemo(() => {
+    if (!config.listEndpoint) return null;
+    return [config.listEndpoint, debouncedFilters.search || '', debouncedFilters.status || ''];
+  }, [config.listEndpoint, debouncedFilters]);
+
+  const fetcher = useCallback(async () => {
+    if (!config.listEndpoint) return [];
+    const response = await apiClient.get(config.listEndpoint, {
+      params: {
+        q: debouncedFilters.search || undefined,
+        status: debouncedFilters.status || undefined
+      }
+    });
+    const payload = response.data || [];
+    return payload.content || payload;
+  }, [config.listEndpoint, debouncedFilters]);
+
+  const {
+    data: rows = [],
+    isLoading,
+    isValidating,
+    mutate
+  } = useSWR(listKey, fetcher, {
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false
+  });
+
+  const resetForm = () => {
+    setFormState({});
+    setEditingId(null);
+  };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    if (!config.createEndpoint) return;
-    setLoading(true);
+    const endpointBase = config.createEndpoint || config.listEndpoint;
+    if (!endpointBase) return;
+    setActionLoading(true);
     const payload = config.buildPayload ? config.buildPayload(formState) : formState;
     try {
-      await apiClient.post(config.createEndpoint, payload);
-      setSnackbar({ open: true, message: 'Saved successfully', severity: 'success' });
-      setFormState({});
-      loadRows();
+      if (isEditing) {
+        await apiClient.put(buildEndpoint(config.updateEndpoint || endpointBase, editingId), payload);
+        setSnackbar({ open: true, message: 'Updated successfully', severity: 'success' });
+      } else {
+        await apiClient.post(endpointBase, payload);
+        setSnackbar({ open: true, message: 'Saved successfully', severity: 'success' });
+      }
+      resetForm();
+      mutate();
     } catch (error) {
       setSnackbar({
         open: true,
@@ -109,7 +141,40 @@ export default function ModulePage({ config }) {
         severity: 'error'
       });
     } finally {
-      setLoading(false);
+      setActionLoading(false);
+    }
+  };
+
+  const handleEdit = (row) => {
+    const nextState = {};
+    visibleFields.forEach((field) => {
+      if (row[field.name] !== undefined) {
+        nextState[field.name] = row[field.name] ?? '';
+      }
+    });
+    setFormState(nextState);
+    setEditingId(row.id);
+  };
+
+  const handleDelete = async (rowId) => {
+    const endpointBase = config.deleteEndpoint || config.createEndpoint || config.listEndpoint;
+    if (!endpointBase || !rowId) return;
+    setActionLoading(true);
+    try {
+      await apiClient.delete(buildEndpoint(endpointBase, rowId));
+      setSnackbar({ open: true, message: 'Record deleted', severity: 'success' });
+      if (rowId === editingId) {
+        resetForm();
+      }
+      mutate();
+    } catch (error) {
+      setSnackbar({
+        open: true,
+        message: error?.response?.data?.message || 'Delete failed. Please try again.',
+        severity: 'error'
+      });
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -216,11 +281,11 @@ export default function ModulePage({ config }) {
                       })}
                     </Grid>
                     <Stack direction="row" spacing={2} sx={{ mt: 2 }}>
-                      <Button variant="contained" color="secondary" type="submit" disabled={loading}>
-                        Save
+                      <Button variant="contained" color="secondary" type="submit" disabled={actionLoading}>
+                        {isEditing ? 'Update' : 'Save'}
                       </Button>
-                      <Button variant="outlined" onClick={() => setFormState({})} disabled={loading}>
-                        Clear
+                      <Button variant="outlined" onClick={resetForm} disabled={actionLoading}>
+                        {isEditing ? 'Cancel edit' : 'Clear'}
                       </Button>
                     </Stack>
                   </Box>
@@ -247,14 +312,21 @@ export default function ModulePage({ config }) {
                       {rows.length === 0 && (
                         <TableRow>
                           <TableCell colSpan={(columns.length || 1) + (showActions ? 1 : 0)}>
-                            {loading ? 'Loading...' : 'No records found'}
+                            {isLoading || isValidating ? (
+                              <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                                <CircularProgress size={18} />
+                                <span>Loading...</span>
+                              </Stack>
+                            ) : (
+                              'No records found'
+                            )}
                           </TableCell>
                         </TableRow>
                       )}
                       {rows.map((row) => (
                         <TableRow
                           key={row.id || JSON.stringify(row)}
-                          hover={Boolean(config.detailRouteBase)}
+                          hover={hasNavigationActions}
                           onClick={
                             config.detailRouteBase
                               ? () => navigate(`${config.detailRouteBase}/${row.id}`)
@@ -280,6 +352,21 @@ export default function ModulePage({ config }) {
                                 <Button size="small" onClick={() => navigate(`${config.editRouteBase}/${row.id}/edit`)}>
                                   Edit
                                 </Button>
+                              )}
+                              {allowInlineEdit && (
+                                <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end', mt: hasNavigationActions ? 1 : 0 }}>
+                                  <Button size="small" onClick={() => handleEdit(row)} disabled={actionLoading}>
+                                    Edit
+                                  </Button>
+                                  <Button
+                                    size="small"
+                                    color="error"
+                                    onClick={() => handleDelete(row.id)}
+                                    disabled={actionLoading}
+                                  >
+                                    Delete
+                                  </Button>
+                                </Stack>
                               )}
                             </TableCell>
                           )}
@@ -311,9 +398,16 @@ ModulePage.propTypes = {
     title: PropTypes.string.isRequired,
     subtitle: PropTypes.string.isRequired,
     createEndpoint: PropTypes.string,
+    updateEndpoint: PropTypes.string,
+    deleteEndpoint: PropTypes.string,
     listEndpoint: PropTypes.string,
     fields: PropTypes.array,
     columns: PropTypes.array,
-    buildPayload: PropTypes.func
+    buildPayload: PropTypes.func,
+    useInlineCreate: PropTypes.bool,
+    inlineEditable: PropTypes.bool,
+    enableFilters: PropTypes.bool,
+    detailRouteBase: PropTypes.string,
+    editRouteBase: PropTypes.string
   }).isRequired
 };
