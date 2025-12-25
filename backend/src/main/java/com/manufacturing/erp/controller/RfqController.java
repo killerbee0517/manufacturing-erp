@@ -59,6 +59,16 @@ public class RfqController {
     return rfqService.approve(id);
   }
 
+  @PostMapping("/{id}/award")
+  public TransactionDtos.RfqResponse award(@PathVariable Long id, @Valid @RequestBody TransactionDtos.RfqAwardRequest request) {
+    return rfqService.award(id, request);
+  }
+
+  @PostMapping("/{id}/reject")
+  public TransactionDtos.RfqResponse reject(@PathVariable Long id, @RequestBody(required = false) String remarks) {
+    return rfqService.reject(id, remarks);
+  }
+
   @PostMapping("/{id}/close")
   public TransactionDtos.RfqCloseResponse close(@PathVariable Long id,
                                                 @Valid @RequestBody TransactionDtos.RfqCloseRequest request) {

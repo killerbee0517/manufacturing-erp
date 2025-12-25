@@ -23,6 +23,9 @@ public class Rfq extends BaseEntity {
   @ManyToOne
   private Supplier supplier;
 
+  @OneToMany(mappedBy = "rfq", cascade = CascadeType.ALL, orphanRemoval = true)
+  private List<RfqSupplierQuote> suppliers = new ArrayList<>();
+
   private LocalDate rfqDate;
 
   private String paymentTerms;
@@ -38,6 +41,9 @@ public class Rfq extends BaseEntity {
   @OneToMany(mappedBy = "rfq", cascade = CascadeType.ALL, orphanRemoval = true)
   private List<RfqLine> lines = new ArrayList<>();
 
+  @OneToMany(mappedBy = "rfq", cascade = CascadeType.ALL, orphanRemoval = true)
+  private List<RfqAward> awards = new ArrayList<>();
+
   public String getRfqNo() {
     return rfqNo;
   }
@@ -52,6 +58,14 @@ public class Rfq extends BaseEntity {
 
   public void setSupplier(Supplier supplier) {
     this.supplier = supplier;
+  }
+
+  public List<RfqSupplierQuote> getSuppliers() {
+    return suppliers;
+  }
+
+  public void setSuppliers(List<RfqSupplierQuote> suppliers) {
+    this.suppliers = suppliers;
   }
 
   public LocalDate getRfqDate() {
@@ -108,5 +122,13 @@ public class Rfq extends BaseEntity {
 
   public void setLines(List<RfqLine> lines) {
     this.lines = lines;
+  }
+
+  public List<RfqAward> getAwards() {
+    return awards;
+  }
+
+  public void setAwards(List<RfqAward> awards) {
+    this.awards = awards;
   }
 }

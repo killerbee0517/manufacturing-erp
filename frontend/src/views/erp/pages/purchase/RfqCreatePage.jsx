@@ -31,11 +31,12 @@ const emptyLine = () => ({
 export default function RfqCreatePage() {
   const navigate = useNavigate();
   const [header, setHeader] = useState({
-    supplierId: '',
     rfqDate: new Date().toISOString().slice(0, 10),
     paymentTerms: '',
     narration: ''
   });
+  const [supplierInput, setSupplierInput] = useState('');
+  const [suppliers, setSuppliers] = useState([]);
   const [lines, setLines] = useState([emptyLine()]);
   const [saving, setSaving] = useState(false);
 
@@ -65,11 +66,24 @@ export default function RfqCreatePage() {
     setLines((prev) => (prev.length <= 1 ? prev : prev.filter((_, idx) => idx !== index)));
   };
 
+  const addSupplier = (supplierId, label) => {
+    if (!supplierId) return;
+    setSuppliers((prev) => {
+      if (prev.find((s) => s.id === supplierId)) return prev;
+      return [...prev, { id: supplierId, name: label }];
+    });
+    setSupplierInput('');
+  };
+
+  const removeSupplier = (supplierId) => {
+    setSuppliers((prev) => prev.filter((s) => s.id !== supplierId));
+  };
+
   const handleSave = async () => {
     setSaving(true);
     try {
       const payload = {
-        supplierId: Number(header.supplierId),
+        supplierIds: suppliers.map((s) => Number(s.id)),
         rfqDate: header.rfqDate,
         paymentTerms: header.paymentTerms,
         narration: header.narration,
@@ -102,17 +116,29 @@ export default function RfqCreatePage() {
       />
       <Stack spacing={3}>
         <Grid container spacing={2}>
-          <Grid size={{ xs: 12, md: 4 }}>
-            <MasterAutocomplete
-              label="Supplier"
-              endpoint="/api/suppliers"
-              value={header.supplierId}
-              onChange={(nextValue) => setHeader((prev) => ({ ...prev, supplierId: nextValue }))}
-              optionLabelKey="name"
-              optionValueKey="id"
-              placeholder="Search suppliers"
-              required
-            />
+          <Grid size={{ xs: 12, md: 6 }}>
+            <Stack spacing={1}>
+              <Typography variant="h6">Suppliers</Typography>
+              <MasterAutocomplete
+                label="Add Supplier"
+                endpoint="/api/suppliers"
+                value={supplierInput}
+                onChange={(nextValue, option) => {
+                  setSupplierInput(nextValue);
+                  addSupplier(nextValue, option?.name);
+                }}
+                optionLabelKey="name"
+                optionValueKey="id"
+                placeholder="Search suppliers"
+              />
+              <Stack direction="row" spacing={1} flexWrap="wrap">
+                {suppliers.map((supplier) => (
+                  <Button key={supplier.id} variant="outlined" onClick={() => removeSupplier(supplier.id)}>
+                    {supplier.name || supplier.id} ✕
+                  </Button>
+                ))}
+              </Stack>
+            </Stack>
           </Grid>
           <Grid size={{ xs: 12, md: 4 }}>
             <TextField

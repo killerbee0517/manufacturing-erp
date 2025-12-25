@@ -18,8 +18,8 @@ export default function WeighbridgeEditPage() {
   const navigate = useNavigate();
   const [header, setHeader] = useState({
     serialNo: '',
+    poId: '',
     vehicleId: '',
-    supplierId: '',
     itemId: '',
     dateIn: '',
     timeIn: '',
@@ -39,8 +39,8 @@ export default function WeighbridgeEditPage() {
         const ticket = response.data;
         setHeader({
           serialNo: ticket.serialNo || '',
+          poId: ticket.poId || '',
           vehicleId: ticket.vehicleId || '',
-          supplierId: ticket.supplierId || '',
           itemId: ticket.itemId || '',
           dateIn: ticket.dateIn || '',
           timeIn: ticket.timeIn || '',
@@ -64,13 +64,14 @@ export default function WeighbridgeEditPage() {
     try {
       const payload = {
         serialNo: header.serialNo || undefined,
+        poId: Number(header.poId),
         vehicleId: Number(header.vehicleId),
-        supplierId: Number(header.supplierId),
-        itemId: Number(header.itemId),
+        supplierId: header.supplierId ? Number(header.supplierId) : null,
+        itemId: header.itemId ? Number(header.itemId) : null,
         dateIn: header.dateIn,
         timeIn: header.timeIn,
         grossWeight: Number(header.grossWeight),
-        unloadedWeight: Number(header.unloadedWeight),
+        unloadedWeight: header.unloadedWeight ? Number(header.unloadedWeight) : null,
         secondDate: header.secondDate || null,
         secondTime: header.secondTime || null
       };
@@ -106,6 +107,17 @@ export default function WeighbridgeEditPage() {
       />
       <Stack spacing={3}>
         <Grid container spacing={2}>
+          <Grid size={{ xs: 12, md: 4 }}>
+            <MasterAutocomplete
+              label="Purchase Order"
+              endpoint="/api/purchase-orders"
+              value={header.poId}
+              onChange={(nextValue) => setHeader((prev) => ({ ...prev, poId: nextValue }))}
+              optionLabelKey="poNo"
+              optionValueKey="id"
+              placeholder="Select PO"
+            />
+          </Grid>
           <Grid size={{ xs: 12, md: 4 }}>
             <TextField
               fullWidth

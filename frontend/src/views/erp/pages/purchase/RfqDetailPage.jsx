@@ -136,6 +136,9 @@ export default function RfqDetailPage() {
             <Button variant="outlined" onClick={() => navigate(`/purchase/rfq/${id}/edit`)}>
               Edit
             </Button>
+            <Button variant="outlined" onClick={() => navigate(`/purchase/rfq/${id}/award`)}>
+              Award
+            </Button>
             <Button variant="outlined" color="secondary" onClick={() => setCloseOpen(true)} disabled={rfq.status === 'CLOSED'}>
               Close
             </Button>
@@ -151,8 +154,16 @@ export default function RfqDetailPage() {
       <Stack spacing={3}>
         <Grid container spacing={2}>
           <Grid size={{ xs: 12, md: 3 }}>
-            <Typography variant="subtitle2">Supplier</Typography>
-            <Typography>{supplierMap[rfq.supplierId] || rfq.supplierId || '-'}</Typography>
+            <Typography variant="subtitle2">Suppliers</Typography>
+            <Stack spacing={0.5}>
+              {(rfq.suppliers || []).map((supplier) => (
+                <Chip
+                  key={supplier.supplierId}
+                  label={`${supplierMap[supplier.supplierId] || supplier.supplierId} (${supplier.status || 'PENDING'})`}
+                />
+              ))}
+              {!rfq.suppliers?.length && <Typography>-</Typography>}
+            </Stack>
           </Grid>
           <Grid size={{ xs: 12, md: 3 }}>
             <Typography variant="subtitle2">RFQ Date</Typography>
