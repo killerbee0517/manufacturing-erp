@@ -9,6 +9,7 @@ import com.manufacturing.erp.domain.GrnLine;
 import com.manufacturing.erp.domain.Item;
 import com.manufacturing.erp.domain.Location;
 import com.manufacturing.erp.domain.PurchaseOrder;
+import com.manufacturing.erp.domain.Supplier;
 import com.manufacturing.erp.domain.Uom;
 import com.manufacturing.erp.domain.WeighbridgeTicket;
 import com.manufacturing.erp.dto.GrnDtos;

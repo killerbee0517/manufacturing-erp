@@ -1,6 +1,7 @@
 package com.manufacturing.erp.controller;
 
 import com.manufacturing.erp.domain.Enums.LedgerType;
+import com.manufacturing.erp.domain.Ledger;
 import com.manufacturing.erp.domain.Supplier;
 import com.manufacturing.erp.dto.MasterDtos;
 import com.manufacturing.erp.repository.BankRepository;
