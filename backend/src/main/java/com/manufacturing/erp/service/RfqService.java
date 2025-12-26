@@ -14,6 +14,9 @@ import com.manufacturing.erp.domain.PurchaseOrderLine;
 import com.manufacturing.erp.domain.Supplier;
 import com.manufacturing.erp.domain.Uom;
 import com.manufacturing.erp.dto.TransactionDtos;
+import com.manufacturing.erp.dto.TransactionDtos.RfqAwardAllocation;
+import com.manufacturing.erp.dto.TransactionDtos.RfqAwardLine;
+import com.manufacturing.erp.dto.TransactionDtos.RfqSupplierAward;
 import com.manufacturing.erp.repository.ItemRepository;
 import com.manufacturing.erp.repository.BrokerRepository;
 import com.manufacturing.erp.repository.PurchaseOrderLineRepository;
@@ -84,6 +87,7 @@ public class RfqService {
     this.rfqQuoteLineRepository = rfqQuoteLineRepository;
   }
 
+  @Transactional(readOnly = true)
   public Page<TransactionDtos.RfqResponse> list(String q, String status, Pageable pageable) {
     Specification<Rfq> spec = Specification.where(null);
     if (q != null && !q.isBlank()) {
@@ -95,6 +99,7 @@ public class RfqService {
     return rfqRepository.findAll(spec, pageable).map(this::toResponse);
   }
 
+  @Transactional(readOnly = true)
   public TransactionDtos.RfqResponse getById(Long id) {
     Rfq rfq = getRfqOrThrow(id);
     return toResponse(rfq);
@@ -167,6 +172,7 @@ public class RfqService {
     return toResponse(rfqRepository.save(rfq));
   }
 
+  @Transactional(readOnly = true)
   public List<TransactionDtos.RfqQuoteSupplierSummary> listQuotes(Long rfqId) {
     Rfq rfq = getRfqOrThrow(rfqId);
     return buildQuoteSummaries(rfq);
@@ -201,6 +207,7 @@ public class RfqService {
     return toQuoteResponse(header);
   }
 
+  @Transactional(readOnly = true)
   public TransactionDtos.RfqQuoteResponse getQuote(Long rfqId, Long supplierId) {
     Rfq rfq = getRfqOrThrow(rfqId);
     Supplier supplier = supplierRepository.findById(supplierId)
@@ -238,41 +245,40 @@ public class RfqService {
     if (rfq.getStatus() == DocumentStatus.REJECTED) {
       throw new IllegalStateException("Rejected RFQ cannot be awarded");
     }
-    if (rfq.getStatus() == DocumentStatus.AWARDED) {
-      throw new IllegalStateException("RFQ already awarded");
-    }
     Map<Long, RfqLine> lineMap = rfq.getLines().stream()
         .collect(Collectors.toMap(RfqLine::getId, l -> l));
 
-    Map<Long, BigDecimal> awardedPerLine = new HashMap<>();
-    for (TransactionDtos.RfqAwardLine awardLine : request.awards()) {
+    Map<Long, BigDecimal> existingAwards = rfq.getAwards().stream()
+        .collect(Collectors.toMap(a -> a.getRfqLine().getId(), RfqAward::getAwardedQty, BigDecimal::add));
+
+    List<RfqAwardLine> normalizedAwards = normalizeAwardLines(request, lineMap.keySet());
+    if (normalizedAwards.isEmpty()) {
+      throw new IllegalArgumentException("At least one award allocation is required");
+    }
+
+    Map<Long, BigDecimal> awardedPerLine = new HashMap<>(existingAwards);
+    for (RfqAwardLine awardLine : normalizedAwards) {
       RfqLine line = lineMap.get(awardLine.rfqLineId());
       if (line == null) {
         throw new IllegalArgumentException("Invalid RFQ line: " + awardLine.rfqLineId());
       }
-      if (awardLine.quantity() == null) {
+      ensureSupplierInvited(rfq, awardLine.supplierId());
+      if (awardLine.awardQty() == null || awardLine.awardQty().compareTo(BigDecimal.ZERO) <= 0) {
         throw new IllegalArgumentException("Award quantity is required for line " + awardLine.rfqLineId());
       }
-      awardedPerLine.merge(line.getId(), awardLine.quantity(), BigDecimal::add);
-      RfqQuoteLine quoteLine = resolveSubmittedQuoteLine(rfq.getId(), awardLine.supplierId(), awardLine.rfqLineId());
-      if (quoteLine == null) {
-        throw new IllegalArgumentException("Submitted quote not found for supplier " + awardLine.supplierId());
+      awardedPerLine.merge(line.getId(), awardLine.awardQty(), BigDecimal::add);
+      if (awardedPerLine.get(line.getId()).compareTo(line.getQuantity()) > 0) {
+        throw new IllegalArgumentException("Awarded qty exceeds requested for line " + line.getId());
       }
+      resolveSubmittedQuoteLine(rfq.getId(), awardLine.supplierId(), awardLine.rfqLineId());
     }
-    awardedPerLine.forEach((lineId, total) -> {
-      BigDecimal requested = lineMap.get(lineId).getQuantity();
-      if (total.compareTo(requested) > 0) {
-        throw new IllegalArgumentException("Awarded qty exceeds requested for line " + lineId);
-      }
-    });
 
-    rfq.getAwards().clear();
-    List<RfqAward> awards = new ArrayList<>();
-    for (TransactionDtos.RfqAwardLine awardLine : request.awards()) {
+    List<RfqAward> newAwards = new ArrayList<>();
+    for (RfqAwardLine awardLine : normalizedAwards) {
       Supplier supplier = supplierRepository.findById(awardLine.supplierId())
           .orElseThrow(() -> new IllegalArgumentException("Supplier not found: " + awardLine.supplierId()));
       RfqQuoteLine quoteLine = resolveSubmittedQuoteLine(rfq.getId(), awardLine.supplierId(), awardLine.rfqLineId());
-      BigDecimal rate = awardLine.rate() != null ? awardLine.rate() : quoteLine.getQuotedRate();
+      BigDecimal rate = awardLine.awardRate() != null ? awardLine.awardRate() : quoteLine.getQuotedRate();
       LocalDate delivery = awardLine.deliveryDate() != null ? awardLine.deliveryDate() : quoteLine.getDeliveryDate();
       if (rate == null) {
         throw new IllegalArgumentException("Award rate missing for line " + awardLine.rfqLineId());
@@ -281,39 +287,50 @@ public class RfqService {
       award.setRfq(rfq);
       award.setRfqLine(lineMap.get(awardLine.rfqLineId()));
       award.setSupplier(supplier);
-      award.setAwardedQty(awardLine.quantity());
+      award.setAwardedQty(awardLine.awardQty());
       award.setAwardedRate(rate);
       award.setAwardedDeliveryDate(delivery);
       award.setAwardStatus(DocumentStatus.AWARDED);
-      awards.add(award);
+      newAwards.add(award);
     }
-    rfq.getAwards().addAll(awards);
-    rfqAwardRepository.saveAll(awards);
 
-    Map<Long, List<RfqAward>> awardsBySupplier = awards.stream()
+    rfq.getAwards().addAll(newAwards);
+    rfqAwardRepository.saveAll(newAwards);
+
+    Map<Long, List<RfqAward>> awardsBySupplier = newAwards.stream()
         .filter(a -> a.getAwardedQty().compareTo(BigDecimal.ZERO) > 0)
         .collect(Collectors.groupingBy(a -> a.getSupplier().getId()));
 
-    Map<Long, Long> createdPoIds = new HashMap<>();
+    Map<Long, List<Long>> createdPoIds = new HashMap<>();
     for (Map.Entry<Long, List<RfqAward>> entry : awardsBySupplier.entrySet()) {
       Supplier supplier = supplierRepository.findById(entry.getKey())
           .orElseThrow(() -> new IllegalArgumentException("Supplier not found: " + entry.getKey()));
-      PurchaseOrder po = buildPurchaseOrderFromAwards(rfq, supplier, entry.getValue());
+      PurchaseOrder po = buildOrUpdatePurchaseOrderFromAwards(rfq, supplier, entry.getValue());
       purchaseOrderRepository.save(po);
       purchaseOrderLineRepository.saveAll(po.getLines());
-      createdPoIds.put(supplier.getId(), po.getId());
+      createdPoIds.computeIfAbsent(supplier.getId(), k -> new ArrayList<>()).add(po.getId());
     }
 
+    Set<Long> suppliersAwarded = rfq.getAwards().stream()
+        .filter(a -> a.getAwardedQty() != null && a.getAwardedQty().compareTo(BigDecimal.ZERO) > 0)
+        .map(a -> a.getSupplier().getId())
+        .collect(Collectors.toSet());
+
+    boolean fullyAwarded = rfq.getLines().stream().allMatch(line ->
+        rfq.getAwards().stream()
+            .filter(a -> a.getRfqLine().getId().equals(line.getId()))
+            .map(RfqAward::getAwardedQty)
+            .reduce(BigDecimal.ZERO, BigDecimal::add)
+            .compareTo(line.getQuantity()) >= 0);
+
     rfq.getSuppliers().forEach(invite -> {
-      if (awardsBySupplier.containsKey(invite.getSupplier().getId())) {
+      if (suppliersAwarded.contains(invite.getSupplier().getId())) {
         invite.setStatus(DocumentStatus.AWARDED);
-      } else {
+      } else if (fullyAwarded) {
         invite.setStatus(DocumentStatus.CLOSED_NOT_AWARDED);
       }
     });
 
-    boolean fullyAwarded = awardedPerLine.size() == lineMap.size()
-        && awardedPerLine.entrySet().stream().allMatch(entry -> entry.getValue().compareTo(lineMap.get(entry.getKey()).getQuantity()) >= 0);
     rfq.setStatus(fullyAwarded ? DocumentStatus.AWARDED : DocumentStatus.PARTIALLY_AWARDED);
     Rfq saved = rfqRepository.save(rfq);
     return toResponse(saved, createdPoIds);
@@ -338,15 +355,14 @@ public class RfqService {
     }
     rfq.setClosureReason(request.closureReason());
     rfq.setStatus(DocumentStatus.CLOSED);
-
-    Long purchaseOrderId = null;
-    if ("AWARDED_TO_SUPPLIER".equalsIgnoreCase(request.closureReason())) {
-      PurchaseOrder po = createPurchaseOrderFromRfq(rfq);
-      purchaseOrderId = po.getId();
-    }
+    rfq.getSuppliers().forEach(inv -> {
+      if (inv.getStatus() != DocumentStatus.AWARDED) {
+        inv.setStatus(DocumentStatus.CLOSED_NOT_AWARDED);
+      }
+    });
 
     rfqRepository.save(rfq);
-    return new TransactionDtos.RfqCloseResponse(rfq.getId(), rfq.getStatus().name(), rfq.getClosureReason(), purchaseOrderId);
+    return new TransactionDtos.RfqCloseResponse(rfq.getId(), rfq.getStatus().name(), rfq.getClosureReason(), null);
   }
 
   private RfqLine toLineEntity(Rfq rfq, TransactionDtos.RfqLineRequest request) {
@@ -511,11 +527,52 @@ public class RfqService {
         .orElseThrow(() -> new IllegalArgumentException("Quote line not found for RFQ line " + rfqLineId));
   }
 
+  private List<RfqAwardLine> normalizeAwardLines(TransactionDtos.RfqAwardRequest request, Set<Long> rfqLineIds) {
+    List<RfqAwardLine> result = new ArrayList<>();
+    if (request == null) {
+      return result;
+    }
+    if (request.supplierAwards() != null) {
+      for (RfqSupplierAward supplierAward : request.supplierAwards()) {
+        if (supplierAward == null || supplierAward.allocations() == null) {
+          continue;
+        }
+        for (RfqAwardAllocation allocation : supplierAward.allocations()) {
+          if (allocation == null || allocation.awardQty() == null) {
+            continue;
+          }
+          if (rfqLineIds != null && !rfqLineIds.contains(allocation.rfqLineId())) {
+            continue;
+          }
+          result.add(new RfqAwardLine(
+              allocation.rfqLineId(),
+              supplierAward.supplierId(),
+              allocation.awardQty(),
+              allocation.awardRate(),
+              allocation.deliveryDate(),
+              null));
+        }
+      }
+    }
+    if (request.awards() != null) {
+      for (RfqAwardLine awardLine : request.awards()) {
+        if (awardLine == null) {
+          continue;
+        }
+        if (rfqLineIds != null && !rfqLineIds.contains(awardLine.rfqLineId())) {
+          continue;
+        }
+        result.add(awardLine);
+      }
+    }
+    return result;
+  }
+
   private TransactionDtos.RfqResponse toResponse(Rfq rfq) {
     return toResponse(rfq, resolvePoIds(rfq));
   }
 
-  private TransactionDtos.RfqResponse toResponse(Rfq rfq, Map<Long, Long> poIdsBySupplier) {
+  private TransactionDtos.RfqResponse toResponse(Rfq rfq, Map<Long, List<Long>> poIdsBySupplier) {
     List<TransactionDtos.RfqLineResponse> lines = rfq.getLines().stream()
         .map(line -> new TransactionDtos.RfqLineResponse(
             line.getId(),
@@ -577,32 +634,6 @@ public class RfqService {
     return "RFQ-" + stamp + "-" + System.nanoTime();
   }
 
-  private PurchaseOrder createPurchaseOrderFromRfq(Rfq rfq) {
-    PurchaseOrder po = new PurchaseOrder();
-    po.setPoNo("PO-" + LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd", Locale.ENGLISH)) + "-" + System.nanoTime());
-    po.setSupplier(rfq.getSupplier());
-    po.setPoDate(LocalDate.now());
-    po.setRemarks(rfq.getNarration());
-    po.setPurchaseLedger(null);
-    po.setCurrentLedgerBalance(BigDecimal.ZERO);
-    po.setStatus(DocumentStatus.DRAFT);
-    po.setRfq(rfq);
-
-    rfq.getLines().forEach(rfqLine -> {
-      PurchaseOrderLine line = new PurchaseOrderLine();
-      line.setPurchaseOrder(po);
-      line.setItem(rfqLine.getItem());
-      line.setUom(rfqLine.getUom());
-      line.setQuantity(rfqLine.getQuantity());
-      line.setRate(rfqLine.getRateExpected() != null ? rfqLine.getRateExpected() : BigDecimal.ZERO);
-      line.setAmount(line.getQuantity().multiply(line.getRate()));
-      line.setRemarks(rfqLine.getRemarks());
-      po.getLines().add(line);
-    });
-    po.setTotalAmount(calculateTotal(po.getLines()));
-    return purchaseOrderRepository.save(po);
-  }
-
   private BigDecimal calculateTotal(List<PurchaseOrderLine> lines) {
     return lines.stream()
         .map(line -> line.getAmount() != null ? line.getAmount() : BigDecimal.ZERO)
@@ -629,24 +660,33 @@ public class RfqService {
     });
   }
 
-  private PurchaseOrder buildPurchaseOrderFromAwards(Rfq rfq, Supplier supplier, List<RfqAward> awards) {
-    PurchaseOrder po = new PurchaseOrder();
-    po.setPoNo("PO-" + LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd", Locale.ENGLISH)) + "-" + System.nanoTime());
-    po.setSupplier(supplier);
-    po.setPoDate(LocalDate.now());
-    po.setRemarks(rfq.getNarration());
-    po.setPurchaseLedger(null);
-    po.setCurrentLedgerBalance(BigDecimal.ZERO);
-    po.setStatus(DocumentStatus.DRAFT);
-    po.setRfq(rfq);
+  private PurchaseOrder buildOrUpdatePurchaseOrderFromAwards(Rfq rfq, Supplier supplier, List<RfqAward> awards) {
+    PurchaseOrder po = purchaseOrderRepository.findByRfqId(rfq.getId()).stream()
+        .filter(existing -> existing.getSupplier() != null && existing.getSupplier().getId().equals(supplier.getId()))
+        .findFirst()
+        .orElseGet(() -> {
+          PurchaseOrder fresh = new PurchaseOrder();
+          fresh.setPoNo("PO-" + LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd", Locale.ENGLISH)) + "-" + System.nanoTime());
+          fresh.setSupplier(supplier);
+          fresh.setPoDate(LocalDate.now());
+          fresh.setRemarks(rfq.getNarration());
+          fresh.setPurchaseLedger(null);
+          fresh.setCurrentLedgerBalance(BigDecimal.ZERO);
+          fresh.setStatus(DocumentStatus.DRAFT);
+          fresh.setRfq(rfq);
+          return fresh;
+        });
 
-    LocalDate deliveryDate = awards.stream()
+    LocalDate earliestAwardDate = awards.stream()
         .map(RfqAward::getAwardedDeliveryDate)
         .filter(Objects::nonNull)
         .sorted()
         .findFirst()
         .orElse(null);
-    po.setDeliveryDate(deliveryDate);
+    LocalDate currentDelivery = po.getDeliveryDate();
+    if (currentDelivery == null || (earliestAwardDate != null && earliestAwardDate.isBefore(currentDelivery))) {
+      po.setDeliveryDate(earliestAwardDate);
+    }
 
     awards.forEach(award -> {
       PurchaseOrderLine line = new PurchaseOrderLine();
@@ -663,12 +703,13 @@ public class RfqService {
     return po;
   }
 
-  private Map<Long, Long> resolvePoIds(Rfq rfq) {
+  private Map<Long, List<Long>> resolvePoIds(Rfq rfq) {
     if (rfq.getId() == null) {
       return Map.of();
     }
     return purchaseOrderRepository.findByRfqId(rfq.getId()).stream()
         .filter(po -> po.getSupplier() != null)
-        .collect(Collectors.toMap(po -> po.getSupplier().getId(), PurchaseOrder::getId, (a, b) -> a));
+        .collect(Collectors.groupingBy(po -> po.getSupplier().getId(),
+            Collectors.mapping(PurchaseOrder::getId, Collectors.toList())));
   }
 }

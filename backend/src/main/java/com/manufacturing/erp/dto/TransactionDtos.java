@@ -34,8 +34,8 @@ public class TransactionDtos {
   public record RfqAwardLine(
       Long rfqLineId,
       Long supplierId,
-      BigDecimal quantity,
-      BigDecimal rate,
+      BigDecimal awardQty,
+      BigDecimal awardRate,
       LocalDate deliveryDate,
       String status) {}
 
@@ -54,6 +54,10 @@ public class TransactionDtos {
       String remarks) {}
 
   public record RfqQuoteSaveRequest(String paymentTermsOverride, String remarks, @NotEmpty List<@Valid RfqQuoteLineRequest> lines) {}
+
+  public record RfqAwardAllocation(@NotNull Long rfqLineId, @NotNull @Positive BigDecimal awardQty, BigDecimal awardRate, LocalDate deliveryDate) {}
+
+  public record RfqSupplierAward(@NotNull Long supplierId, @NotEmpty List<@Valid RfqAwardAllocation> allocations) {}
 
   public record RfqQuoteResponse(
       Long supplierId,
@@ -92,12 +96,12 @@ public class TransactionDtos {
       List<RfqLineResponse> lines,
       List<RfqAwardLine> awards,
       List<RfqQuoteSupplierSummary> quoteSummaries,
-      java.util.Map<Long, Long> createdPoIds) {}
+      java.util.Map<Long, java.util.List<Long>> poIdsBySupplier) {}
 
   public record RfqCloseRequest(@NotBlank String closureReason) {}
 
   public record RfqCloseResponse(Long id, String status, String closureReason, Long purchaseOrderId) {}
-  public record RfqAwardRequest(@NotEmpty List<RfqAwardLine> awards, String remarks) {}
+  public record RfqAwardRequest(@Valid List<RfqSupplierAward> supplierAwards, @Valid List<RfqAwardLine> awards, String remarks) {}
 
   public record PurchaseOrderLineRequest(
       Long id,
