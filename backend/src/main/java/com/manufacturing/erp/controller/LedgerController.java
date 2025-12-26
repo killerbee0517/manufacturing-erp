@@ -27,10 +27,11 @@ public class LedgerController {
   }
 
   @GetMapping
-  public List<LedgerDtos.LedgerResponse> list() {
-    return ledgerRepository.findAll().stream()
-        .map(this::toResponse)
-        .toList();
+  public List<LedgerDtos.LedgerResponse> list(
+      @RequestParam(required = false) String q,
+      @RequestParam(required = false) String type) {
+    var ledgers = ledgerRepository.search(q, parseType(type));
+    return ledgers.stream().map(this::toResponse).toList();
   }
 
   @GetMapping("/{id}/balance")
@@ -57,7 +58,19 @@ public class LedgerController {
         ledger.getId(),
         ledger.getName(),
         ledger.getType().name(),
+        ledger.isEnabled(),
         ledgerService.getBalance(ledger.getId())
     );
+  }
+
+  private com.manufacturing.erp.domain.Enums.LedgerType parseType(String type) {
+    if (type == null || type.isBlank()) {
+      return null;
+    }
+    try {
+      return com.manufacturing.erp.domain.Enums.LedgerType.valueOf(type.toUpperCase());
+    } catch (IllegalArgumentException ex) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid ledger type");
+    }
   }
 }

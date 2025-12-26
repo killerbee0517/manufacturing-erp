@@ -73,6 +73,28 @@ export default function PoEditPage() {
     });
   }, [id]);
 
+  useEffect(() => {
+    if (!header.supplierId) {
+      setHeader((prev) => ({ ...prev, currentLedgerBalance: 0 }));
+      return;
+    }
+    let active = true;
+    apiClient
+      .get(`/api/suppliers/${header.supplierId}/balance`)
+      .then((response) => {
+        if (!active) return;
+        const balance = response.data?.balance ?? 0;
+        setHeader((prev) => ({ ...prev, currentLedgerBalance: Number(balance) }));
+      })
+      .catch(() => {
+        if (!active) return;
+        setHeader((prev) => ({ ...prev, currentLedgerBalance: 0 }));
+      });
+    return () => {
+      active = false;
+    };
+  }, [header.supplierId]);
+
   const updateLine = (index, key, value) => {
     setLines((prev) => {
       const next = [...prev];

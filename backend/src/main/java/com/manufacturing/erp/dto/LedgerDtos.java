@@ -8,6 +8,7 @@ public class LedgerDtos {
       Long id,
       String name,
       String type,
+      boolean enabled,
       BigDecimal balance) {}
 
   public record LedgerBalanceResponse(Long ledgerId, BigDecimal balance) {}

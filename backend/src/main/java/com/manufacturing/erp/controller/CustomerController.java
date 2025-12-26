@@ -52,6 +52,21 @@ public class CustomerController {
     return toResponse(customer);
   }
 
+  @GetMapping("/{id}/balance")
+  public com.manufacturing.erp.dto.LedgerDtos.LedgerBalanceResponse getBalance(@PathVariable Long id) {
+    Customer customer = customerRepository.findById(id)
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Customer not found"));
+    Ledger ledger = customer.getLedger();
+    if (ledger == null) {
+      ledger = ledgerService.createLedger(customer.getName(), LedgerType.CUSTOMER, "CUSTOMER", customer.getId());
+      customer.setLedger(ledger);
+      customerRepository.save(customer);
+    }
+    return new com.manufacturing.erp.dto.LedgerDtos.LedgerBalanceResponse(
+        ledger.getId(),
+        ledgerService.getBalance(ledger.getId()));
+  }
+
   @PostMapping
   @Transactional
   public MasterDtos.CustomerResponse create(@Valid @RequestBody MasterDtos.CustomerRequest request) {
@@ -71,6 +86,11 @@ public class CustomerController {
         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Customer not found"));
     applyRequest(customer, request);
     Customer saved = customerRepository.save(customer);
+    if (saved.getLedger() == null) {
+      Ledger ledger = ledgerService.createLedger(saved.getName(), LedgerType.CUSTOMER, "CUSTOMER", saved.getId());
+      saved.setLedger(ledger);
+      saved = customerRepository.save(saved);
+    }
     return toResponse(saved);
   }
 
