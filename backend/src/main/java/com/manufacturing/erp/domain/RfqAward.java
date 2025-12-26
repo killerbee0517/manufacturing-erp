@@ -10,6 +10,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 @Entity
 @Table(name = "rfq_awards")
@@ -29,8 +30,11 @@ public class RfqAward extends BaseEntity {
   @Column(nullable = false)
   private BigDecimal awardedQty;
 
-  @Column(nullable = false)
-  private BigDecimal rate;
+  @Column(name = "awarded_rate", nullable = false)
+  private BigDecimal awardedRate;
+
+  @Column(name = "awarded_delivery_date")
+  private LocalDate awardedDeliveryDate;
 
   @Enumerated(EnumType.STRING)
   @Column(nullable = false)
@@ -68,12 +72,20 @@ public class RfqAward extends BaseEntity {
     this.awardedQty = awardedQty;
   }
 
-  public BigDecimal getRate() {
-    return rate;
+  public BigDecimal getAwardedRate() {
+    return awardedRate;
   }
 
-  public void setRate(BigDecimal rate) {
-    this.rate = rate;
+  public void setAwardedRate(BigDecimal rate) {
+    this.awardedRate = rate;
+  }
+
+  public LocalDate getAwardedDeliveryDate() {
+    return awardedDeliveryDate;
+  }
+
+  public void setAwardedDeliveryDate(LocalDate awardedDeliveryDate) {
+    this.awardedDeliveryDate = awardedDeliveryDate;
   }
 
   public DocumentStatus getAwardStatus() {

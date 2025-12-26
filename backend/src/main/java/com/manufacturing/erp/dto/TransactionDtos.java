@@ -36,7 +36,41 @@ public class TransactionDtos {
       Long supplierId,
       BigDecimal quantity,
       BigDecimal rate,
+      LocalDate deliveryDate,
       String status) {}
+
+  public record RfqQuoteLineRequest(
+      @NotNull Long rfqLineId,
+      @PositiveOrZero BigDecimal quotedQty,
+      @PositiveOrZero BigDecimal quotedRate,
+      LocalDate deliveryDate,
+      String remarks) {}
+
+  public record RfqQuoteLineResponse(
+      Long rfqLineId,
+      BigDecimal quotedQty,
+      BigDecimal quotedRate,
+      LocalDate deliveryDate,
+      String remarks) {}
+
+  public record RfqQuoteSaveRequest(String paymentTermsOverride, String remarks, @NotEmpty List<@Valid RfqQuoteLineRequest> lines) {}
+
+  public record RfqQuoteResponse(
+      Long supplierId,
+      String supplierName,
+      String status,
+      String paymentTermsOverride,
+      String remarks,
+      java.time.Instant submittedAt,
+      List<RfqQuoteLineResponse> lines) {}
+
+  public record RfqQuoteSupplierSummary(
+      Long supplierId,
+      String supplierName,
+      String status,
+      BigDecimal totalAmount,
+      BigDecimal totalQty,
+      java.time.Instant submittedAt) {}
 
   public record RfqRequest(
       String rfqNo,
@@ -57,6 +91,7 @@ public class TransactionDtos {
       String status,
       List<RfqLineResponse> lines,
       List<RfqAwardLine> awards,
+      List<RfqQuoteSupplierSummary> quoteSummaries,
       java.util.Map<Long, Long> createdPoIds) {}
 
   public record RfqCloseRequest(@NotBlank String closureReason) {}

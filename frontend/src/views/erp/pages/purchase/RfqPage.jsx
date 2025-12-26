@@ -111,6 +111,8 @@ export default function RfqPage() {
               <MenuItem value="DRAFT">Draft</MenuItem>
               <MenuItem value="SUBMITTED">Submitted</MenuItem>
               <MenuItem value="APPROVED">Approved</MenuItem>
+              <MenuItem value="PARTIALLY_AWARDED">Partially Awarded</MenuItem>
+              <MenuItem value="AWARDED">Awarded</MenuItem>
               <MenuItem value="CLOSED">Closed</MenuItem>
             </TextField>
           </Grid>

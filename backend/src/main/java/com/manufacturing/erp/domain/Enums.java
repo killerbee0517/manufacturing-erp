@@ -13,6 +13,8 @@ public class Enums {
     CANCELLED,
     PARTIALLY_AWARDED,
     AWARDED,
+    CLOSED_NOT_AWARDED,
+    REVISED,
     REJECTED,
     IN_PROGRESS,
     UNLOADED
