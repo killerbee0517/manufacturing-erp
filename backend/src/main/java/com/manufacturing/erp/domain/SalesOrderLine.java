@@ -6,14 +6,12 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
-import com.manufacturing.erp.domain.Godown;
-import com.manufacturing.erp.domain.Uom;
 
 @Entity
-@Table(name = "sales_invoice_lines")
-public class SalesInvoiceLine extends BaseEntity {
+@Table(name = "so_lines")
+public class SalesOrderLine extends BaseEntity {
   @ManyToOne
-  private SalesInvoice salesInvoice;
+  private SalesOrder salesOrder;
 
   @ManyToOne
   private Item item;
@@ -21,24 +19,18 @@ public class SalesInvoiceLine extends BaseEntity {
   @ManyToOne
   private Uom uom;
 
-  @ManyToOne
-  private Godown godown;
-
   @Column(nullable = false)
   private BigDecimal quantity;
 
-  @Column
+  @Column(nullable = false)
   private BigDecimal rate;
 
-  @Column(nullable = false)
-  private BigDecimal lineAmount;
-
-  public SalesInvoice getSalesInvoice() {
-    return salesInvoice;
+  public SalesOrder getSalesOrder() {
+    return salesOrder;
   }
 
-  public void setSalesInvoice(SalesInvoice salesInvoice) {
-    this.salesInvoice = salesInvoice;
+  public void setSalesOrder(SalesOrder salesOrder) {
+    this.salesOrder = salesOrder;
   }
 
   public Item getItem() {
@@ -57,14 +49,6 @@ public class SalesInvoiceLine extends BaseEntity {
     this.uom = uom;
   }
 
-  public Godown getGodown() {
-    return godown;
-  }
-
-  public void setGodown(Godown godown) {
-    this.godown = godown;
-  }
-
   public BigDecimal getQuantity() {
     return quantity;
   }
@@ -79,13 +63,5 @@ public class SalesInvoiceLine extends BaseEntity {
 
   public void setRate(BigDecimal rate) {
     this.rate = rate;
-  }
-
-  public BigDecimal getLineAmount() {
-    return lineAmount;
-  }
-
-  public void setLineAmount(BigDecimal lineAmount) {
-    this.lineAmount = lineAmount;
   }
 }

@@ -2,14 +2,19 @@ package com.manufacturing.erp.domain;
 
 import com.manufacturing.erp.common.BaseEntity;
 import com.manufacturing.erp.domain.Enums.DocumentStatus;
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "sales_invoices")
@@ -32,6 +37,9 @@ public class SalesInvoice extends BaseEntity {
   @Enumerated(EnumType.STRING)
   @Column(nullable = false)
   private DocumentStatus status;
+
+  @OneToMany(mappedBy = "salesInvoice", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+  private List<SalesInvoiceLine> lines = new ArrayList<>();
 
   public String getInvoiceNo() {
     return invoiceNo;
@@ -79,5 +87,13 @@ public class SalesInvoice extends BaseEntity {
 
   public void setStatus(DocumentStatus status) {
     this.status = status;
+  }
+
+  public List<SalesInvoiceLine> getLines() {
+    return lines;
+  }
+
+  public void setLines(List<SalesInvoiceLine> lines) {
+    this.lines = lines;
   }
 }

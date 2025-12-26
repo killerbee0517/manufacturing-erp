@@ -32,11 +32,13 @@ const PurchaseArrivalDetailPage = Loadable(lazy(() => import('views/erp/pages/pu
 const PurchaseInvoicePage = Loadable(lazy(() => import('views/erp/pages/purchase/PurchaseInvoicePage')));
 const DebitNotePage = Loadable(lazy(() => import('views/erp/pages/purchase/DebitNotePage')));
 const SalesOrderPage = Loadable(lazy(() => import('views/erp/pages/sales/SalesOrderPage')));
+const SalesOrderFormPage = Loadable(lazy(() => import('views/erp/pages/sales/SalesOrderFormPage')));
 const DeliveryNotePage = Loadable(lazy(() => import('views/erp/pages/sales/DeliveryNotePage')));
 const TaxInvoicePage = Loadable(lazy(() => import('views/erp/pages/sales/TaxInvoicePage')));
 const CreditNotePage = Loadable(lazy(() => import('views/erp/pages/sales/CreditNotePage')));
 const ReceiptPage = Loadable(lazy(() => import('views/erp/pages/sales/ReceiptPage')));
 const StockTransferPage = Loadable(lazy(() => import('views/erp/pages/inventory/StockTransferPage')));
+const StockTransferFormPage = Loadable(lazy(() => import('views/erp/pages/inventory/StockTransferFormPage')));
 const StockLedgerPage = Loadable(lazy(() => import('views/erp/pages/inventory/StockLedgerPage')));
 const ItemBalancesPage = Loadable(lazy(() => import('views/erp/pages/inventory/ItemBalancesPage')));
 const ProcessTemplatesPage = Loadable(lazy(() => import('views/erp/pages/production/ProcessTemplatesPage')));
@@ -117,6 +119,8 @@ const MainRoutes = {
       path: 'sales',
       children: [
         { path: 'sales-order', element: <SalesOrderPage /> },
+        { path: 'sales-order/new', element: <SalesOrderFormPage /> },
+        { path: 'sales-order/:id/edit', element: <SalesOrderFormPage /> },
         { path: 'delivery-note', element: <DeliveryNotePage /> },
         { path: 'tax-invoice', element: <TaxInvoicePage /> },
         { path: 'credit-note', element: <CreditNotePage /> },
@@ -128,6 +132,8 @@ const MainRoutes = {
       children: [
         { path: 'stock-on-hand', element: <ItemBalancesPage /> },
         { path: 'stock-transfer', element: <StockTransferPage /> },
+        { path: 'stock-transfer/new', element: <StockTransferFormPage /> },
+        { path: 'stock-transfer/:id/edit', element: <StockTransferFormPage /> },
         { path: 'stock-ledger', element: <StockLedgerPage /> }
       ]
     },

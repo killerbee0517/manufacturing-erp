@@ -481,14 +481,15 @@ export const moduleConfigs = {
   stockOnHand: {
     title: 'Stock On Hand',
     subtitle: 'Inventory',
-    listEndpoint: '/api/stock-ledger',
+    listEndpoint: '/api/stock-on-hand',
     fields: [],
     columns: [
       { label: 'ID', field: 'id' },
-      { label: 'Doc Type', field: 'docType' },
       { label: 'Item', field: 'itemId' },
-      { label: 'Quantity', field: 'quantity' },
-      { label: 'Status', field: 'status' }
+      { label: 'Godown', field: 'godownId' },
+      { label: 'Qty In', field: 'qtyIn' },
+      { label: 'Qty Out', field: 'qtyOut' },
+      { label: 'Balance', field: 'balance' }
     ]
   },
   stockLedger: {
@@ -509,25 +510,13 @@ export const moduleConfigs = {
     subtitle: 'Inventory',
     createEndpoint: '/api/stock-transfers',
     listEndpoint: '/api/stock-transfers',
-    fields: [
-      { name: 'itemId', label: 'Item', type: 'select', optionsSource: 'items' },
-      { name: 'fromLocationId', label: 'From Location', type: 'select', optionsSource: 'locations' },
-      { name: 'toLocationId', label: 'To Location', type: 'select', optionsSource: 'locations' },
-      { name: 'quantity', label: 'Quantity', type: 'number' },
-      { name: 'weight', label: 'Weight', type: 'number' }
-    ],
-    buildPayload: (values) => ({
-      itemId: Number(values.itemId),
-      fromLocationId: Number(values.fromLocationId),
-      toLocationId: Number(values.toLocationId),
-      quantity: Number(values.quantity),
-      weight: Number(values.weight)
-    }),
+    fields: [],
+    buildPayload: (values) => values,
     columns: [
       { label: 'ID', field: 'id' },
-      { label: 'Item', field: 'itemId' },
-      { label: 'From', field: 'fromLocationId' },
-      { label: 'To', field: 'toLocationId' },
+      { label: 'Transfer No', field: 'transferNo' },
+      { label: 'From', field: 'fromGodownId' },
+      { label: 'To', field: 'toGodownId' },
       { label: 'Status', field: 'status' }
     ]
   },

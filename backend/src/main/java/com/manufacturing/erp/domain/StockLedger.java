@@ -33,6 +33,18 @@ public class StockLedger extends BaseEntity {
   @Column(nullable = false)
   private BigDecimal weight;
 
+  @Column(name = "qty_in", nullable = false)
+  private BigDecimal qtyIn;
+
+  @Column(name = "qty_out", nullable = false)
+  private BigDecimal qtyOut;
+
+  @Column
+  private BigDecimal rate;
+
+  @Column
+  private BigDecimal amount;
+
   @ManyToOne
   private Uom uom;
 
@@ -50,6 +62,12 @@ public class StockLedger extends BaseEntity {
 
   @ManyToOne
   private Godown toGodown;
+
+  @ManyToOne
+  private Godown godown;
+
+  @Column(name = "batch_id")
+  private Long batchId;
 
   @Enumerated(EnumType.STRING)
   @Column(nullable = false)
@@ -106,6 +124,38 @@ public class StockLedger extends BaseEntity {
     this.weight = weight;
   }
 
+  public BigDecimal getQtyIn() {
+    return qtyIn;
+  }
+
+  public void setQtyIn(BigDecimal qtyIn) {
+    this.qtyIn = qtyIn;
+  }
+
+  public BigDecimal getQtyOut() {
+    return qtyOut;
+  }
+
+  public void setQtyOut(BigDecimal qtyOut) {
+    this.qtyOut = qtyOut;
+  }
+
+  public BigDecimal getRate() {
+    return rate;
+  }
+
+  public void setRate(BigDecimal rate) {
+    this.rate = rate;
+  }
+
+  public BigDecimal getAmount() {
+    return amount;
+  }
+
+  public void setAmount(BigDecimal amount) {
+    this.amount = amount;
+  }
+
   public Uom getUom() {
     return uom;
   }
@@ -152,6 +202,22 @@ public class StockLedger extends BaseEntity {
 
   public void setToGodown(Godown toGodown) {
     this.toGodown = toGodown;
+  }
+
+  public Godown getGodown() {
+    return godown;
+  }
+
+  public void setGodown(Godown godown) {
+    this.godown = godown;
+  }
+
+  public Long getBatchId() {
+    return batchId;
+  }
+
+  public void setBatchId(Long batchId) {
+    this.batchId = batchId;
   }
 
   public StockStatus getStatus() {

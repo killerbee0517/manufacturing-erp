@@ -109,8 +109,32 @@ public class TransactionDtos {
       String status,
       List<PurchaseOrderLineResponse> lines) {}
 
-  public record SalesOrderRequest(@NotBlank String soNo, @NotNull Long customerId, String status) {}
-  public record SalesOrderResponse(Long id, String soNo, Long customerId, String status) {}
+  public record SalesOrderLineRequest(
+      Long id,
+      @NotNull Long itemId,
+      @NotNull Long uomId,
+      @NotNull @Positive BigDecimal quantity,
+      @NotNull @PositiveOrZero BigDecimal rate) {}
+
+  public record SalesOrderRequest(
+      Long id,
+      String soNo,
+      @NotNull Long customerId,
+      LocalDate orderDate,
+      String status,
+      String narration,
+      @NotEmpty List<@Valid SalesOrderLineRequest> lines) {}
+
+  public record SalesOrderResponse(
+      Long id,
+      String soNo,
+      Long customerId,
+      LocalDate orderDate,
+      String status,
+      String narration,
+      List<SalesOrderLineResponse> lines) {}
+
+  public record SalesOrderLineResponse(Long id, Long itemId, Long uomId, BigDecimal quantity, BigDecimal rate) {}
 
   public record DeliveryRequest(@NotBlank String deliveryNo, @NotNull Long salesOrderId) {}
   public record DeliveryResponse(Long id, String deliveryNo, Long salesOrderId) {}

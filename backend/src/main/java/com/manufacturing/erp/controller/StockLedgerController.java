@@ -1,10 +1,15 @@
 package com.manufacturing.erp.controller;
 
 import com.manufacturing.erp.domain.StockLedger;
+import com.manufacturing.erp.dto.StockDtos;
 import com.manufacturing.erp.repository.StockLedgerRepository;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -17,31 +22,33 @@ public class StockLedgerController {
   }
 
   @GetMapping
-  public List<StockLedgerResponse> list() {
-    return stockLedgerRepository.findAll().stream()
-        .map(entry -> new StockLedgerResponse(
-            entry.getId(),
-            entry.getDocType(),
-            entry.getDocId(),
-            entry.getTxnType().name(),
-            entry.getQuantity(),
-            entry.getWeight(),
-            entry.getItem() != null ? entry.getItem().getId() : null,
-            entry.getFromLocation() != null ? entry.getFromLocation().getId() : null,
-            entry.getToLocation() != null ? entry.getToLocation().getId() : null,
-            entry.getStatus().name()))
+  public List<StockDtos.StockLedgerResponse> list(@RequestParam(required = false) Long itemId,
+                                                  @RequestParam(required = false) Long godownId,
+                                                  @RequestParam(required = false) LocalDate from,
+                                                  @RequestParam(required = false) LocalDate to) {
+    Instant fromInstant = from != null ? from.atStartOfDay().toInstant(ZoneOffset.UTC) : null;
+    Instant toInstant = to != null ? to.plusDays(1).atStartOfDay().toInstant(ZoneOffset.UTC) : null;
+    return stockLedgerRepository.findLedger(itemId, godownId, fromInstant, toInstant).stream()
+        .map(this::toResponse)
         .toList();
   }
 
-  public record StockLedgerResponse(
-      Long id,
-      String docType,
-      Long docId,
-      String txnType,
-      java.math.BigDecimal quantity,
-      java.math.BigDecimal weight,
-      Long itemId,
-      Long fromLocationId,
-      Long toLocationId,
-      String status) {}
+  private StockDtos.StockLedgerResponse toResponse(StockLedger entry) {
+    return new StockDtos.StockLedgerResponse(
+        entry.getId(),
+        entry.getDocType(),
+        entry.getDocId(),
+        entry.getDocLineId(),
+        entry.getItem() != null ? entry.getItem().getId() : null,
+        entry.getGodown() != null ? entry.getGodown().getId() : null,
+        entry.getFromGodown() != null ? entry.getFromGodown().getId() : null,
+        entry.getToGodown() != null ? entry.getToGodown().getId() : null,
+        entry.getQtyIn(),
+        entry.getQtyOut(),
+        entry.getRate(),
+        entry.getAmount(),
+        entry.getStatus().name(),
+        entry.getTxnType().name(),
+        entry.getPostedAt());
+  }
 }
