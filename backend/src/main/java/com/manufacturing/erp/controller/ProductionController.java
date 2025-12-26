@@ -23,6 +23,32 @@ public class ProductionController {
     this.productionService = productionService;
   }
 
+  // BOM
+  @GetMapping("/bom")
+  public List<ProductionDtos.BomResponse> listBoms() {
+    return productionService.listBoms();
+  }
+
+  @GetMapping("/bom/{id}")
+  public ProductionDtos.BomResponse getBom(@PathVariable Long id) {
+    return productionService.getBom(id);
+  }
+
+  @PostMapping("/bom")
+  public ProductionDtos.BomResponse createBom(@Valid @RequestBody ProductionDtos.BomRequest request) {
+    return productionService.createBom(request);
+  }
+
+  @PutMapping("/bom/{id}")
+  public ProductionDtos.BomResponse updateBom(@PathVariable Long id, @Valid @RequestBody ProductionDtos.BomRequest request) {
+    return productionService.updateBom(id, request);
+  }
+
+  @DeleteMapping("/bom/{id}")
+  public void deleteBom(@PathVariable Long id) {
+    productionService.deleteBom(id);
+  }
+
   @GetMapping("/templates")
   public List<ProductionDtos.ProcessTemplateResponse> listTemplates() {
     return productionService.listTemplates();
@@ -87,6 +113,11 @@ public class ProductionController {
   @GetMapping("/batches")
   public List<ProductionDtos.ProductionBatchResponse> listBatches(@RequestParam Long orderId) {
     return productionService.listBatches(orderId);
+  }
+
+  @GetMapping("/batches/{id}/wip-outputs")
+  public List<ProductionDtos.WipOutputResponse> listWipOutputs(@PathVariable Long id) {
+    return productionService.listAvailableWipOutputs(id);
   }
 
   @GetMapping("/batches/{id}/cost-summary")

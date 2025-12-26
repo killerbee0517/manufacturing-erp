@@ -18,13 +18,25 @@ export default function ProductionOrdersPage() {
   const [loading, setLoading] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [templates, setTemplates] = useState([]);
+  const [boms, setBoms] = useState([]);
   const [items, setItems] = useState([]);
-  const [formValues, setFormValues] = useState({ orderNo: '', templateId: '', itemId: '', plannedQty: '', orderDate: '' });
+  const [uoms, setUoms] = useState([]);
+  const [formValues, setFormValues] = useState({
+    orderNo: '',
+    templateId: '',
+    bomId: '',
+    finishedItemId: '',
+    uomId: '',
+    plannedQty: '',
+    orderDate: ''
+  });
 
   const columns = [
     { field: 'orderNo', headerName: 'Order No' },
     { field: 'templateName', headerName: 'Template' },
-    { field: 'itemName', headerName: 'Output Item' },
+    { field: 'bomName', headerName: 'BOM' },
+    { field: 'finishedItemName', headerName: 'Finished Item' },
+    { field: 'uomCode', headerName: 'UOM' },
     { field: 'plannedQty', headerName: 'Planned Qty' },
     { field: 'orderDate', headerName: 'Order Date' },
     { field: 'status', headerName: 'Status' },
@@ -55,10 +67,18 @@ export default function ProductionOrdersPage() {
       .listTemplates()
       .then((response) => setTemplates(response.data || []))
       .catch(() => setTemplates([]));
+    productionApi
+      .listBoms()
+      .then((response) => setBoms(response.data || []))
+      .catch(() => setBoms([]));
     apiClient
       .get('/api/items')
       .then((response) => setItems(response.data || []))
       .catch(() => setItems([]));
+    apiClient
+      .get('/api/uoms')
+      .then((response) => setUoms(response.data || []))
+      .catch(() => setUoms([]));
   };
 
   useEffect(() => {
@@ -76,12 +96,14 @@ export default function ProductionOrdersPage() {
     await productionApi.createOrder({
       orderNo: formValues.orderNo || `ORD-${Date.now().toString().slice(-4)}`,
       templateId: formValues.templateId || null,
-      itemId: formValues.itemId,
-      plannedQty: formValues.plannedQty,
+      bomId: Number(formValues.bomId),
+      finishedItemId: Number(formValues.finishedItemId),
+      uomId: Number(formValues.uomId),
+      plannedQty: Number(formValues.plannedQty),
       orderDate: formValues.orderDate || null
     });
     setDrawerOpen(false);
-    setFormValues({ orderNo: '', templateId: '', itemId: '', plannedQty: '', orderDate: '' });
+    setFormValues({ orderNo: '', templateId: '', bomId: '', finishedItemId: '', uomId: '', plannedQty: '', orderDate: '' });
     loadOrders();
   };
 
@@ -127,14 +149,46 @@ export default function ProductionOrdersPage() {
             <TextField
               fullWidth
               select
-              label="Output Item"
-              value={formValues.itemId}
-              onChange={(event) => setFormValues((prev) => ({ ...prev, itemId: event.target.value }))}
+              label="BOM"
+              value={formValues.bomId}
+              onChange={(event) => setFormValues((prev) => ({ ...prev, bomId: event.target.value }))}
+              required
+            >
+              {boms.map((bom) => (
+                <MenuItem key={bom.id} value={bom.id}>
+                  {bom.name} - {bom.finishedItemName}
+                </MenuItem>
+              ))}
+            </TextField>
+          </Grid>
+          <Grid size={{ xs: 12 }}>
+            <TextField
+              fullWidth
+              select
+              label="Finished Item"
+              value={formValues.finishedItemId}
+              onChange={(event) => setFormValues((prev) => ({ ...prev, finishedItemId: event.target.value }))}
               required
             >
               {items.map((item) => (
                 <MenuItem key={item.id} value={item.id}>
                   {item.name}
+                </MenuItem>
+              ))}
+            </TextField>
+          </Grid>
+          <Grid size={{ xs: 12 }}>
+            <TextField
+              fullWidth
+              select
+              label="UOM"
+              value={formValues.uomId}
+              onChange={(event) => setFormValues((prev) => ({ ...prev, uomId: event.target.value }))}
+              required
+            >
+              {uoms.map((uom) => (
+                <MenuItem key={uom.id} value={uom.id}>
+                  {uom.code}
                 </MenuItem>
               ))}
             </TextField>

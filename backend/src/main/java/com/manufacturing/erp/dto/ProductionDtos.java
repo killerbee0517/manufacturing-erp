@@ -8,6 +8,37 @@ import java.time.Instant;
 import java.util.List;
 
 public class ProductionDtos {
+  public record BomLineRequest(
+      @NotNull Long componentItemId,
+      @NotNull Long uomId,
+      @NotNull BigDecimal qtyPerUnit,
+      BigDecimal scrapPercent) {}
+
+  public record BomRequest(
+      @NotNull Long finishedItemId,
+      @NotBlank String name,
+      String version,
+      Boolean enabled,
+      List<BomLineRequest> lines) {}
+
+  public record BomLineResponse(
+      Long id,
+      Long componentItemId,
+      String componentItemName,
+      Long uomId,
+      String uomCode,
+      BigDecimal qtyPerUnit,
+      BigDecimal scrapPercent) {}
+
+  public record BomResponse(
+      Long id,
+      Long finishedItemId,
+      String finishedItemName,
+      String name,
+      String version,
+      Boolean enabled,
+      List<BomLineResponse> lines) {}
+
   public record ProcessStepRequest(
       @NotBlank String name,
       String description,
@@ -37,9 +68,11 @@ public class ProductionDtos {
       List<ProcessStepResponse> steps) {}
 
   public record ProductionOrderRequest(
-      @NotBlank String orderNo,
+      String orderNo,
       Long templateId,
-      @NotNull Long itemId,
+      @NotNull Long bomId,
+      @NotNull Long finishedItemId,
+      @NotNull Long uomId,
       @NotNull BigDecimal plannedQty,
       LocalDate orderDate) {}
 
@@ -48,8 +81,12 @@ public class ProductionDtos {
       String orderNo,
       Long templateId,
       String templateName,
-      Long itemId,
-      String itemName,
+      Long bomId,
+      String bomName,
+      Long finishedItemId,
+      String finishedItemName,
+      Long uomId,
+      String uomCode,
       BigDecimal plannedQty,
       LocalDate orderDate,
       String status) {}
@@ -59,21 +96,39 @@ public class ProductionDtos {
       String batchNo,
       Long productionOrderId,
       String status,
+      LocalDate startDate,
+      LocalDate endDate,
       Instant startedAt,
       Instant completedAt) {}
 
-  public record ProcessRunItemRequest(
+  public record ProcessRunInputRequest(
       @NotNull Long itemId,
       @NotNull Long uomId,
       @NotNull BigDecimal quantity,
-      Long godownId) {}
+      @NotNull String sourceType,
+      Long sourceGodownId,
+      Long sourceRunOutputId,
+      BigDecimal rate,
+      BigDecimal amount) {}
+
+  public record ProcessRunOutputRequest(
+      @NotNull Long itemId,
+      @NotNull Long uomId,
+      @NotNull BigDecimal quantity,
+      @NotNull String outputType,
+      Long destGodownId,
+      BigDecimal rate,
+      BigDecimal amount) {}
 
   public record ProcessRunRequest(
       @NotNull Long batchId,
-      @NotNull Long stepId,
-      @NotNull LocalDate runDate,
-      List<ProcessRunItemRequest> consumptions,
-      List<ProcessRunItemRequest> outputs) {}
+      Long stepId,
+      String stepName,
+      LocalDate runDate,
+      Instant startedAt,
+      Instant endedAt,
+      List<ProcessRunInputRequest> consumptions,
+      List<ProcessRunOutputRequest> outputs) {}
 
   public record ProcessRunResponse(
       Long id,
@@ -81,11 +136,55 @@ public class ProductionDtos {
       Long stepId,
       String stepName,
       LocalDate runDate,
+      Instant startedAt,
+      Instant endedAt,
       String status) {}
 
   public record BatchCostSummaryResponse(
       Long batchId,
       BigDecimal totalConsumptionQty,
+      BigDecimal totalConsumptionAmount,
       BigDecimal totalOutputQty,
+      BigDecimal totalOutputAmount,
       BigDecimal unitCost) {}
+
+  public record ProcessRunInputResponse(
+      Long id,
+      Long itemId,
+      String itemName,
+      Long uomId,
+      String uomCode,
+      BigDecimal quantity,
+      String sourceType,
+      Long sourceGodownId,
+      String sourceGodownName,
+      Long sourceRunOutputId,
+      BigDecimal rate,
+      BigDecimal amount) {}
+
+  public record ProcessRunOutputResponse(
+      Long id,
+      Long itemId,
+      String itemName,
+      Long uomId,
+      String uomCode,
+      BigDecimal quantity,
+      String outputType,
+      Long destGodownId,
+      String destGodownName,
+      BigDecimal rate,
+      BigDecimal amount,
+      BigDecimal consumedQuantity) {}
+
+  public record WipOutputResponse(
+      Long id,
+      Long processRunId,
+      Long itemId,
+      String itemName,
+      Long uomId,
+      String uomCode,
+      BigDecimal quantity,
+      BigDecimal consumedQuantity,
+      BigDecimal availableQuantity,
+      BigDecimal rate) {}
 }

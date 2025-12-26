@@ -2,6 +2,9 @@ package com.manufacturing.erp.domain;
 
 import com.manufacturing.erp.common.BaseEntity;
 import com.manufacturing.erp.domain.Enums.ProductionStatus;
+import com.manufacturing.erp.domain.BomHeader;
+import com.manufacturing.erp.domain.Item;
+import com.manufacturing.erp.domain.Uom;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -23,11 +26,19 @@ public class ProductionOrder extends BaseEntity {
   private ProcessTemplate template;
 
   @ManyToOne
-  @JoinColumn(name = "item_id")
-  private Item item;
+  @JoinColumn(name = "bom_id")
+  private BomHeader bom;
+
+  @ManyToOne
+  @JoinColumn(name = "finished_item_id")
+  private Item finishedItem;
 
   @Column(name = "planned_qty", nullable = false)
   private BigDecimal plannedQty;
+
+  @ManyToOne
+  @JoinColumn(name = "uom_id")
+  private Uom uom;
 
   @Column(name = "order_date")
   private LocalDate orderDate;
@@ -52,12 +63,20 @@ public class ProductionOrder extends BaseEntity {
     this.template = template;
   }
 
-  public Item getItem() {
-    return item;
+  public BomHeader getBom() {
+    return bom;
   }
 
-  public void setItem(Item item) {
-    this.item = item;
+  public void setBom(BomHeader bom) {
+    this.bom = bom;
+  }
+
+  public Item getFinishedItem() {
+    return finishedItem;
+  }
+
+  public void setFinishedItem(Item finishedItem) {
+    this.finishedItem = finishedItem;
   }
 
   public BigDecimal getPlannedQty() {
@@ -66,6 +85,14 @@ public class ProductionOrder extends BaseEntity {
 
   public void setPlannedQty(BigDecimal plannedQty) {
     this.plannedQty = plannedQty;
+  }
+
+  public Uom getUom() {
+    return uom;
+  }
+
+  public void setUom(Uom uom) {
+    this.uom = uom;
   }
 
   public LocalDate getOrderDate() {

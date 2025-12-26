@@ -68,4 +68,15 @@ public class Enums {
     COMPLETED,
     CANCELLED
   }
+
+  public enum ProcessInputSourceType {
+    GODOWN,
+    WIP
+  }
+
+  public enum ProcessOutputType {
+    WIP,
+    FG,
+    BYPRODUCT
+  }
 }

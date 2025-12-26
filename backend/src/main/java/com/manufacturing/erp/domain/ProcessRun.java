@@ -9,6 +9,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import java.time.Instant;
 import java.time.LocalDate;
 
 @Entity
@@ -19,11 +20,20 @@ public class ProcessRun extends BaseEntity {
   private ProductionBatch productionBatch;
 
   @ManyToOne
-  @JoinColumn(name = "process_step_id", nullable = false)
+  @JoinColumn(name = "process_step_id")
   private ProcessStep processStep;
 
   @Column(name = "run_date", nullable = false)
   private LocalDate runDate;
+
+  @Column(name = "step_name")
+  private String stepName;
+
+  @Column(name = "started_at")
+  private Instant startedAt;
+
+  @Column(name = "ended_at")
+  private Instant endedAt;
 
   @Enumerated(EnumType.STRING)
   @Column(nullable = false)
@@ -43,6 +53,30 @@ public class ProcessRun extends BaseEntity {
 
   public void setProcessStep(ProcessStep processStep) {
     this.processStep = processStep;
+  }
+
+  public String getStepName() {
+    return stepName;
+  }
+
+  public void setStepName(String stepName) {
+    this.stepName = stepName;
+  }
+
+  public Instant getStartedAt() {
+    return startedAt;
+  }
+
+  public void setStartedAt(Instant startedAt) {
+    this.startedAt = startedAt;
+  }
+
+  public Instant getEndedAt() {
+    return endedAt;
+  }
+
+  public void setEndedAt(Instant endedAt) {
+    this.endedAt = endedAt;
   }
 
   public LocalDate getRunDate() {
