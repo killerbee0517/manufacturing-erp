@@ -95,6 +95,10 @@ export default function RfqEditPage() {
   };
 
   const handleSave = async () => {
+    if (!suppliers.length) {
+      alert('Please add at least one supplier before saving.');
+      return;
+    }
     setSaving(true);
     try {
       const payload = {

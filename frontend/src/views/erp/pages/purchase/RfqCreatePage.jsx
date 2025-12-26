@@ -80,6 +80,10 @@ export default function RfqCreatePage() {
   };
 
   const handleSave = async () => {
+    if (!suppliers.length) {
+      alert('Please add at least one supplier before saving.');
+      return;
+    }
     setSaving(true);
     try {
       const payload = {

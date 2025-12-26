@@ -26,8 +26,6 @@ import PageHeader from 'components/common/PageHeader';
 import apiClient from 'api/client';
 import RfqCloseDialog from './components/RfqCloseDialog';
 
-const awardedStatuses = new Set(['AWARDED', 'PARTIALLY_AWARDED']);
-
 export default function RfqDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -45,14 +43,40 @@ export default function RfqDetailPage() {
   const [quoteLoading, setQuoteLoading] = useState(false);
   const [compareQuotes, setCompareQuotes] = useState({});
   const [compareLoading, setCompareLoading] = useState(false);
-  const [awardLines, setAwardLines] = useState({});
+  const [awardAllocations, setAwardAllocations] = useState({});
+  const [awardErrors, setAwardErrors] = useState({});
   const [awarding, setAwarding] = useState(false);
 
-  const isAwarded = useMemo(() => awardedStatuses.has(rfq?.status), [rfq?.status]);
+  const isFullyAwarded = rfq?.status === 'AWARDED';
+  const isPartiallyAwarded = rfq?.status === 'PARTIALLY_AWARDED';
+  const isQuoteLocked = isFullyAwarded || isPartiallyAwarded;
   const hasSubmittedQuotes = useMemo(
     () => Object.values(compareQuotes || {}).some((quote) => quote.status === 'SUBMITTED'),
     [compareQuotes]
   );
+
+  const awardedByLine = useMemo(() => {
+    if (!rfq?.awards) return {};
+    return rfq.awards.reduce((acc, award) => {
+      if (!award.rfqLineId) return acc;
+      const existing = acc[award.rfqLineId] || { total: 0, bySupplier: {} };
+      const qty = Number(award.awardQty || 0);
+      const safeQty = Number.isFinite(qty) ? qty : 0;
+      existing.total += safeQty;
+      existing.bySupplier = { ...(existing.bySupplier || {}), [award.supplierId]: safeQty };
+      acc[award.rfqLineId] = existing;
+      return acc;
+    }, {});
+  }, [rfq?.awards]);
+
+  const remainingQtyByLine = useMemo(() => {
+    if (!rfq?.lines) return {};
+    return rfq.lines.reduce((acc, line) => {
+      const already = awardedByLine[line.id]?.total || 0;
+      acc[line.id] = Math.max(0, Number(line.quantity || 0) - Number(already));
+      return acc;
+    }, {});
+  }, [rfq?.lines, awardedByLine]);
 
   const formatAmount = (quantity, rate) => {
     const qty = Number(quantity);
@@ -114,6 +138,8 @@ export default function RfqDetailPage() {
       .then((response) => {
         const data = response.data;
         setRfq(data);
+        setAwardAllocations({});
+        setAwardErrors({});
         if (!quoteSupplierId && data.suppliers?.length) {
           setQuoteSupplierId(data.suppliers[0].supplierId);
         }
@@ -238,64 +264,97 @@ export default function RfqDetailPage() {
 
   const buildAwardDefaults = (quotesMap) => {
     if (!rfq) return;
+    const submittedQuotes = Object.values(quotesMap || {}).filter((quote) => quote.status === 'SUBMITTED');
     const next = {};
     (rfq.lines || []).forEach((line) => {
-      const submittedQuotes = Object.values(quotesMap || {}).filter((quote) => quote.status === 'SUBMITTED');
-      const bestQuote = submittedQuotes.reduce(
-        (best, quote) => {
-          const qLine = quote.lines?.find((ql) => ql.rfqLineId === line.id);
-          if (!qLine || qLine.quotedRate == null) return best;
-          if (!best || Number(qLine.quotedRate) < Number(best.rate)) {
-            return {
-              supplierId: quote.supplierId,
-              rate: qLine.quotedRate,
-              deliveryDate: qLine.deliveryDate
-            };
-          }
-          return best;
-        },
-        null
-      );
-      next[line.id] = {
-        rfqLineId: line.id,
-        supplierId: bestQuote?.supplierId || '',
-        quantity: line.quantity,
-        rate: bestQuote?.rate || '',
-        deliveryDate: bestQuote?.deliveryDate || ''
-      };
+      const remaining = remainingQtyByLine[line.id] ?? line.quantity;
+      const bestQuote = submittedQuotes.reduce((best, quote) => {
+        const qLine = quote.lines?.find((ql) => ql.rfqLineId === line.id);
+        if (!qLine || qLine.quotedRate == null) return best;
+        if (!best || Number(qLine.quotedRate) < Number(best.rate)) {
+          return { supplierId: quote.supplierId, rate: qLine.quotedRate };
+        }
+        return best;
+      }, null);
+      const perSupplier = {};
+      submittedQuotes.forEach((quote) => {
+        const qLine = quote.lines?.find((ql) => ql.rfqLineId === line.id);
+        perSupplier[quote.supplierId] = {
+          awardQty: bestQuote?.supplierId === quote.supplierId ? remaining : '',
+          awardRate: qLine?.quotedRate ?? '',
+          deliveryDate: qLine?.deliveryDate || ''
+        };
+      });
+      next[line.id] = perSupplier;
     });
-    setAwardLines(next);
+    setAwardAllocations(next);
+    setAwardErrors({});
   };
 
-  const handleAwardLineChange = (lineId, key, value) => {
-    setAwardLines((prev) => ({
-      ...prev,
-      [lineId]: { ...(prev[lineId] || {}), [key]: value }
-    }));
+  const handleAwardChange = (lineId, supplierId, key, value) => {
+    setAwardAllocations((prev) => {
+      const currentLine = prev[lineId] || {};
+      const supplierAlloc = currentLine[supplierId] || {};
+      return {
+        ...prev,
+        [lineId]: {
+          ...currentLine,
+          [supplierId]: { ...supplierAlloc, [key]: value }
+        }
+      };
+    });
   };
 
   const submitAwards = async () => {
-    const payload = {
-      awards: Object.values(awardLines || {})
-        .filter((line) => line.supplierId)
-        .map((line) => ({
-          rfqLineId: line.rfqLineId,
-          supplierId: Number(line.supplierId),
-          quantity: Number(
-            line.quantity === '' || line.quantity == null
-              ? rfq.lines.find((l) => l.id === line.rfqLineId)?.quantity ?? 0
-              : line.quantity
-          ),
-          rate: line.rate === '' ? null : Number(line.rate),
-          deliveryDate: line.deliveryDate || null
-        })),
-      remarks: null
-    };
+    if (!rfq) return;
+    const supplierAwardMap = {};
+    const validationErrors = {};
+    (rfq.lines || []).forEach((line) => {
+      const allocations = awardAllocations[line.id] || {};
+      let totalForLine = awardedByLine[line.id]?.total || 0;
+      Object.entries(allocations).forEach(([supplierId, alloc]) => {
+        const qtyNum = Number(alloc.awardQty);
+        if (Number.isFinite(qtyNum) && qtyNum > 0) {
+          totalForLine += qtyNum;
+          supplierAwardMap[supplierId] = supplierAwardMap[supplierId] || [];
+          supplierAwardMap[supplierId].push({
+            rfqLineId: line.id,
+            awardQty: qtyNum,
+            awardRate: alloc.awardRate === '' || alloc.awardRate == null ? null : Number(alloc.awardRate),
+            deliveryDate: alloc.deliveryDate || null
+          });
+        }
+      });
+      if (totalForLine > Number(line.quantity || 0)) {
+        validationErrors[line.id] = 'Awarded quantity exceeds requested quantity';
+      }
+    });
+
+    if (!Object.values(supplierAwardMap).flat().length) {
+      setAwardErrors({ form: 'Enter an award quantity for at least one supplier' });
+      return;
+    }
+    setAwardErrors(validationErrors);
+    if (Object.keys(validationErrors).length) {
+      return;
+    }
+
+    const supplierAwards = Object.entries(supplierAwardMap).map(([supplierId, allocations]) => ({
+      supplierId: Number(supplierId),
+      allocations
+    }));
+    const payload = { supplierAwards, remarks: null };
     setAwarding(true);
     try {
       const response = await apiClient.post(`/api/rfq/${id}/award`, payload);
       setRfq(response.data);
+      setAwardAllocations({});
       setTab('request');
+      const poIds = response.data?.poIdsBySupplier;
+      const firstPoId = poIds ? Object.values(poIds).flat()[0] : null;
+      if (firstPoId) {
+        navigate(`/purchase/po/${firstPoId}`);
+      }
     } finally {
       setAwarding(false);
     }
@@ -303,11 +362,6 @@ export default function RfqDetailPage() {
 
   const handleSubmit = async () => {
     await apiClient.post(`/api/rfq/${id}/submit`);
-    loadRfq();
-  };
-
-  const handleApprove = async () => {
-    await apiClient.post(`/api/rfq/${id}/approve`);
     loadRfq();
   };
 
@@ -379,15 +433,18 @@ export default function RfqDetailPage() {
           </Grid>
         )}
       </Grid>
-      {Object.keys(rfq.createdPoIds || {}).length > 0 && (
+      {Object.keys(rfq.poIdsBySupplier || rfq.createdPoIds || {}).length > 0 && (
         <Stack spacing={1}>
           <Typography variant="h6">Generated Purchase Orders</Typography>
           <Stack direction="row" spacing={1} flexWrap="wrap">
-            {Object.entries(rfq.createdPoIds).map(([supplierId, poId]) => (
-              <Button key={poId} variant="outlined" onClick={() => navigate(`/purchase/po/${poId}`)}>
-                {supplierMap[supplierId] || supplierId} - PO #{poId}
-              </Button>
-            ))}
+            {Object.entries(rfq.poIdsBySupplier || rfq.createdPoIds || {}).flatMap(([supplierId, poIds]) => {
+              const list = Array.isArray(poIds) ? poIds : [poIds];
+              return list.map((poId) => (
+                <Button key={`${supplierId}-${poId}`} variant="outlined" onClick={() => navigate(`/purchase/po/${poId}`)}>
+                  {supplierMap[supplierId] || supplierId} - PO #{poId}
+                </Button>
+              ));
+            })}
           </Stack>
         </Stack>
       )}
@@ -440,7 +497,7 @@ export default function RfqDetailPage() {
               label="Supplier"
               value={quoteSupplierId}
               onChange={(event) => setQuoteSupplierId(event.target.value)}
-              disabled={!supplierOptions.length || isAwarded}
+              disabled={!supplierOptions.length}
             >
               {supplierOptions.map((supplier) => (
                 <MenuItem key={supplier.supplierId} value={supplier.supplierId}>
@@ -454,22 +511,22 @@ export default function RfqDetailPage() {
           {renderQuoteStatusChips()}
         </Grid>
         <Grid size={{ xs: 12, md: 6 }}>
-          <TextField
-            fullWidth
-            label="Payment Terms Override"
-            value={quoteForm.paymentTermsOverride}
-            onChange={(event) => setQuoteForm((prev) => ({ ...prev, paymentTermsOverride: event.target.value }))}
-            disabled={isAwarded}
-          />
+            <TextField
+              fullWidth
+              label="Payment Terms Override"
+              value={quoteForm.paymentTermsOverride}
+              onChange={(event) => setQuoteForm((prev) => ({ ...prev, paymentTermsOverride: event.target.value }))}
+              disabled={isQuoteLocked}
+            />
         </Grid>
         <Grid size={{ xs: 12, md: 6 }}>
-          <TextField
-            fullWidth
-            label="Quote Remarks"
-            value={quoteForm.remarks}
-            onChange={(event) => setQuoteForm((prev) => ({ ...prev, remarks: event.target.value }))}
-            disabled={isAwarded}
-          />
+            <TextField
+              fullWidth
+              label="Quote Remarks"
+              value={quoteForm.remarks}
+              onChange={(event) => setQuoteForm((prev) => ({ ...prev, remarks: event.target.value }))}
+              disabled={isQuoteLocked}
+            />
         </Grid>
       </Grid>
       <Table size="small">
@@ -494,7 +551,7 @@ export default function RfqDetailPage() {
                   size="small"
                   value={line.quotedQty}
                   onChange={(event) => handleQuoteLineChange(line.rfqLineId, 'quotedQty', event.target.value)}
-                  disabled={isAwarded}
+                  disabled={isQuoteLocked}
                 />
               </TableCell>
               <TableCell>
@@ -503,7 +560,7 @@ export default function RfqDetailPage() {
                   size="small"
                   value={line.quotedRate}
                   onChange={(event) => handleQuoteLineChange(line.rfqLineId, 'quotedRate', event.target.value)}
-                  disabled={isAwarded}
+                  disabled={isQuoteLocked}
                 />
               </TableCell>
               <TableCell>
@@ -512,7 +569,7 @@ export default function RfqDetailPage() {
                   size="small"
                   value={line.deliveryDate || ''}
                   onChange={(event) => handleQuoteLineChange(line.rfqLineId, 'deliveryDate', event.target.value)}
-                  disabled={isAwarded}
+                  disabled={isQuoteLocked}
                   InputLabelProps={{ shrink: true }}
                 />
               </TableCell>
@@ -521,7 +578,7 @@ export default function RfqDetailPage() {
                   size="small"
                   value={line.remarks}
                   onChange={(event) => handleQuoteLineChange(line.rfqLineId, 'remarks', event.target.value)}
-                  disabled={isAwarded}
+                  disabled={isQuoteLocked}
                 />
               </TableCell>
             </TableRow>
@@ -534,126 +591,130 @@ export default function RfqDetailPage() {
         </TableBody>
       </Table>
       <Stack direction="row" spacing={1} justifyContent="flex-end">
-        <Button variant="outlined" onClick={saveQuote} disabled={quoteLoading || isAwarded || !quoteSupplierId}>
+        <Button variant="outlined" onClick={saveQuote} disabled={quoteLoading || isQuoteLocked || !quoteSupplierId}>
           Save Draft
         </Button>
-        <Button variant="contained" color="secondary" onClick={submitQuote} disabled={quoteLoading || isAwarded || !quoteSupplierId}>
+        <Button variant="contained" color="secondary" onClick={submitQuote} disabled={quoteLoading || isQuoteLocked || !quoteSupplierId}>
           Submit Quote
         </Button>
       </Stack>
     </Stack>
   );
 
-  const renderCompareTab = () => (
-    <Stack spacing={3}>
-      <Typography>
-        Compare submitted supplier quotes per line and select an award. Only submitted quotes can be awarded. Locked after awarding.
-      </Typography>
-      <Table size="small">
-        <TableHead>
-          <TableRow>
-            <TableCell>Item</TableCell>
-            <TableCell>Supplier Quotes</TableCell>
-            <TableCell>Award Supplier</TableCell>
-            <TableCell>Award Qty</TableCell>
-            <TableCell>Award Rate</TableCell>
-            <TableCell>Delivery Date</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {(rfq.lines || []).map((line) => {
-            const lineQuotes = Object.values(compareQuotes || {}).map((quote) => {
-              const qLine = quote.lines?.find((ql) => ql.rfqLineId === line.id);
-              return { quote, qLine };
-            });
-            const awardLine = awardLines[line.id] || {};
-            return (
-              <TableRow key={line.id}>
-                <TableCell>
-                  <Stack>
-                    <Typography variant="subtitle2">{itemMap[line.itemId] || line.itemId}</Typography>
-                    <Typography variant="caption">Req Qty: {line.quantity}</Typography>
-                  </Stack>
-                </TableCell>
-                <TableCell>
-                  <Stack spacing={0.5}>
-                    {lineQuotes.map(({ quote, qLine }) => (
-                      <Typography key={quote.supplierId} variant="body2">
-                        {supplierMap[quote.supplierId] || quote.supplierId}: {qLine?.quotedRate ?? '-'} @ {qLine?.deliveryDate || '-'} (
-                        {quote.status})
-                      </Typography>
-                    ))}
-                    {!lineQuotes.length && <Typography variant="caption">No quotes yet.</Typography>}
-                  </Stack>
-                </TableCell>
-                <TableCell>
-                  <FormControl fullWidth size="small">
-                    <Select
-                      value={awardLine.supplierId || ''}
-                      onChange={(event) => handleAwardLineChange(line.id, 'supplierId', event.target.value)}
-                      disabled={isAwarded}
-                    >
-                      <MenuItem value="">Select</MenuItem>
-                      {Object.values(compareQuotes || {})
-                        .filter((quote) => quote.status === 'SUBMITTED')
-                        .map((quote) => (
-                          <MenuItem key={quote.supplierId} value={quote.supplierId}>
-                            {supplierMap[quote.supplierId] || quote.supplierId}
-                          </MenuItem>
-                        ))}
-                    </Select>
-                  </FormControl>
-                </TableCell>
-                <TableCell>
-                  <TextField
-                    type="number"
-                    size="small"
-                    value={awardLine.quantity ?? line.quantity}
-                    onChange={(event) => handleAwardLineChange(line.id, 'quantity', event.target.value)}
-                    disabled={isAwarded}
-                  />
-                </TableCell>
-                <TableCell>
-                  <TextField
-                    type="number"
-                    size="small"
-                    value={awardLine.rate ?? ''}
-                    onChange={(event) => handleAwardLineChange(line.id, 'rate', event.target.value)}
-                    disabled={isAwarded}
-                  />
-                </TableCell>
-                <TableCell>
-                  <TextField
-                    type="date"
-                    size="small"
-                    value={awardLine.deliveryDate || ''}
-                    onChange={(event) => handleAwardLineChange(line.id, 'deliveryDate', event.target.value)}
-                    disabled={isAwarded}
-                    InputLabelProps={{ shrink: true }}
-                  />
-                </TableCell>
-              </TableRow>
-            );
-          })}
-          {!rfq.lines?.length && (
-            <TableRow>
-              <TableCell colSpan={6}>No lines to award</TableCell>
-            </TableRow>
-          )}
-        </TableBody>
-      </Table>
-      <Stack direction="row" spacing={1} justifyContent="flex-end">
-        <Button
-          variant="contained"
-          color="secondary"
-          onClick={submitAwards}
-          disabled={awarding || isAwarded || compareLoading || !hasSubmittedQuotes}
-        >
-          Award &amp; Generate PO
-        </Button>
+  const renderCompareTab = () => {
+    const submittedQuotes = Object.values(compareQuotes || {}).filter((quote) => quote.status === 'SUBMITTED');
+    return (
+      <Stack spacing={3}>
+        <Typography>
+          Compare submitted supplier quotes per line and capture allocations. You can split quantities across suppliers as long as the total
+          does not exceed the requested quantity. Locked after a full award.
+        </Typography>
+        {(rfq.lines || []).map((line) => {
+          const lineQuotes = submittedQuotes.map((quote) => ({
+            quote,
+            qLine: quote.lines?.find((ql) => ql.rfqLineId === line.id)
+          }));
+          const lineAllocations = awardAllocations[line.id] || {};
+          const alreadyAwarded = awardedByLine[line.id]?.total || 0;
+          const remaining = remainingQtyByLine[line.id] ?? line.quantity;
+          const disableLineAwards = isFullyAwarded || remaining <= 0;
+          return (
+            <Stack key={line.id} spacing={1}>
+              <Stack direction="row" justifyContent="space-between" alignItems="center">
+                <Stack>
+                  <Typography variant="subtitle2">{itemMap[line.itemId] || line.itemId}</Typography>
+                  <Typography variant="caption">
+                    Requested: {line.quantity} | Awarded: {alreadyAwarded} | Remaining: {remaining}
+                  </Typography>
+                </Stack>
+                {awardErrors[line.id] && (
+                  <Typography variant="caption" color="error">
+                    {awardErrors[line.id]}
+                  </Typography>
+                )}
+              </Stack>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Supplier</TableCell>
+                    <TableCell>Quoted Qty</TableCell>
+                    <TableCell>Quoted Rate</TableCell>
+                    <TableCell>Quoted Delivery</TableCell>
+                    <TableCell>Award Qty</TableCell>
+                    <TableCell>Award Rate</TableCell>
+                    <TableCell>Award Delivery</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {lineQuotes.length ? (
+                    lineQuotes.map(({ quote, qLine }) => {
+                      const allocation = lineAllocations[quote.supplierId] || {};
+                      return (
+                        <TableRow key={quote.supplierId}>
+                          <TableCell>{supplierMap[quote.supplierId] || quote.supplierId}</TableCell>
+                          <TableCell>{qLine?.quotedQty ?? '-'}</TableCell>
+                          <TableCell>{qLine?.quotedRate ?? '-'}</TableCell>
+                          <TableCell>{qLine?.deliveryDate || '-'}</TableCell>
+                          <TableCell>
+                            <TextField
+                              type="number"
+                              size="small"
+                              value={allocation.awardQty ?? ''}
+                              onChange={(event) => handleAwardChange(line.id, quote.supplierId, 'awardQty', event.target.value)}
+                              disabled={disableLineAwards}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <TextField
+                              type="number"
+                              size="small"
+                              value={allocation.awardRate ?? ''}
+                              onChange={(event) => handleAwardChange(line.id, quote.supplierId, 'awardRate', event.target.value)}
+                              disabled={disableLineAwards}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <TextField
+                              type="date"
+                              size="small"
+                              value={allocation.deliveryDate || ''}
+                              onChange={(event) => handleAwardChange(line.id, quote.supplierId, 'deliveryDate', event.target.value)}
+                              disabled={disableLineAwards}
+                              InputLabelProps={{ shrink: true }}
+                            />
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={7}>No submitted quotes yet.</TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </Stack>
+          );
+        })}
+        {!rfq.lines?.length && <Typography>No lines to award</Typography>}
+        {awardErrors.form && (
+          <Typography color="error" variant="body2">
+            {awardErrors.form}
+          </Typography>
+        )}
+        <Stack direction="row" spacing={1} justifyContent="flex-end">
+          <Button
+            variant="contained"
+            color="secondary"
+            onClick={submitAwards}
+            disabled={awarding || isFullyAwarded || compareLoading || !hasSubmittedQuotes}
+          >
+            Award &amp; Generate PO
+          </Button>
+        </Stack>
       </Stack>
-    </Stack>
-  );
+    );
+  };
 
   return (
     <MainCard>
@@ -662,17 +723,25 @@ export default function RfqDetailPage() {
         breadcrumbs={[{ label: 'Purchase', to: '/purchase/rfq' }, { label: 'RFQ Detail' }]}
         actions={
           <Stack direction="row" spacing={1}>
-            <Button variant="outlined" onClick={() => navigate(`/purchase/rfq/${id}/edit`)} disabled={isAwarded}>
+            <Button variant="outlined" onClick={() => navigate(`/purchase/rfq/${id}/edit`)} disabled={rfq.status !== 'DRAFT'}>
               Edit
             </Button>
-            <Button variant="outlined" color="secondary" onClick={() => setCloseOpen(true)} disabled={rfq.status === 'CLOSED'}>
-              Close
+            <Button variant="outlined" onClick={() => setTab('quotes')} disabled={!['SUBMITTED', 'PARTIALLY_AWARDED'].includes(rfq.status)}>
+              Supplier Quotes
+            </Button>
+            <Button
+              variant="contained"
+              color="secondary"
+              onClick={() => setTab('compare')}
+              disabled={!['SUBMITTED', 'PARTIALLY_AWARDED'].includes(rfq.status)}
+            >
+              Compare &amp; Award
             </Button>
             <Button variant="outlined" disabled={rfq.status !== 'DRAFT'} onClick={handleSubmit}>
               Submit
             </Button>
-            <Button variant="contained" color="secondary" disabled={rfq.status !== 'SUBMITTED'} onClick={handleApprove}>
-              Approve
+            <Button variant="outlined" color="secondary" onClick={() => setCloseOpen(true)} disabled={rfq.status === 'CLOSED'}>
+              Close RFQ
             </Button>
           </Stack>
         }
