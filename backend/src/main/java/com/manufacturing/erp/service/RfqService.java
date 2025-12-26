@@ -5,6 +5,8 @@ import com.manufacturing.erp.domain.Item;
 import com.manufacturing.erp.domain.Rfq;
 import com.manufacturing.erp.domain.RfqAward;
 import com.manufacturing.erp.domain.RfqLine;
+import com.manufacturing.erp.domain.RfqQuoteHeader;
+import com.manufacturing.erp.domain.RfqQuoteLine;
 import com.manufacturing.erp.domain.RfqSupplierQuote;
 import com.manufacturing.erp.domain.Broker;
 import com.manufacturing.erp.domain.PurchaseOrder;
@@ -19,6 +21,8 @@ import com.manufacturing.erp.repository.PurchaseOrderRepository;
 import com.manufacturing.erp.repository.RfqAwardRepository;
 import com.manufacturing.erp.repository.RfqRepository;
 import com.manufacturing.erp.repository.RfqSupplierQuoteRepository;
+import com.manufacturing.erp.repository.RfqQuoteHeaderRepository;
+import com.manufacturing.erp.repository.RfqQuoteLineRepository;
 import com.manufacturing.erp.repository.SupplierRepository;
 import com.manufacturing.erp.repository.UomRepository;
 import java.math.BigDecimal;
@@ -28,6 +32,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
@@ -52,6 +57,8 @@ public class RfqService {
   private final PurchaseOrderLineRepository purchaseOrderLineRepository;
   private final RfqSupplierQuoteRepository rfqSupplierQuoteRepository;
   private final RfqAwardRepository rfqAwardRepository;
+  private final RfqQuoteHeaderRepository rfqQuoteHeaderRepository;
+  private final RfqQuoteLineRepository rfqQuoteLineRepository;
 
   public RfqService(RfqRepository rfqRepository,
                     SupplierRepository supplierRepository,
@@ -61,7 +68,9 @@ public class RfqService {
                     PurchaseOrderRepository purchaseOrderRepository,
                     PurchaseOrderLineRepository purchaseOrderLineRepository,
                     RfqSupplierQuoteRepository rfqSupplierQuoteRepository,
-                    RfqAwardRepository rfqAwardRepository) {
+                    RfqAwardRepository rfqAwardRepository,
+                    RfqQuoteHeaderRepository rfqQuoteHeaderRepository,
+                    RfqQuoteLineRepository rfqQuoteLineRepository) {
     this.rfqRepository = rfqRepository;
     this.supplierRepository = supplierRepository;
     this.itemRepository = itemRepository;
@@ -71,6 +80,8 @@ public class RfqService {
     this.purchaseOrderLineRepository = purchaseOrderLineRepository;
     this.rfqSupplierQuoteRepository = rfqSupplierQuoteRepository;
     this.rfqAwardRepository = rfqAwardRepository;
+    this.rfqQuoteHeaderRepository = rfqQuoteHeaderRepository;
+    this.rfqQuoteLineRepository = rfqQuoteLineRepository;
   }
 
   public Page<TransactionDtos.RfqResponse> list(String q, String status, Pageable pageable) {
@@ -156,11 +167,79 @@ public class RfqService {
     return toResponse(rfqRepository.save(rfq));
   }
 
+  public List<TransactionDtos.RfqQuoteSupplierSummary> listQuotes(Long rfqId) {
+    Rfq rfq = getRfqOrThrow(rfqId);
+    return buildQuoteSummaries(rfq);
+  }
+
+  @Transactional
+  public TransactionDtos.RfqQuoteResponse saveQuote(Long rfqId, Long supplierId, TransactionDtos.RfqQuoteSaveRequest request) {
+    Rfq rfq = getRfqOrThrow(rfqId);
+    if (rfq.getStatus() == DocumentStatus.AWARDED || rfq.getStatus() == DocumentStatus.PARTIALLY_AWARDED) {
+      throw new IllegalStateException("Awarded RFQ cannot be edited");
+    }
+    Supplier supplier = supplierRepository.findById(supplierId)
+        .orElseThrow(() -> new IllegalArgumentException("Supplier not found: " + supplierId));
+    ensureSupplierInvited(rfq, supplierId);
+
+    RfqQuoteHeader header = rfqQuoteHeaderRepository.findByRfqIdAndSupplierId(rfqId, supplierId)
+        .orElseGet(() -> createBlankQuoteHeader(rfq, supplier));
+    Map<Long, RfqLine> lineMap = rfq.getLines().stream()
+        .collect(Collectors.toMap(RfqLine::getId, l -> l));
+
+    applyQuoteUpdates(header, request, lineMap);
+    DocumentStatus nextStatus = header.getStatus() == DocumentStatus.SUBMITTED ? DocumentStatus.REVISED : DocumentStatus.DRAFT;
+    header.setStatus(nextStatus);
+    if (nextStatus == DocumentStatus.DRAFT) {
+      header.setSubmittedAt(null);
+    }
+    rfqQuoteHeaderRepository.save(header);
+    rfq.getSuppliers().stream()
+        .filter(inv -> inv.getSupplier() != null && inv.getSupplier().getId().equals(supplierId))
+        .forEach(inv -> inv.setStatus(nextStatus));
+    rfqRepository.save(rfq);
+    return toQuoteResponse(header);
+  }
+
+  public TransactionDtos.RfqQuoteResponse getQuote(Long rfqId, Long supplierId) {
+    Rfq rfq = getRfqOrThrow(rfqId);
+    Supplier supplier = supplierRepository.findById(supplierId)
+        .orElseThrow(() -> new IllegalArgumentException("Supplier not found: " + supplierId));
+    ensureSupplierInvited(rfq, supplierId);
+
+    RfqQuoteHeader header = rfqQuoteHeaderRepository.findByRfqIdAndSupplierId(rfqId, supplierId)
+        .orElseGet(() -> createBlankQuoteHeader(rfq, supplier));
+    populateMissingLines(header, rfq.getLines());
+    return toQuoteResponse(header);
+  }
+
+  @Transactional
+  public TransactionDtos.RfqQuoteResponse submitQuote(Long rfqId, Long supplierId) {
+    Rfq rfq = getRfqOrThrow(rfqId);
+    if (rfq.getStatus() == DocumentStatus.AWARDED || rfq.getStatus() == DocumentStatus.PARTIALLY_AWARDED) {
+      throw new IllegalStateException("Awarded RFQ cannot be edited");
+    }
+    ensureSupplierInvited(rfq, supplierId);
+    RfqQuoteHeader header = rfqQuoteHeaderRepository.findByRfqIdAndSupplierId(rfqId, supplierId)
+        .orElseThrow(() -> new IllegalStateException("Quote not found for supplier " + supplierId));
+    header.setStatus(DocumentStatus.SUBMITTED);
+    header.setSubmittedAt(Instant.now());
+    rfqQuoteHeaderRepository.save(header);
+    rfq.getSuppliers().stream()
+        .filter(inv -> inv.getSupplier().getId().equals(supplierId))
+        .forEach(inv -> inv.setStatus(DocumentStatus.SUBMITTED));
+    rfqRepository.save(rfq);
+    return toQuoteResponse(header);
+  }
+
   @Transactional
   public TransactionDtos.RfqResponse award(Long id, TransactionDtos.RfqAwardRequest request) {
     Rfq rfq = getRfqOrThrow(id);
     if (rfq.getStatus() == DocumentStatus.REJECTED) {
       throw new IllegalStateException("Rejected RFQ cannot be awarded");
+    }
+    if (rfq.getStatus() == DocumentStatus.AWARDED) {
+      throw new IllegalStateException("RFQ already awarded");
     }
     Map<Long, RfqLine> lineMap = rfq.getLines().stream()
         .collect(Collectors.toMap(RfqLine::getId, l -> l));
@@ -171,7 +250,14 @@ public class RfqService {
       if (line == null) {
         throw new IllegalArgumentException("Invalid RFQ line: " + awardLine.rfqLineId());
       }
+      if (awardLine.quantity() == null) {
+        throw new IllegalArgumentException("Award quantity is required for line " + awardLine.rfqLineId());
+      }
       awardedPerLine.merge(line.getId(), awardLine.quantity(), BigDecimal::add);
+      RfqQuoteLine quoteLine = resolveSubmittedQuoteLine(rfq.getId(), awardLine.supplierId(), awardLine.rfqLineId());
+      if (quoteLine == null) {
+        throw new IllegalArgumentException("Submitted quote not found for supplier " + awardLine.supplierId());
+      }
     }
     awardedPerLine.forEach((lineId, total) -> {
       BigDecimal requested = lineMap.get(lineId).getQuantity();
@@ -185,15 +271,20 @@ public class RfqService {
     for (TransactionDtos.RfqAwardLine awardLine : request.awards()) {
       Supplier supplier = supplierRepository.findById(awardLine.supplierId())
           .orElseThrow(() -> new IllegalArgumentException("Supplier not found: " + awardLine.supplierId()));
+      RfqQuoteLine quoteLine = resolveSubmittedQuoteLine(rfq.getId(), awardLine.supplierId(), awardLine.rfqLineId());
+      BigDecimal rate = awardLine.rate() != null ? awardLine.rate() : quoteLine.getQuotedRate();
+      LocalDate delivery = awardLine.deliveryDate() != null ? awardLine.deliveryDate() : quoteLine.getDeliveryDate();
+      if (rate == null) {
+        throw new IllegalArgumentException("Award rate missing for line " + awardLine.rfqLineId());
+      }
       RfqAward award = new RfqAward();
       award.setRfq(rfq);
       award.setRfqLine(lineMap.get(awardLine.rfqLineId()));
       award.setSupplier(supplier);
       award.setAwardedQty(awardLine.quantity());
-      award.setRate(awardLine.rate());
+      award.setAwardedRate(rate);
+      award.setAwardedDeliveryDate(delivery);
       award.setAwardStatus(DocumentStatus.AWARDED);
-      award.setRfqLine(lineMap.get(awardLine.rfqLineId()));
-      award.setSupplier(supplier);
       awards.add(award);
     }
     rfq.getAwards().addAll(awards);
@@ -217,11 +308,12 @@ public class RfqService {
       if (awardsBySupplier.containsKey(invite.getSupplier().getId())) {
         invite.setStatus(DocumentStatus.AWARDED);
       } else {
-        invite.setStatus(DocumentStatus.REJECTED);
+        invite.setStatus(DocumentStatus.CLOSED_NOT_AWARDED);
       }
     });
 
-    boolean fullyAwarded = awardedPerLine.values().stream().allMatch(qty -> qty.compareTo(BigDecimal.ZERO) > 0);
+    boolean fullyAwarded = awardedPerLine.size() == lineMap.size()
+        && awardedPerLine.entrySet().stream().allMatch(entry -> entry.getValue().compareTo(lineMap.get(entry.getKey()).getQuantity()) >= 0);
     rfq.setStatus(fullyAwarded ? DocumentStatus.AWARDED : DocumentStatus.PARTIALLY_AWARDED);
     Rfq saved = rfqRepository.save(rfq);
     return toResponse(saved, createdPoIds);
@@ -294,8 +386,133 @@ public class RfqService {
     line.setRemarks(request.remarks());
   }
 
+  private void ensureSupplierInvited(Rfq rfq, Long supplierId) {
+    boolean invited = rfq.getSuppliers().stream()
+        .anyMatch(inv -> inv.getSupplier() != null && inv.getSupplier().getId().equals(supplierId));
+    if (!invited) {
+      throw new IllegalArgumentException("Supplier not invited to this RFQ");
+    }
+  }
+
+  private RfqQuoteHeader createBlankQuoteHeader(Rfq rfq, Supplier supplier) {
+    RfqQuoteHeader header = new RfqQuoteHeader();
+    header.setRfq(rfq);
+    header.setSupplier(supplier);
+    header.setStatus(DocumentStatus.DRAFT);
+    header.setPaymentTermsOverride(null);
+    header.setRemarks(null);
+    populateMissingLines(header, rfq.getLines());
+    return header;
+  }
+
+  private void populateMissingLines(RfqQuoteHeader header, List<RfqLine> rfqLines) {
+    Map<Long, RfqQuoteLine> existing = header.getLines().stream()
+        .collect(Collectors.toMap(l -> l.getRfqLine().getId(), l -> l));
+    for (RfqLine rfqLine : rfqLines) {
+      if (!existing.containsKey(rfqLine.getId())) {
+        RfqQuoteLine quoteLine = new RfqQuoteLine();
+        quoteLine.setQuoteHeader(header);
+        quoteLine.setRfqLine(rfqLine);
+        header.getLines().add(quoteLine);
+      }
+    }
+  }
+
+  private void applyQuoteUpdates(RfqQuoteHeader header,
+                                 TransactionDtos.RfqQuoteSaveRequest request,
+                                 Map<Long, RfqLine> lineMap) {
+    Map<Long, RfqQuoteLine> existing = header.getLines().stream()
+        .collect(Collectors.toMap(l -> l.getRfqLine().getId(), l -> l));
+    header.getLines().clear();
+    for (TransactionDtos.RfqQuoteLineRequest lineRequest : request.lines()) {
+      RfqLine rfqLine = lineMap.get(lineRequest.rfqLineId());
+      if (rfqLine == null) {
+        throw new IllegalArgumentException("Invalid RFQ line: " + lineRequest.rfqLineId());
+      }
+      RfqQuoteLine quoteLine = existing.getOrDefault(rfqLine.getId(), new RfqQuoteLine());
+      quoteLine.setQuoteHeader(header);
+      quoteLine.setRfqLine(rfqLine);
+      quoteLine.setQuotedQty(lineRequest.quotedQty());
+      quoteLine.setQuotedRate(lineRequest.quotedRate());
+      quoteLine.setDeliveryDate(lineRequest.deliveryDate());
+      quoteLine.setRemarks(lineRequest.remarks());
+      header.getLines().add(quoteLine);
+    }
+    header.setPaymentTermsOverride(request.paymentTermsOverride());
+    header.setRemarks(request.remarks());
+  }
+
+  private TransactionDtos.RfqQuoteResponse toQuoteResponse(RfqQuoteHeader header) {
+    List<TransactionDtos.RfqQuoteLineResponse> lines = header.getLines().stream()
+        .sorted(Comparator.comparing(l -> l.getRfqLine().getId()))
+        .map(l -> new TransactionDtos.RfqQuoteLineResponse(
+            l.getRfqLine() != null ? l.getRfqLine().getId() : null,
+            l.getQuotedQty(),
+            l.getQuotedRate(),
+            l.getDeliveryDate(),
+            l.getRemarks()))
+        .toList();
+    return new TransactionDtos.RfqQuoteResponse(
+        header.getSupplier() != null ? header.getSupplier().getId() : null,
+        header.getSupplier() != null ? header.getSupplier().getName() : null,
+        header.getStatus() != null ? header.getStatus().name() : null,
+        header.getPaymentTermsOverride(),
+        header.getRemarks(),
+        header.getSubmittedAt(),
+        lines);
+  }
+
+  private List<TransactionDtos.RfqQuoteSupplierSummary> buildQuoteSummaries(Rfq rfq) {
+    List<RfqQuoteHeader> headers = rfqQuoteHeaderRepository.findByRfqId(rfq.getId());
+    Map<Long, RfqQuoteHeader> headerBySupplier = headers.stream()
+        .filter(h -> h.getSupplier() != null)
+        .collect(Collectors.toMap(h -> h.getSupplier().getId(), h -> h));
+    return rfq.getSuppliers().stream()
+        .filter(inv -> inv.getSupplier() != null)
+        .map(inv -> {
+          RfqQuoteHeader header = headerBySupplier.get(inv.getSupplier().getId());
+          BigDecimal totalAmount = header != null
+              ? header.getLines().stream()
+                  .map(l -> {
+                    BigDecimal qty = l.getQuotedQty() != null ? l.getQuotedQty() : BigDecimal.ZERO;
+                    BigDecimal rate = l.getQuotedRate() != null ? l.getQuotedRate() : BigDecimal.ZERO;
+                    return qty.multiply(rate);
+                  })
+                  .reduce(BigDecimal.ZERO, BigDecimal::add)
+              : BigDecimal.ZERO;
+          BigDecimal totalQty = header != null
+              ? header.getLines().stream()
+                  .map(l -> l.getQuotedQty() != null ? l.getQuotedQty() : BigDecimal.ZERO)
+                  .reduce(BigDecimal.ZERO, BigDecimal::add)
+              : BigDecimal.ZERO;
+          DocumentStatus status = header != null ? header.getStatus() : inv.getStatus();
+          Instant submittedAt = header != null ? header.getSubmittedAt() : null;
+          return new TransactionDtos.RfqQuoteSupplierSummary(
+              inv.getSupplier().getId(),
+              inv.getSupplier().getName(),
+              status != null ? status.name() : null,
+              totalAmount,
+              totalQty,
+              submittedAt);
+        })
+        .sorted(Comparator.comparing(TransactionDtos.RfqQuoteSupplierSummary::supplierId))
+        .toList();
+  }
+
+  private RfqQuoteLine resolveSubmittedQuoteLine(Long rfqId, Long supplierId, Long rfqLineId) {
+    RfqQuoteHeader header = rfqQuoteHeaderRepository.findByRfqIdAndSupplierId(rfqId, supplierId)
+        .orElseThrow(() -> new IllegalArgumentException("Quote header not found for supplier " + supplierId));
+    if (header.getStatus() != DocumentStatus.SUBMITTED) {
+      throw new IllegalStateException("Quote for supplier " + supplierId + " is not submitted");
+    }
+    return header.getLines().stream()
+        .filter(l -> l.getRfqLine() != null && l.getRfqLine().getId().equals(rfqLineId))
+        .findFirst()
+        .orElseThrow(() -> new IllegalArgumentException("Quote line not found for RFQ line " + rfqLineId));
+  }
+
   private TransactionDtos.RfqResponse toResponse(Rfq rfq) {
-    return toResponse(rfq, Map.of());
+    return toResponse(rfq, resolvePoIds(rfq));
   }
 
   private TransactionDtos.RfqResponse toResponse(Rfq rfq, Map<Long, Long> poIdsBySupplier) {
@@ -323,9 +540,12 @@ public class RfqService {
             a.getRfqLine() != null ? a.getRfqLine().getId() : null,
             a.getSupplier() != null ? a.getSupplier().getId() : null,
             a.getAwardedQty(),
-            a.getRate(),
+            a.getAwardedRate(),
+            a.getAwardedDeliveryDate(),
             a.getAwardStatus() != null ? a.getAwardStatus().name() : null))
         .toList();
+
+    List<TransactionDtos.RfqQuoteSupplierSummary> quoteSummaries = buildQuoteSummaries(rfq);
 
     return new TransactionDtos.RfqResponse(
         rfq.getId(),
@@ -338,6 +558,7 @@ public class RfqService {
         rfq.getStatus().name(),
         lines,
         awards,
+        quoteSummaries,
         poIdsBySupplier);
   }
 
@@ -419,18 +640,35 @@ public class RfqService {
     po.setStatus(DocumentStatus.DRAFT);
     po.setRfq(rfq);
 
+    LocalDate deliveryDate = awards.stream()
+        .map(RfqAward::getAwardedDeliveryDate)
+        .filter(Objects::nonNull)
+        .sorted()
+        .findFirst()
+        .orElse(null);
+    po.setDeliveryDate(deliveryDate);
+
     awards.forEach(award -> {
       PurchaseOrderLine line = new PurchaseOrderLine();
       line.setPurchaseOrder(po);
       line.setItem(award.getRfqLine().getItem());
       line.setUom(award.getRfqLine().getUom());
       line.setQuantity(award.getAwardedQty());
-      line.setRate(award.getRate());
-      line.setAmount(award.getAwardedQty().multiply(award.getRate()));
+      line.setRate(award.getAwardedRate());
+      line.setAmount(award.getAwardedQty().multiply(award.getAwardedRate()));
       line.setRemarks(award.getRfqLine().getRemarks());
       po.getLines().add(line);
     });
     po.setTotalAmount(calculateTotal(po.getLines()));
     return po;
+  }
+
+  private Map<Long, Long> resolvePoIds(Rfq rfq) {
+    if (rfq.getId() == null) {
+      return Map.of();
+    }
+    return purchaseOrderRepository.findByRfqId(rfq.getId()).stream()
+        .filter(po -> po.getSupplier() != null)
+        .collect(Collectors.toMap(po -> po.getSupplier().getId(), PurchaseOrder::getId, (a, b) -> a));
   }
 }

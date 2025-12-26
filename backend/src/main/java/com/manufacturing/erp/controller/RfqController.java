@@ -75,6 +75,28 @@ public class RfqController {
     return rfqService.close(id, request);
   }
 
+  @GetMapping("/{rfqId}/quotes")
+  public java.util.List<TransactionDtos.RfqQuoteSupplierSummary> listQuotes(@PathVariable Long rfqId) {
+    return rfqService.listQuotes(rfqId);
+  }
+
+  @GetMapping("/{rfqId}/quotes/{supplierId}")
+  public TransactionDtos.RfqQuoteResponse getQuote(@PathVariable Long rfqId, @PathVariable Long supplierId) {
+    return rfqService.getQuote(rfqId, supplierId);
+  }
+
+  @PutMapping("/{rfqId}/quotes/{supplierId}")
+  public TransactionDtos.RfqQuoteResponse saveQuote(@PathVariable Long rfqId,
+                                                    @PathVariable Long supplierId,
+                                                    @Valid @RequestBody TransactionDtos.RfqQuoteSaveRequest request) {
+    return rfqService.saveQuote(rfqId, supplierId, request);
+  }
+
+  @PostMapping("/{rfqId}/quotes/{supplierId}/submit")
+  public TransactionDtos.RfqQuoteResponse submitQuote(@PathVariable Long rfqId, @PathVariable Long supplierId) {
+    return rfqService.submitQuote(rfqId, supplierId);
+  }
+
   private Sort parseSort(String sort) {
     String[] parts = sort.split(",");
     String field = parts.length > 0 ? parts[0] : "id";
