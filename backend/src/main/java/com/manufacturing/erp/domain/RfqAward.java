@@ -15,6 +15,10 @@ import java.math.BigDecimal;
 @Table(name = "rfq_awards")
 public class RfqAward extends BaseEntity {
   @ManyToOne
+  @JoinColumn(name = "rfq_id")
+  private Rfq rfq;
+
+  @ManyToOne
   @JoinColumn(name = "rfq_line_id")
   private RfqLine rfqLine;
 
@@ -38,6 +42,14 @@ public class RfqAward extends BaseEntity {
 
   public void setRfqLine(RfqLine rfqLine) {
     this.rfqLine = rfqLine;
+  }
+
+  public Rfq getRfq() {
+    return rfq;
+  }
+
+  public void setRfq(Rfq rfq) {
+    this.rfq = rfq;
   }
 
   public Supplier getSupplier() {

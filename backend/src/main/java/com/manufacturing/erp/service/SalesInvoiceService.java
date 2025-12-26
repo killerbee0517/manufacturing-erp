@@ -138,7 +138,7 @@ public class SalesInvoiceService {
   private void postStock(SalesInvoice invoice, List<SalesInvoiceLine> lines) {
     for (SalesInvoiceLine line : lines) {
       stockLedgerService.postEntry("SALES_INVOICE", invoice.getId(), line.getId(), LedgerTxnType.OUT,
-          line.getItem(), line.getUom(), null, null, line.getGodown(), null,
+          line.getItem(), line.getUom(), null, null, line.getGodown(), null, null, null,
           line.getQuantity(), line.getQuantity(), StockStatus.UNRESTRICTED,
           line.getRate(), line.getLineAmount());
     }

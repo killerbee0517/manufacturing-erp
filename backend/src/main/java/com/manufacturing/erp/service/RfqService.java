@@ -186,6 +186,7 @@ public class RfqService {
       Supplier supplier = supplierRepository.findById(awardLine.supplierId())
           .orElseThrow(() -> new IllegalArgumentException("Supplier not found: " + awardLine.supplierId()));
       RfqAward award = new RfqAward();
+      award.setRfq(rfq);
       award.setRfqLine(lineMap.get(awardLine.rfqLineId()));
       award.setSupplier(supplier);
       award.setAwardedQty(awardLine.quantity());

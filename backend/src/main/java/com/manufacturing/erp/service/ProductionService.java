@@ -276,7 +276,7 @@ public class ProductionService {
         } else {
           sourceGodown = fetchGodown(itemRequest.sourceGodownId());
           stockLedgerService.postEntry("PROCESS_RUN", savedRun.getId(), null, LedgerTxnType.OUT,
-              item, uom, null, null, sourceGodown, null, itemRequest.quantity(), itemRequest.quantity(), StockStatus.UNRESTRICTED,
+              item, uom, null, null, sourceGodown, null, null, null, itemRequest.quantity(), itemRequest.quantity(), StockStatus.UNRESTRICTED,
               itemRequest.rate(), itemRequest.amount());
         }
         ProcessRunConsumption consumption = new ProcessRunConsumption();
@@ -314,7 +314,7 @@ public class ProductionService {
         outputs.add(output);
         if (outputType == ProcessOutputType.FG) {
           stockLedgerService.postEntry("PROCESS_RUN", savedRun.getId(), null, LedgerTxnType.IN,
-              item, uom, null, null, null, destGodown, itemRequest.quantity(), itemRequest.quantity(), StockStatus.UNRESTRICTED,
+              item, uom, null, null, null, destGodown, null, null, itemRequest.quantity(), itemRequest.quantity(), StockStatus.UNRESTRICTED,
               itemRequest.rate(), itemRequest.amount());
         }
       }
