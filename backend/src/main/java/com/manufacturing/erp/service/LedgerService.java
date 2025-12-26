@@ -29,6 +29,7 @@ public class LedgerService {
     ledger.setType(type);
     ledger.setReferenceType(referenceType);
     ledger.setReferenceId(referenceId);
+    ledger.setEnabled(true);
     return ledgerRepository.save(ledger);
   }
 
@@ -39,7 +40,8 @@ public class LedgerService {
   }
 
   public BigDecimal getBalance(Long ledgerId) {
-    return voucherLineRepository.findBalanceForLedger(ledgerId);
+    BigDecimal balance = voucherLineRepository.findBalanceForLedger(ledgerId);
+    return balance != null ? balance : BigDecimal.ZERO;
   }
 
   public List<LedgerDtos.LedgerStatementEntry> getStatement(Long ledgerId, LocalDate fromDate, LocalDate toDate) {

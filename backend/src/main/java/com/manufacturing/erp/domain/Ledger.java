@@ -7,6 +7,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.ColumnDefault;
 
 @Entity
 @Table(name = "ledgers")
@@ -21,6 +22,10 @@ public class Ledger extends BaseEntity {
   private String referenceType;
 
   private Long referenceId;
+
+  @Column(nullable = false)
+  @ColumnDefault("true")
+  private boolean enabled = true;
 
   public String getName() {
     return name;
@@ -52,5 +57,13 @@ public class Ledger extends BaseEntity {
 
   public void setReferenceId(Long referenceId) {
     this.referenceId = referenceId;
+  }
+
+  public boolean isEnabled() {
+    return enabled;
+  }
+
+  public void setEnabled(boolean enabled) {
+    this.enabled = enabled;
   }
 }

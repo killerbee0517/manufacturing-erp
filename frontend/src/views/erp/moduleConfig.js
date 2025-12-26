@@ -32,7 +32,8 @@ export const moduleConfigs = {
       { label: 'Code', field: 'code' },
       { label: 'Name', field: 'name' },
       { label: 'GST No', field: 'gstNo' },
-      { label: 'Contact', field: 'contact' }
+      { label: 'Contact', field: 'contact' },
+      { label: 'Ledger Balance', field: 'currentBalance' }
     ]
   },
   items: {
@@ -142,7 +143,8 @@ export const moduleConfigs = {
       { label: 'Code', field: 'code' },
       { label: 'Name', field: 'name' },
       { label: 'GST No', field: 'gstNo' },
-      { label: 'Contact', field: 'contact' }
+      { label: 'Contact', field: 'contact' },
+      { label: 'Ledger Balance', field: 'currentBalance' }
     ]
   },
   brokers: {

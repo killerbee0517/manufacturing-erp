@@ -7,6 +7,7 @@ import com.manufacturing.erp.domain.PurchaseOrderLine;
 import com.manufacturing.erp.domain.Rfq;
 import com.manufacturing.erp.domain.Supplier;
 import com.manufacturing.erp.domain.Uom;
+import com.manufacturing.erp.service.LedgerService;
 import com.manufacturing.erp.dto.TransactionDtos;
 import com.manufacturing.erp.repository.ItemRepository;
 import com.manufacturing.erp.repository.PurchaseOrderRepository;
@@ -35,17 +36,20 @@ public class PurchaseOrderService {
   private final ItemRepository itemRepository;
   private final UomRepository uomRepository;
   private final RfqRepository rfqRepository;
+  private final LedgerService ledgerService;
 
   public PurchaseOrderService(PurchaseOrderRepository purchaseOrderRepository,
                               SupplierRepository supplierRepository,
                               ItemRepository itemRepository,
                               UomRepository uomRepository,
-                              RfqRepository rfqRepository) {
+                              RfqRepository rfqRepository,
+                              LedgerService ledgerService) {
     this.purchaseOrderRepository = purchaseOrderRepository;
     this.supplierRepository = supplierRepository;
     this.itemRepository = itemRepository;
     this.uomRepository = uomRepository;
     this.rfqRepository = rfqRepository;
+    this.ledgerService = ledgerService;
   }
 
   public Page<TransactionDtos.PurchaseOrderResponse> list(String q, String status, Pageable pageable) {
@@ -75,7 +79,7 @@ public class PurchaseOrderService {
     po.setDeliveryDate(request.deliveryDate());
     po.setSupplierInvoiceNo(request.supplierInvoiceNo());
     po.setPurchaseLedger(request.purchaseLedger());
-    po.setCurrentLedgerBalance(request.currentLedgerBalance() != null ? request.currentLedgerBalance() : BigDecimal.ZERO);
+    po.setCurrentLedgerBalance(resolveSupplierBalance(supplier));
     po.setRemarks(request.narration());
     po.setRfq(resolveRfq(request.rfqId()));
     po.setStatus(DocumentStatus.DRAFT);
@@ -98,7 +102,7 @@ public class PurchaseOrderService {
     po.setDeliveryDate(request.deliveryDate());
     po.setSupplierInvoiceNo(request.supplierInvoiceNo());
     po.setPurchaseLedger(request.purchaseLedger());
-    po.setCurrentLedgerBalance(request.currentLedgerBalance() != null ? request.currentLedgerBalance() : BigDecimal.ZERO);
+    po.setCurrentLedgerBalance(resolveSupplierBalance(supplier));
     po.setRemarks(request.narration());
     po.setRfq(resolveRfq(request.rfqId()));
 
@@ -192,6 +196,13 @@ public class PurchaseOrderService {
         po.getTotalAmount(),
         po.getStatus().name(),
         lines);
+  }
+
+  private BigDecimal resolveSupplierBalance(Supplier supplier) {
+    if (supplier == null || supplier.getLedger() == null) {
+      return BigDecimal.ZERO;
+    }
+    return ledgerService.getBalance(supplier.getLedger().getId());
   }
 
   private PurchaseOrder getPurchaseOrderOrThrow(Long id) {

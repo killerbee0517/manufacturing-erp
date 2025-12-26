@@ -52,6 +52,21 @@ public class SupplierController {
     return toResponse(supplier);
   }
 
+  @GetMapping("/{id}/balance")
+  public com.manufacturing.erp.dto.LedgerDtos.LedgerBalanceResponse getBalance(@PathVariable Long id) {
+    Supplier supplier = supplierRepository.findById(id)
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Supplier not found"));
+    Ledger ledger = supplier.getLedger();
+    if (ledger == null) {
+      ledger = ledgerService.createLedger(supplier.getName(), LedgerType.SUPPLIER, "SUPPLIER", supplier.getId());
+      supplier.setLedger(ledger);
+      supplierRepository.save(supplier);
+    }
+    return new com.manufacturing.erp.dto.LedgerDtos.LedgerBalanceResponse(
+        ledger.getId(),
+        ledgerService.getBalance(ledger.getId()));
+  }
+
   @PostMapping
   @Transactional
   public MasterDtos.SupplierResponse create(@Valid @RequestBody MasterDtos.SupplierRequest request) {
@@ -71,6 +86,11 @@ public class SupplierController {
         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Supplier not found"));
     applyRequest(supplier, request);
     Supplier saved = supplierRepository.save(supplier);
+    if (saved.getLedger() == null) {
+      Ledger ledger = ledgerService.createLedger(saved.getName(), LedgerType.SUPPLIER, "SUPPLIER", saved.getId());
+      saved.setLedger(ledger);
+      saved = supplierRepository.save(saved);
+    }
     return toResponse(saved);
   }
 

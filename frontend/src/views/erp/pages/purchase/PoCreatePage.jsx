@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import Button from '@mui/material/Button';
@@ -41,6 +41,28 @@ export default function PoCreatePage() {
   });
   const [lines, setLines] = useState([emptyLine()]);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!header.supplierId) {
+      setHeader((prev) => ({ ...prev, currentLedgerBalance: 0 }));
+      return;
+    }
+    let active = true;
+    apiClient
+      .get(`/api/suppliers/${header.supplierId}/balance`)
+      .then((response) => {
+        if (!active) return;
+        const balance = response.data?.balance ?? 0;
+        setHeader((prev) => ({ ...prev, currentLedgerBalance: Number(balance) }));
+      })
+      .catch(() => {
+        if (!active) return;
+        setHeader((prev) => ({ ...prev, currentLedgerBalance: 0 }));
+      });
+    return () => {
+      active = false;
+    };
+  }, [header.supplierId]);
 
   const updateLine = (index, key, value) => {
     setLines((prev) => {
