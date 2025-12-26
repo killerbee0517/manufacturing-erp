@@ -1,49 +1,53 @@
 package com.manufacturing.erp.controller;
 
 import com.manufacturing.erp.domain.Customer;
-import com.manufacturing.erp.domain.SalesOrder;
 import com.manufacturing.erp.dto.TransactionDtos;
-import com.manufacturing.erp.repository.CustomerRepository;
-import com.manufacturing.erp.repository.SalesOrderRepository;
+import com.manufacturing.erp.service.SalesOrderService;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/sales-orders")
 public class SalesOrderController {
-  private final SalesOrderRepository salesOrderRepository;
-  private final CustomerRepository customerRepository;
+  private final SalesOrderService salesOrderService;
 
-  public SalesOrderController(SalesOrderRepository salesOrderRepository, CustomerRepository customerRepository) {
-    this.salesOrderRepository = salesOrderRepository;
-    this.customerRepository = customerRepository;
+  public SalesOrderController(SalesOrderService salesOrderService) {
+    this.salesOrderService = salesOrderService;
   }
 
   @GetMapping
-  public List<TransactionDtos.SalesOrderResponse> list() {
-    return salesOrderRepository.findAll().stream()
-        .map(so -> new TransactionDtos.SalesOrderResponse(
-            so.getId(),
-            so.getSoNo(),
-            so.getCustomer() != null ? so.getCustomer().getId() : null,
-            so.getStatus()))
-        .toList();
+  public List<TransactionDtos.SalesOrderResponse> list(@RequestParam(required = false) String status) {
+    return salesOrderService.list(status);
+  }
+
+  @GetMapping("/{id}")
+  public TransactionDtos.SalesOrderResponse get(@PathVariable Long id) {
+    return salesOrderService.get(id);
   }
 
   @PostMapping
   public TransactionDtos.SalesOrderResponse create(@Valid @RequestBody TransactionDtos.SalesOrderRequest request) {
-    Customer customer = customerRepository.findById(request.customerId())
-        .orElseThrow(() -> new IllegalArgumentException("Customer not found"));
-    SalesOrder salesOrder = new SalesOrder();
-    salesOrder.setSoNo(request.soNo());
-    salesOrder.setCustomer(customer);
-    salesOrder.setStatus(request.status() != null ? request.status() : "DRAFT");
-    SalesOrder saved = salesOrderRepository.save(salesOrder);
-    return new TransactionDtos.SalesOrderResponse(saved.getId(), saved.getSoNo(), customer.getId(), saved.getStatus());
+    return salesOrderService.save(request);
+  }
+
+  @PutMapping("/{id}")
+  public TransactionDtos.SalesOrderResponse update(@PathVariable Long id,
+                                                   @Valid @RequestBody TransactionDtos.SalesOrderRequest request) {
+    return salesOrderService.save(new TransactionDtos.SalesOrderRequest(
+        id,
+        request.soNo(),
+        request.customerId(),
+        request.orderDate(),
+        request.status(),
+        request.narration(),
+        request.lines()));
   }
 }

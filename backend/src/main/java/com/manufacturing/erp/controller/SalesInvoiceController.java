@@ -1,11 +1,7 @@
 package com.manufacturing.erp.controller;
 
-import com.manufacturing.erp.domain.Broker;
-import com.manufacturing.erp.domain.Customer;
 import com.manufacturing.erp.domain.SalesInvoice;
-import com.manufacturing.erp.dto.SalesInvoiceDtos;
-import com.manufacturing.erp.repository.BrokerRepository;
-import com.manufacturing.erp.repository.CustomerRepository;
+import com.manufacturing.erp.dto.StockDtos;
 import com.manufacturing.erp.repository.SalesInvoiceRepository;
 import com.manufacturing.erp.service.SalesInvoiceService;
 import jakarta.validation.Valid;
@@ -20,17 +16,11 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/sales-invoices")
 public class SalesInvoiceController {
   private final SalesInvoiceService salesInvoiceService;
-  private final CustomerRepository customerRepository;
-  private final BrokerRepository brokerRepository;
   private final SalesInvoiceRepository salesInvoiceRepository;
 
   public SalesInvoiceController(SalesInvoiceService salesInvoiceService,
-                                CustomerRepository customerRepository,
-                                BrokerRepository brokerRepository,
                                 SalesInvoiceRepository salesInvoiceRepository) {
     this.salesInvoiceService = salesInvoiceService;
-    this.customerRepository = customerRepository;
-    this.brokerRepository = brokerRepository;
     this.salesInvoiceRepository = salesInvoiceRepository;
   }
 
@@ -49,21 +39,8 @@ public class SalesInvoiceController {
   }
 
   @PostMapping
-  public SalesInvoice create(@Valid @RequestBody SalesInvoiceDtos.CreateSalesInvoiceRequest request) {
-    Customer customer = customerRepository.findById(request.customerId())
-        .orElseThrow(() -> new IllegalArgumentException("Customer not found"));
-    Broker broker = null;
-    if (request.brokerId() != null) {
-      broker = brokerRepository.findById(request.brokerId())
-          .orElseThrow(() -> new IllegalArgumentException("Broker not found"));
-    }
-    SalesInvoice invoice = new SalesInvoice();
-    invoice.setInvoiceNo(request.invoiceNo());
-    invoice.setCustomer(customer);
-    invoice.setBroker(broker);
-    invoice.setInvoiceDate(request.invoiceDate());
-    invoice.setTotalAmount(request.totalAmount());
-    return salesInvoiceService.postInvoice(invoice);
+  public SalesInvoice create(@Valid @RequestBody StockDtos.SalesInvoiceRequest request) {
+    return salesInvoiceService.postInvoice(request);
   }
 
   public record SalesInvoiceResponse(
