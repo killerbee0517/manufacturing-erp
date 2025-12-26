@@ -1,8 +1,11 @@
 package com.manufacturing.erp.domain;
 
 import com.manufacturing.erp.common.BaseEntity;
+import com.manufacturing.erp.domain.Enums.ProcessInputSourceType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
@@ -24,11 +27,25 @@ public class ProcessRunConsumption extends BaseEntity {
   private Uom uom;
 
   @ManyToOne
-  @JoinColumn(name = "godown_id")
-  private Godown godown;
+  @JoinColumn(name = "source_godown_id")
+  private Godown sourceGodown;
+
+  @ManyToOne
+  @JoinColumn(name = "source_run_output_id")
+  private ProcessRunOutput sourceRunOutput;
 
   @Column(nullable = false)
   private BigDecimal quantity;
+
+  @Enumerated(EnumType.STRING)
+  @Column(name = "source_type", nullable = false)
+  private ProcessInputSourceType sourceType;
+
+  @Column
+  private BigDecimal rate;
+
+  @Column
+  private BigDecimal amount;
 
   public ProcessRun getProcessRun() {
     return processRun;
@@ -54,12 +71,28 @@ public class ProcessRunConsumption extends BaseEntity {
     this.uom = uom;
   }
 
-  public Godown getGodown() {
-    return godown;
+  public Godown getSourceGodown() {
+    return sourceGodown;
   }
 
-  public void setGodown(Godown godown) {
-    this.godown = godown;
+  public void setSourceGodown(Godown sourceGodown) {
+    this.sourceGodown = sourceGodown;
+  }
+
+  public ProcessRunOutput getSourceRunOutput() {
+    return sourceRunOutput;
+  }
+
+  public void setSourceRunOutput(ProcessRunOutput sourceRunOutput) {
+    this.sourceRunOutput = sourceRunOutput;
+  }
+
+  public ProcessInputSourceType getSourceType() {
+    return sourceType;
+  }
+
+  public void setSourceType(ProcessInputSourceType sourceType) {
+    this.sourceType = sourceType;
   }
 
   public BigDecimal getQuantity() {
@@ -68,5 +101,21 @@ public class ProcessRunConsumption extends BaseEntity {
 
   public void setQuantity(BigDecimal quantity) {
     this.quantity = quantity;
+  }
+
+  public BigDecimal getRate() {
+    return rate;
+  }
+
+  public void setRate(BigDecimal rate) {
+    this.rate = rate;
+  }
+
+  public BigDecimal getAmount() {
+    return amount;
+  }
+
+  public void setAmount(BigDecimal amount) {
+    this.amount = amount;
   }
 }

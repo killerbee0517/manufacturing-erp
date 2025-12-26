@@ -114,6 +114,7 @@ const erp = {
       type: 'collapse',
       icon: icons.IconBuildingFactory2,
       children: [
+        { id: 'production-bom', title: 'BOM', type: 'item', url: '/production/bom' },
         { id: 'production-templates', title: 'Process Templates', type: 'item', url: '/production/templates' },
         { id: 'production-orders', title: 'Production Orders', type: 'item', url: '/production/orders' },
         { id: 'production-runs', title: 'Process Runs', type: 'item', url: '/production/runs' },

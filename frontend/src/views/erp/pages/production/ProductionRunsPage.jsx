@@ -14,7 +14,26 @@ import PageHeader from 'components/common/PageHeader';
 import apiClient from 'api/client';
 import { productionApi } from 'api/production';
 
-const createLine = () => ({ itemId: '', uomId: '', quantity: '', godownId: '' });
+const createInputLine = () => ({
+  itemId: '',
+  uomId: '',
+  quantity: '',
+  sourceType: 'GODOWN',
+  sourceGodownId: '',
+  sourceRunOutputId: '',
+  rate: '',
+  amount: ''
+});
+
+const createOutputLine = () => ({
+  itemId: '',
+  uomId: '',
+  quantity: '',
+  outputType: 'WIP',
+  destGodownId: '',
+  rate: '',
+  amount: ''
+});
 
 export default function ProductionRunsPage() {
   const [orders, setOrders] = useState([]);
@@ -23,9 +42,10 @@ export default function ProductionRunsPage() {
   const [items, setItems] = useState([]);
   const [uoms, setUoms] = useState([]);
   const [godowns, setGodowns] = useState([]);
+  const [wipOutputs, setWipOutputs] = useState([]);
   const [formValues, setFormValues] = useState({ orderId: '', batchId: '', stepId: '', runDate: '' });
-  const [consumptions, setConsumptions] = useState([createLine()]);
-  const [outputs, setOutputs] = useState([createLine()]);
+  const [consumptions, setConsumptions] = useState([createInputLine()]);
+  const [outputs, setOutputs] = useState([createOutputLine()]);
 
   useEffect(() => {
     productionApi
@@ -61,6 +81,17 @@ export default function ProductionRunsPage() {
       .catch(() => setBatches([]));
   }, [formValues.orderId]);
 
+  useEffect(() => {
+    if (!formValues.batchId) {
+      setWipOutputs([]);
+      return;
+    }
+    productionApi
+      .listWipOutputs(formValues.batchId)
+      .then((response) => setWipOutputs(response.data || []))
+      .catch(() => setWipOutputs([]));
+  }, [formValues.batchId]);
+
   const selectedOrder = orders.find((order) => order.id === Number(formValues.orderId));
   const selectedTemplate = useMemo(() => {
     if (!selectedOrder?.templateId) return null;
@@ -75,8 +106,8 @@ export default function ProductionRunsPage() {
     });
   };
 
-  const handleAddLine = (setter) => {
-    setter((prev) => [...prev, createLine()]);
+  const handleAddLine = (setter, createFn) => {
+    setter((prev) => [...prev, createFn()]);
   };
 
   const handleRemoveLine = (setter, index) => {
@@ -87,15 +118,19 @@ export default function ProductionRunsPage() {
     event.preventDefault();
     await productionApi.createRun({
       batchId: Number(formValues.batchId),
-      stepId: Number(formValues.stepId),
-      runDate: formValues.runDate,
+      stepId: formValues.stepId ? Number(formValues.stepId) : null,
+      runDate: formValues.runDate || null,
       consumptions: consumptions
         .filter((line) => line.itemId && line.uomId && line.quantity)
         .map((line) => ({
           itemId: Number(line.itemId),
           uomId: Number(line.uomId),
           quantity: Number(line.quantity),
-          godownId: line.godownId ? Number(line.godownId) : null
+          sourceType: line.sourceType,
+          sourceGodownId: line.sourceType === 'GODOWN' && line.sourceGodownId ? Number(line.sourceGodownId) : null,
+          sourceRunOutputId: line.sourceType === 'WIP' && line.sourceRunOutputId ? Number(line.sourceRunOutputId) : null,
+          rate: line.rate ? Number(line.rate) : null,
+          amount: line.amount ? Number(line.amount) : null
         })),
       outputs: outputs
         .filter((line) => line.itemId && line.uomId && line.quantity)
@@ -103,11 +138,18 @@ export default function ProductionRunsPage() {
           itemId: Number(line.itemId),
           uomId: Number(line.uomId),
           quantity: Number(line.quantity),
-          godownId: line.godownId ? Number(line.godownId) : null
+          outputType: line.outputType,
+          destGodownId: line.destGodownId ? Number(line.destGodownId) : null,
+          rate: line.rate ? Number(line.rate) : null,
+          amount: line.amount ? Number(line.amount) : null
         }))
     });
-    setConsumptions([createLine()]);
-    setOutputs([createLine()]);
+    setConsumptions([createInputLine()]);
+    setOutputs([createOutputLine()]);
+    productionApi
+      .listWipOutputs(formValues.batchId)
+      .then((response) => setWipOutputs(response.data || []))
+      .catch(() => setWipOutputs([]));
   };
 
   return (
@@ -115,7 +157,7 @@ export default function ProductionRunsPage() {
       <PageHeader title="Process Runs" breadcrumbs={[{ label: 'Production' }, { label: 'Process Runs' }]} />
       <Stack spacing={3} component="form" onSubmit={handleSubmit}>
         <Grid container spacing={2}>
-          <Grid size={{ xs: 12, md: 4 }}>
+          <Grid size={{ xs: 12, md: 3 }}>
             <TextField
               fullWidth
               select
@@ -130,7 +172,7 @@ export default function ProductionRunsPage() {
               ))}
             </TextField>
           </Grid>
-          <Grid size={{ xs: 12, md: 4 }}>
+          <Grid size={{ xs: 12, md: 3 }}>
             <TextField
               fullWidth
               select
@@ -145,7 +187,7 @@ export default function ProductionRunsPage() {
               ))}
             </TextField>
           </Grid>
-          <Grid size={{ xs: 12, md: 4 }}>
+          <Grid size={{ xs: 12, md: 3 }}>
             <TextField
               fullWidth
               select
@@ -153,6 +195,7 @@ export default function ProductionRunsPage() {
               value={formValues.stepId}
               onChange={(event) => setFormValues((prev) => ({ ...prev, stepId: event.target.value }))}
             >
+              <MenuItem value="">Adhoc</MenuItem>
               {selectedTemplate?.steps?.map((step) => (
                 <MenuItem key={step.id} value={step.id}>
                   {step.name}
@@ -160,7 +203,7 @@ export default function ProductionRunsPage() {
               ))}
             </TextField>
           </Grid>
-          <Grid size={{ xs: 12, md: 4 }}>
+          <Grid size={{ xs: 12, md: 3 }}>
             <TextField
               fullWidth
               label="Run Date"
@@ -168,7 +211,6 @@ export default function ProductionRunsPage() {
               value={formValues.runDate}
               onChange={(event) => setFormValues((prev) => ({ ...prev, runDate: event.target.value }))}
               InputLabelProps={{ shrink: true }}
-              required
             />
           </Grid>
         </Grid>
@@ -178,7 +220,7 @@ export default function ProductionRunsPage() {
             <Card variant="outlined">
               <CardContent>
                 <Stack spacing={2}>
-                  <Typography variant="h6">Consumption</Typography>
+                  <Typography variant="h6">Inputs</Typography>
                   {consumptions.map((line, index) => (
                     <Stack key={`consumption-${index}`} spacing={1}>
                       <TextField
@@ -195,7 +237,7 @@ export default function ProductionRunsPage() {
                         ))}
                       </TextField>
                       <Grid container spacing={1}>
-                        <Grid size={{ xs: 12, md: 4 }}>
+                        <Grid size={{ xs: 12, md: 6 }}>
                           <TextField
                             select
                             fullWidth
@@ -210,7 +252,7 @@ export default function ProductionRunsPage() {
                             ))}
                           </TextField>
                         </Grid>
-                        <Grid size={{ xs: 12, md: 4 }}>
+                        <Grid size={{ xs: 12, md: 6 }}>
                           <TextField
                             fullWidth
                             label="Quantity"
@@ -219,21 +261,72 @@ export default function ProductionRunsPage() {
                             onChange={(event) => handleLineChange(setConsumptions, index, 'quantity', event.target.value)}
                           />
                         </Grid>
+                      </Grid>
+                      <Grid container spacing={1}>
                         <Grid size={{ xs: 12, md: 4 }}>
                           <TextField
                             select
                             fullWidth
-                            label="Godown"
-                            value={line.godownId}
-                            onChange={(event) => handleLineChange(setConsumptions, index, 'godownId', event.target.value)}
+                            label="Source Type"
+                            value={line.sourceType}
+                            onChange={(event) => handleLineChange(setConsumptions, index, 'sourceType', event.target.value)}
                           >
-                            <MenuItem value="">None</MenuItem>
-                            {godowns.map((godown) => (
-                              <MenuItem key={godown.id} value={godown.id}>
-                                {godown.name}
-                              </MenuItem>
-                            ))}
+                            <MenuItem value="GODOWN">Godown</MenuItem>
+                            <MenuItem value="WIP">WIP</MenuItem>
                           </TextField>
+                        </Grid>
+                        {line.sourceType === 'GODOWN' ? (
+                          <Grid size={{ xs: 12, md: 4 }}>
+                            <TextField
+                              select
+                              fullWidth
+                              label="Godown"
+                              value={line.sourceGodownId}
+                              onChange={(event) => handleLineChange(setConsumptions, index, 'sourceGodownId', event.target.value)}
+                            >
+                              <MenuItem value="">Select</MenuItem>
+                              {godowns.map((godown) => (
+                                <MenuItem key={godown.id} value={godown.id}>
+                                  {godown.name}
+                                </MenuItem>
+                              ))}
+                            </TextField>
+                          </Grid>
+                        ) : (
+                          <Grid size={{ xs: 12, md: 4 }}>
+                            <TextField
+                              select
+                              fullWidth
+                              label="WIP Output"
+                              value={line.sourceRunOutputId}
+                              onChange={(event) => handleLineChange(setConsumptions, index, 'sourceRunOutputId', event.target.value)}
+                            >
+                              <MenuItem value="">Select</MenuItem>
+                              {wipOutputs.map((output) => (
+                                <MenuItem key={output.id} value={output.id}>
+                                  {output.itemName} (Avail: {output.availableQuantity})
+                                </MenuItem>
+                              ))}
+                            </TextField>
+                          </Grid>
+                        )}
+                        <Grid size={{ xs: 12, md: 4 }}>
+                          <TextField
+                            fullWidth
+                            label="Rate"
+                            type="number"
+                            value={line.rate}
+                            onChange={(event) => handleLineChange(setConsumptions, index, 'rate', event.target.value)}
+                          />
+                        </Grid>
+                        <Grid size={{ xs: 12, md: 4 }}>
+                          <TextField
+                            fullWidth
+                            label="Amount"
+                            type="number"
+                            value={line.amount}
+                            onChange={(event) => handleLineChange(setConsumptions, index, 'amount', event.target.value)}
+                          />
                         </Grid>
                       </Grid>
                       {consumptions.length > 1 && (
@@ -243,7 +336,7 @@ export default function ProductionRunsPage() {
                       )}
                     </Stack>
                   ))}
-                  <Button variant="outlined" onClick={() => handleAddLine(setConsumptions)}>
+                  <Button variant="outlined" onClick={() => handleAddLine(setConsumptions, createInputLine)}>
                     Add Consumption
                   </Button>
                 </Stack>
@@ -254,7 +347,7 @@ export default function ProductionRunsPage() {
             <Card variant="outlined">
               <CardContent>
                 <Stack spacing={2}>
-                  <Typography variant="h6">Output</Typography>
+                  <Typography variant="h6">Outputs</Typography>
                   {outputs.map((line, index) => (
                     <Stack key={`output-${index}`} spacing={1}>
                       <TextField
@@ -299,9 +392,25 @@ export default function ProductionRunsPage() {
                           <TextField
                             select
                             fullWidth
-                            label="Godown"
-                            value={line.godownId}
-                            onChange={(event) => handleLineChange(setOutputs, index, 'godownId', event.target.value)}
+                            label="Output Type"
+                            value={line.outputType}
+                            onChange={(event) => handleLineChange(setOutputs, index, 'outputType', event.target.value)}
+                          >
+                            <MenuItem value="WIP">WIP</MenuItem>
+                            <MenuItem value="FG">Finished Good</MenuItem>
+                            <MenuItem value="BYPRODUCT">Byproduct</MenuItem>
+                          </TextField>
+                        </Grid>
+                      </Grid>
+                      <Grid container spacing={1}>
+                        <Grid size={{ xs: 12, md: 4 }}>
+                          <TextField
+                            select
+                            fullWidth
+                            label="Destination Godown"
+                            value={line.destGodownId}
+                            onChange={(event) => handleLineChange(setOutputs, index, 'destGodownId', event.target.value)}
+                            disabled={line.outputType !== 'FG'}
                           >
                             <MenuItem value="">None</MenuItem>
                             {godowns.map((godown) => (
@@ -311,6 +420,24 @@ export default function ProductionRunsPage() {
                             ))}
                           </TextField>
                         </Grid>
+                        <Grid size={{ xs: 12, md: 4 }}>
+                          <TextField
+                            fullWidth
+                            label="Rate"
+                            type="number"
+                            value={line.rate}
+                            onChange={(event) => handleLineChange(setOutputs, index, 'rate', event.target.value)}
+                          />
+                        </Grid>
+                        <Grid size={{ xs: 12, md: 4 }}>
+                          <TextField
+                            fullWidth
+                            label="Amount"
+                            type="number"
+                            value={line.amount}
+                            onChange={(event) => handleLineChange(setOutputs, index, 'amount', event.target.value)}
+                          />
+                        </Grid>
                       </Grid>
                       {outputs.length > 1 && (
                         <Button variant="text" color="error" onClick={() => handleRemoveLine(setOutputs, index)}>
@@ -319,7 +446,7 @@ export default function ProductionRunsPage() {
                       )}
                     </Stack>
                   ))}
-                  <Button variant="outlined" onClick={() => handleAddLine(setOutputs)}>
+                  <Button variant="outlined" onClick={() => handleAddLine(setOutputs, createOutputLine)}>
                     Add Output
                   </Button>
                 </Stack>
@@ -327,7 +454,7 @@ export default function ProductionRunsPage() {
             </Card>
           </Grid>
         </Grid>
-        <Button variant="contained" color="secondary" type="submit" disabled={!formValues.batchId || !formValues.stepId}>
+        <Button variant="contained" color="secondary" type="submit" disabled={!formValues.batchId}>
           Post Run
         </Button>
       </Stack>

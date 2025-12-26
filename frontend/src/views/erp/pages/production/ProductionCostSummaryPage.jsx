@@ -90,8 +90,16 @@ export default function ProductionCostSummaryPage() {
                 <Typography variant="h6">{summary.totalConsumptionQty}</Typography>
               </Grid>
               <Grid size={{ xs: 12, md: 4 }}>
+                <Typography variant="subtitle2">Total Consumption Amount</Typography>
+                <Typography variant="h6">{summary.totalConsumptionAmount}</Typography>
+              </Grid>
+              <Grid size={{ xs: 12, md: 4 }}>
                 <Typography variant="subtitle2">Total Output Qty</Typography>
                 <Typography variant="h6">{summary.totalOutputQty}</Typography>
+              </Grid>
+              <Grid size={{ xs: 12, md: 4 }}>
+                <Typography variant="subtitle2">Total Output Amount</Typography>
+                <Typography variant="h6">{summary.totalOutputAmount}</Typography>
               </Grid>
               <Grid size={{ xs: 12, md: 4 }}>
                 <Typography variant="subtitle2">Unit Cost</Typography>

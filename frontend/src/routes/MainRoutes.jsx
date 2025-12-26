@@ -45,6 +45,7 @@ const ProcessTemplatesPage = Loadable(lazy(() => import('views/erp/pages/product
 const ProductionOrdersPage = Loadable(lazy(() => import('views/erp/pages/production/ProductionOrdersPage')));
 const ProductionRunsPage = Loadable(lazy(() => import('views/erp/pages/production/ProductionRunsPage')));
 const ProductionCostSummaryPage = Loadable(lazy(() => import('views/erp/pages/production/ProductionCostSummaryPage')));
+const BomPage = Loadable(lazy(() => import('views/erp/pages/production/BomPage')));
 const LedgerReportPage = Loadable(lazy(() => import('views/erp/pages/reports/LedgerReportPage')));
 const OutstandingReportPage = Loadable(lazy(() => import('views/erp/pages/reports/OutstandingReportPage')));
 const AgeingReportPage = Loadable(lazy(() => import('views/erp/pages/reports/AgeingReportPage')));
@@ -140,6 +141,7 @@ const MainRoutes = {
     {
       path: 'production',
       children: [
+        { path: 'bom', element: <BomPage /> },
         { path: 'templates', element: <ProcessTemplatesPage /> },
         { path: 'orders', element: <ProductionOrdersPage /> },
         { path: 'runs', element: <ProductionRunsPage /> },
