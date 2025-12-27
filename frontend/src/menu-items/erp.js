@@ -119,7 +119,7 @@ const erp = {
         { id: 'production-bom', title: 'BOM', type: 'item', url: '/production/bom' },
         { id: 'production-templates', title: 'Process Templates', type: 'item', url: '/production/templates' },
         { id: 'production-orders', title: 'Production Orders', type: 'item', url: '/production/orders' },
-        { id: 'production-runs', title: 'Process Runs', type: 'item', url: '/production/runs' },
+        { id: 'production-batches', title: 'Batches', type: 'item', url: '/production/batches' },
         { id: 'production-cost-summary', title: 'Cost Summary', type: 'item', url: '/production/cost-summary' }
       ]
     },

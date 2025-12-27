@@ -77,6 +77,7 @@ public class ProductionController {
     productionService.deleteTemplate(id);
   }
 
+  // Orders (legacy compatibility)
   @GetMapping("/orders")
   public List<ProductionDtos.ProductionOrderResponse> listOrders() {
     return productionService.listOrders();
@@ -105,14 +106,48 @@ public class ProductionController {
     productionService.deleteOrder(id);
   }
 
-  @PostMapping("/orders/{id}/batches")
+  @GetMapping("/batches")
+  public List<ProductionDtos.ProductionBatchResponse> listBatches(
+      @RequestParam(required = false) String status,
+      @RequestParam(required = false) Long templateId) {
+    return productionService.listBatches(status, templateId);
+  }
+
+  @PostMapping("/batches")
+  public ProductionDtos.ProductionBatchResponse createBatch(
+      @Valid @RequestBody ProductionDtos.ProductionBatchRequest request) {
+    return productionService.createBatch(request);
+  }
+
+  @GetMapping("/batches/{id}")
+  public ProductionDtos.ProductionBatchResponse getBatch(@PathVariable Long id) {
+    return productionService.getBatch(id);
+  }
+
+  @PostMapping("/batches/{id}/start")
   public ProductionDtos.ProductionBatchResponse startBatch(@PathVariable Long id) {
     return productionService.startBatch(id);
   }
 
-  @GetMapping("/batches")
-  public List<ProductionDtos.ProductionBatchResponse> listBatches(@RequestParam Long orderId) {
-    return productionService.listBatches(orderId);
+  @PostMapping("/batches/{id}/issue")
+  public void issueMaterials(@PathVariable Long id, @Valid @RequestBody ProductionDtos.BatchIssueRequest request) {
+    productionService.issueMaterials(id, request);
+  }
+
+  @PostMapping("/batches/{id}/step/{stepNo}/complete")
+  public void completeStep(@PathVariable Long id, @PathVariable Integer stepNo,
+                           @RequestBody(required = false) ProductionDtos.BatchStepCompleteRequest request) {
+    productionService.completeStep(id, stepNo, request);
+  }
+
+  @PostMapping("/batches/{id}/produce")
+  public void produce(@PathVariable Long id, @Valid @RequestBody ProductionDtos.BatchProduceRequest request) {
+    productionService.produce(id, request);
+  }
+
+  @PostMapping("/batches/{id}/complete")
+  public ProductionDtos.ProductionBatchResponse completeBatch(@PathVariable Long id) {
+    return productionService.completeBatch(id);
   }
 
   @GetMapping("/batches/{id}/wip-outputs")
@@ -125,18 +160,8 @@ public class ProductionController {
     return productionService.getCostSummary(id);
   }
 
-  @PostMapping("/runs")
-  public ProductionDtos.ProcessRunResponse createRun(@Valid @RequestBody ProductionDtos.ProcessRunRequest request) {
-    return productionService.createRun(request);
-  }
-
-  @GetMapping("/runs/{id}")
-  public ProductionDtos.ProcessRunResponse getRun(@PathVariable Long id) {
-    return productionService.getRun(id);
-  }
-
-  @GetMapping("/runs")
-  public List<ProductionDtos.ProcessRunResponse> listRuns(@RequestParam Long batchId) {
-    return productionService.listRuns(batchId);
+  @GetMapping("/wip/balances")
+  public List<ProductionDtos.WipOutputResponse> wipBalances() {
+    return productionService.listWipBalances();
   }
 }

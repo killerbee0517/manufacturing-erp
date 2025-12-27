@@ -4,6 +4,9 @@ import com.manufacturing.erp.common.BaseEntity;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import java.util.ArrayList;
@@ -12,13 +15,38 @@ import java.util.List;
 @Entity
 @Table(name = "process_templates")
 public class ProcessTemplate extends BaseEntity {
+  @Column(unique = true)
+  private String code;
+
   @Column(nullable = false)
   private String name;
 
   private String description;
 
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "output_item_id")
+  private Item outputItem;
+
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "output_uom_id")
+  private Uom outputUom;
+
+  @Column(nullable = false)
+  private Boolean enabled = Boolean.TRUE;
+
   @OneToMany(mappedBy = "template", cascade = CascadeType.ALL, orphanRemoval = true)
-  private List<ProcessStep> steps = new ArrayList<>();
+  private List<ProcessTemplateStep> steps = new ArrayList<>();
+
+  @OneToMany(mappedBy = "template", cascade = CascadeType.ALL, orphanRemoval = true)
+  private List<ProcessTemplateInput> inputs = new ArrayList<>();
+
+  public String getCode() {
+    return code;
+  }
+
+  public void setCode(String code) {
+    this.code = code;
+  }
 
   public String getName() {
     return name;
@@ -36,11 +64,43 @@ public class ProcessTemplate extends BaseEntity {
     this.description = description;
   }
 
-  public List<ProcessStep> getSteps() {
+  public Item getOutputItem() {
+    return outputItem;
+  }
+
+  public void setOutputItem(Item outputItem) {
+    this.outputItem = outputItem;
+  }
+
+  public Uom getOutputUom() {
+    return outputUom;
+  }
+
+  public void setOutputUom(Uom outputUom) {
+    this.outputUom = outputUom;
+  }
+
+  public Boolean getEnabled() {
+    return enabled;
+  }
+
+  public void setEnabled(Boolean enabled) {
+    this.enabled = enabled;
+  }
+
+  public List<ProcessTemplateStep> getSteps() {
     return steps;
   }
 
-  public void setSteps(List<ProcessStep> steps) {
+  public void setSteps(List<ProcessTemplateStep> steps) {
     this.steps = steps;
+  }
+
+  public List<ProcessTemplateInput> getInputs() {
+    return inputs;
+  }
+
+  public void setInputs(List<ProcessTemplateInput> inputs) {
+    this.inputs = inputs;
   }
 }

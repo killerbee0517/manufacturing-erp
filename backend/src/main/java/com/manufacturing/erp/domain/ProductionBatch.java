@@ -9,8 +9,9 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
-import java.time.LocalDate;
+import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 
 @Entity
 @Table(name = "production_batches")
@@ -19,12 +20,23 @@ public class ProductionBatch extends BaseEntity {
   private String batchNo;
 
   @ManyToOne
-  @JoinColumn(name = "production_order_id", nullable = false)
+  @JoinColumn(name = "production_order_id")
   private ProductionOrder productionOrder;
+
+  @ManyToOne
+  @JoinColumn(name = "template_id")
+  private ProcessTemplate template;
+
+  @ManyToOne
+  @JoinColumn(name = "uom_id")
+  private Uom uom;
 
   @Enumerated(EnumType.STRING)
   @Column(nullable = false)
   private ProductionStatus status;
+
+  @Column(name = "planned_output_qty")
+  private BigDecimal plannedOutputQty;
 
   @Column(name = "start_date")
   private LocalDate startDate;
@@ -35,6 +47,8 @@ public class ProductionBatch extends BaseEntity {
   private Instant startedAt;
 
   private Instant completedAt;
+
+  private String remarks;
 
   public String getBatchNo() {
     return batchNo;
@@ -52,12 +66,36 @@ public class ProductionBatch extends BaseEntity {
     this.productionOrder = productionOrder;
   }
 
+  public ProcessTemplate getTemplate() {
+    return template;
+  }
+
+  public void setTemplate(ProcessTemplate template) {
+    this.template = template;
+  }
+
+  public Uom getUom() {
+    return uom;
+  }
+
+  public void setUom(Uom uom) {
+    this.uom = uom;
+  }
+
   public ProductionStatus getStatus() {
     return status;
   }
 
   public void setStatus(ProductionStatus status) {
     this.status = status;
+  }
+
+  public BigDecimal getPlannedOutputQty() {
+    return plannedOutputQty;
+  }
+
+  public void setPlannedOutputQty(BigDecimal plannedOutputQty) {
+    this.plannedOutputQty = plannedOutputQty;
   }
 
   public LocalDate getStartDate() {
@@ -90,5 +128,13 @@ public class ProductionBatch extends BaseEntity {
 
   public void setCompletedAt(Instant completedAt) {
     this.completedAt = completedAt;
+  }
+
+  public String getRemarks() {
+    return remarks;
+  }
+
+  public void setRemarks(String remarks) {
+    this.remarks = remarks;
   }
 }
