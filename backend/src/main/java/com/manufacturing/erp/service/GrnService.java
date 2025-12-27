@@ -107,6 +107,7 @@ public class GrnService {
       line.setBagType("N/A");
       line.setBagCount(0);
       line.setQuantity(lineRequest.quantity());
+      line.setReceivedQty(lineRequest.quantity());
       line.setWeight(lineRequest.weight() != null ? lineRequest.weight() : lineRequest.quantity());
       line.setRate(lineRequest.rate());
       line.setAmount(lineRequest.amount() != null ? lineRequest.amount() : resolveAmount(lineRequest));
@@ -152,7 +153,10 @@ public class GrnService {
       line.setPurchaseOrderLine(poLine);
       line.setItem(poLine.getItem());
       line.setUom(poLine.getUom());
+      line.setBagType("N/A");
+      line.setBagCount(0);
       line.setQuantity(lineQty);
+      line.setReceivedQty(lineQty);
       line.setWeight(lineWeight);
       line.setRate(poLine.getRate());
       line.setAmount(poLine.getRate() != null && lineQty != null ? poLine.getRate().multiply(lineQty) : BigDecimal.ZERO);
@@ -195,6 +199,7 @@ public class GrnService {
         throw new IllegalArgumentException("Invalid GRN line");
       }
       line.setQuantity(lineRequest.quantity());
+      line.setReceivedQty(lineRequest.quantity());
       line.setWeight(lineRequest.weight() != null ? lineRequest.weight() : lineRequest.quantity());
       line.setRate(lineRequest.rate());
       line.setAmount(lineRequest.amount() != null ? lineRequest.amount() : resolveAmount(lineRequest));

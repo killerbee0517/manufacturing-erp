@@ -3,6 +3,7 @@ package com.manufacturing.erp.domain;
 import com.manufacturing.erp.common.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
@@ -15,6 +16,7 @@ public class GrnLine extends BaseEntity {
   private Grn grn;
 
   @ManyToOne
+  @JoinColumn(name = "po_line_id")
   private PurchaseOrderLine purchaseOrderLine;
 
   @ManyToOne
@@ -27,8 +29,11 @@ public class GrnLine extends BaseEntity {
 
   private Integer bagCount;
 
-  @Column(name = "received_qty")
+  @Column(name = "quantity")
   private BigDecimal quantity;
+
+  @Column(name = "received_qty")
+  private BigDecimal receivedQty;
 
   private BigDecimal weight;
 
@@ -82,6 +87,14 @@ public class GrnLine extends BaseEntity {
 
   public void setQuantity(BigDecimal quantity) {
     this.quantity = quantity;
+  }
+
+  public BigDecimal getReceivedQty() {
+    return receivedQty;
+  }
+
+  public void setReceivedQty(BigDecimal receivedQty) {
+    this.receivedQty = receivedQty;
   }
 
   public BigDecimal getWeight() {
