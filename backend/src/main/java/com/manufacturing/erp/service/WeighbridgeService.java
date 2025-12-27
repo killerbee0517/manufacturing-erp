@@ -1,15 +1,12 @@
 package com.manufacturing.erp.service;
 
 import com.manufacturing.erp.domain.Enums.DocumentStatus;
-import com.manufacturing.erp.domain.Item;
 import com.manufacturing.erp.domain.PurchaseOrder;
 import com.manufacturing.erp.domain.Supplier;
 import com.manufacturing.erp.domain.Vehicle;
 import com.manufacturing.erp.domain.WeighbridgeTicket;
 import com.manufacturing.erp.dto.WeighbridgeDtos;
-import com.manufacturing.erp.repository.ItemRepository;
 import com.manufacturing.erp.repository.PurchaseOrderRepository;
-import com.manufacturing.erp.repository.SupplierRepository;
 import com.manufacturing.erp.repository.VehicleRepository;
 import com.manufacturing.erp.repository.WeighbridgeTicketRepository;
 import java.math.BigDecimal;
@@ -20,21 +17,15 @@ import com.manufacturing.erp.service.GrnService;
 @Service
 public class WeighbridgeService {
   private final WeighbridgeTicketRepository ticketRepository;
-  private final SupplierRepository supplierRepository;
-  private final ItemRepository itemRepository;
   private final VehicleRepository vehicleRepository;
   private final PurchaseOrderRepository purchaseOrderRepository;
   private final GrnService grnService;
 
   public WeighbridgeService(WeighbridgeTicketRepository ticketRepository,
-                            SupplierRepository supplierRepository,
-                            ItemRepository itemRepository,
                             VehicleRepository vehicleRepository,
                             PurchaseOrderRepository purchaseOrderRepository,
                             GrnService grnService) {
     this.ticketRepository = ticketRepository;
-    this.supplierRepository = supplierRepository;
-    this.itemRepository = itemRepository;
     this.vehicleRepository = vehicleRepository;
     this.purchaseOrderRepository = purchaseOrderRepository;
     this.grnService = grnService;
@@ -47,11 +38,10 @@ public class WeighbridgeService {
     Vehicle vehicle = vehicleRepository.findById(request.vehicleId())
         .orElseThrow(() -> new IllegalArgumentException("Vehicle not found"));
     Supplier supplier = po.getSupplier();
-    Item item = resolveItem(request.itemId());
+
+    Item item = po.getLines().isEmpty() ? null : po.getLines().get(0).getItem();
 
     BigDecimal gross = request.grossWeight();
-    BigDecimal unloaded = request.unloadedWeight() != null ? request.unloadedWeight() : BigDecimal.ZERO;
-    BigDecimal net = unloaded.compareTo(BigDecimal.ZERO) > 0 ? gross.subtract(unloaded) : BigDecimal.ZERO;
 
     WeighbridgeTicket ticket = new WeighbridgeTicket();
     ticket.setSerialNo(resolveSerialNo(request.serialNo()));
@@ -61,11 +51,7 @@ public class WeighbridgeService {
     ticket.setItem(item);
     ticket.setDateIn(request.dateIn());
     ticket.setTimeIn(request.timeIn());
-    ticket.setSecondDate(request.secondDate());
-    ticket.setSecondTime(request.secondTime());
     ticket.setGrossWeight(gross);
-    ticket.setUnloadedWeight(unloaded);
-    ticket.setNetWeight(net);
     ticket.setStatus(DocumentStatus.IN_PROGRESS);
 
     return ticketRepository.save(ticket);
@@ -80,11 +66,7 @@ public class WeighbridgeService {
     Vehicle vehicle = vehicleRepository.findById(request.vehicleId())
         .orElseThrow(() -> new IllegalArgumentException("Vehicle not found"));
     Supplier supplier = po.getSupplier();
-    Item item = resolveItem(request.itemId());
-
-    BigDecimal gross = request.grossWeight();
-    BigDecimal unloaded = request.unloadedWeight() != null ? request.unloadedWeight() : BigDecimal.ZERO;
-    BigDecimal net = unloaded.compareTo(BigDecimal.ZERO) > 0 ? gross.subtract(unloaded) : BigDecimal.ZERO;
+    Item item = po.getLines().isEmpty() ? null : po.getLines().get(0).getItem();
 
     ticket.setSerialNo(resolveSerialNo(request.serialNo(), ticket.getSerialNo()));
     ticket.setVehicle(vehicle);
@@ -93,17 +75,33 @@ public class WeighbridgeService {
     ticket.setItem(item);
     ticket.setDateIn(request.dateIn());
     ticket.setTimeIn(request.timeIn());
-    ticket.setSecondDate(request.secondDate());
-    ticket.setSecondTime(request.secondTime());
-    ticket.setGrossWeight(gross);
-    ticket.setUnloadedWeight(unloaded);
-    ticket.setNetWeight(net);
-    if (unloaded.compareTo(BigDecimal.ZERO) > 0) {
-      ticket.setStatus(DocumentStatus.UNLOADED);
-      grnService.createDraftFromWeighbridge(ticket);
-    }
+    ticket.setGrossWeight(request.grossWeight());
+    ticket.setNetWeight(ticket.getUnloadedWeight() != null ? ticket.getGrossWeight().subtract(ticket.getUnloadedWeight()) : null);
 
     return ticketRepository.save(ticket);
+  }
+
+  @Transactional
+  public WeighbridgeTicket unload(Long id, WeighbridgeDtos.UnloadTicketRequest request) {
+    WeighbridgeTicket ticket = ticketRepository.findById(id)
+        .orElseThrow(() -> new IllegalArgumentException("Weighbridge ticket not found"));
+    PurchaseOrder po = purchaseOrderRepository.findById(request.poId())
+        .orElseThrow(() -> new IllegalArgumentException("Purchase order not found"));
+    Vehicle vehicle = vehicleRepository.findById(request.vehicleId())
+        .orElseThrow(() -> new IllegalArgumentException("Vehicle not found"));
+    ticket.setPurchaseOrder(po);
+    ticket.setVehicle(vehicle);
+    ticket.setSecondDate(request.secondDate());
+    ticket.setSecondTime(request.secondTime());
+    ticket.setUnloadedWeight(request.unloadedWeight());
+    BigDecimal net = request.unloadedWeight() != null && ticket.getGrossWeight() != null
+        ? ticket.getGrossWeight().subtract(request.unloadedWeight())
+        : null;
+    ticket.setNetWeight(net);
+    ticket.setStatus(DocumentStatus.UNLOADED);
+    WeighbridgeTicket saved = ticketRepository.save(ticket);
+    grnService.createDraftFromWeighbridge(saved);
+    return saved;
   }
 
   private String resolveSerialNo(String provided) {
@@ -121,11 +119,4 @@ public class WeighbridgeService {
         + "-" + System.nanoTime();
   }
 
-  private Item resolveItem(Long itemId) {
-    if (itemId == null) {
-      return null;
-    }
-    return itemRepository.findById(itemId)
-        .orElseThrow(() -> new IllegalArgumentException("Item not found"));
-  }
 }

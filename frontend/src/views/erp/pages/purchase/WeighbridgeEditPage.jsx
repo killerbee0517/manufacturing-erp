@@ -30,6 +30,7 @@ export default function WeighbridgeEditPage() {
   });
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [poInfo, setPoInfo] = useState(null);
 
   useEffect(() => {
     setLoading(true);
@@ -49,6 +50,9 @@ export default function WeighbridgeEditPage() {
           secondDate: ticket.secondDate || '',
           secondTime: ticket.secondTime || ''
         });
+        if (ticket.poId) {
+          handlePoChange(ticket.poId);
+        }
       })
       .finally(() => setLoading(false));
   }, [id]);
@@ -59,23 +63,40 @@ export default function WeighbridgeEditPage() {
     return gross - unloaded;
   }, [header.grossWeight, header.unloadedWeight]);
 
+  const handlePoChange = async (poId) => {
+    setHeader((prev) => ({ ...prev, poId }));
+    if (!poId) {
+      setPoInfo(null);
+      return;
+    }
+    const response = await apiClient.get(`/api/purchase-orders/${poId}`);
+    setPoInfo(response.data);
+  };
+
   const handleSave = async () => {
     setSaving(true);
     try {
-      const payload = {
-        serialNo: header.serialNo || undefined,
-        poId: Number(header.poId),
-        vehicleId: Number(header.vehicleId),
-        supplierId: header.supplierId ? Number(header.supplierId) : null,
-        itemId: header.itemId ? Number(header.itemId) : null,
-        dateIn: header.dateIn,
-        timeIn: header.timeIn,
-        grossWeight: Number(header.grossWeight),
-        unloadedWeight: header.unloadedWeight ? Number(header.unloadedWeight) : null,
-        secondDate: header.secondDate || null,
-        secondTime: header.secondTime || null
-      };
-      await apiClient.put(`/api/weighbridge/tickets/${id}`, payload);
+      const hasUnload = header.unloadedWeight;
+      if (hasUnload) {
+        const payload = {
+          poId: Number(header.poId),
+          vehicleId: Number(header.vehicleId),
+          secondDate: header.secondDate || null,
+          secondTime: header.secondTime || null,
+          unloadedWeight: Number(header.unloadedWeight)
+        };
+        await apiClient.put(`/api/weighbridge/tickets/${id}/unload`, payload);
+      } else {
+        const payload = {
+          serialNo: header.serialNo || undefined,
+          poId: Number(header.poId),
+          vehicleId: Number(header.vehicleId),
+          dateIn: header.dateIn,
+          timeIn: header.timeIn,
+          grossWeight: Number(header.grossWeight)
+        };
+        await apiClient.put(`/api/weighbridge/tickets/${id}`, payload);
+      }
       navigate(`/purchase/weighbridge-in/${id}`);
     } finally {
       setSaving(false);
@@ -112,7 +133,7 @@ export default function WeighbridgeEditPage() {
               label="Purchase Order"
               endpoint="/api/purchase-orders"
               value={header.poId}
-              onChange={(nextValue) => setHeader((prev) => ({ ...prev, poId: nextValue }))}
+              onChange={(nextValue) => handlePoChange(nextValue)}
               optionLabelKey="poNo"
               optionValueKey="id"
               placeholder="Select PO"
@@ -140,27 +161,18 @@ export default function WeighbridgeEditPage() {
             />
           </Grid>
           <Grid size={{ xs: 12, md: 4 }}>
-            <MasterAutocomplete
-              label="Supplier"
-              endpoint="/api/suppliers"
-              value={header.supplierId}
-              onChange={(nextValue) => setHeader((prev) => ({ ...prev, supplierId: nextValue }))}
-              optionLabelKey="name"
-              optionValueKey="id"
-              placeholder="Search suppliers"
-              required
-            />
+            <TextField fullWidth label="Supplier" value={poInfo?.supplierName || poInfo?.supplierId || ''} InputProps={{ readOnly: true }} />
           </Grid>
           <Grid size={{ xs: 12, md: 4 }}>
-            <MasterAutocomplete
+            <TextField
+              fullWidth
               label="Product"
-              endpoint="/api/items"
-              value={header.itemId}
-              onChange={(nextValue) => setHeader((prev) => ({ ...prev, itemId: nextValue }))}
-              optionLabelKey="name"
-              optionValueKey="id"
-              placeholder="Search items"
-              required
+              value={
+                poInfo?.lines?.length === 1
+                  ? poInfo.lines[0].itemId
+                  : header.itemId
+              }
+              InputProps={{ readOnly: true }}
             />
           </Grid>
           <Grid size={{ xs: 12, md: 4 }}>
@@ -211,6 +223,22 @@ export default function WeighbridgeEditPage() {
             />
           </Grid>
         </Grid>
+        {poInfo && (
+          <Stack spacing={1}>
+            <Typography variant="h5">PO Items</Typography>
+            <Typography color="text.secondary">
+              Supplier: {poInfo.supplierName || poInfo.supplierId} • Lines: {poInfo.lines?.length || 0}
+            </Typography>
+            <Grid container spacing={1}>
+              {poInfo.lines?.map((line) => (
+                <Grid key={line.id} size={{ xs: 12, md: 6 }}>
+                  <Typography variant="subtitle2">{line.itemId}</Typography>
+                  <Typography color="text.secondary">Quantity: {line.quantity}</Typography>
+                </Grid>
+              ))}
+            </Grid>
+          </Stack>
+        )}
         <Divider />
         <Stack spacing={1}>
           <Typography variant="h5">Second Weighment</Typography>

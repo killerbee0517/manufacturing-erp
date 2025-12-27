@@ -19,6 +19,7 @@ export default function WeighbridgeDetailPage() {
   const [supplierMap, setSupplierMap] = useState({});
   const [itemMap, setItemMap] = useState({});
   const [vehicleMap, setVehicleMap] = useState({});
+  const [poMap, setPoMap] = useState({});
 
   useEffect(() => {
     setLoading(true);
@@ -59,6 +60,18 @@ export default function WeighbridgeDetailPage() {
         setVehicleMap(lookup);
       })
       .catch(() => setVehicleMap({}));
+
+    apiClient
+      .get('/api/purchase-orders')
+      .then((response) => {
+        const payload = response.data?.content || response.data || [];
+        const lookup = payload.reduce((acc, po) => {
+          acc[po.id] = po.poNo;
+          return acc;
+        }, {});
+        setPoMap(lookup);
+      })
+      .catch(() => setPoMap({}));
   }, [id]);
 
   if (!ticket) {
@@ -85,6 +98,10 @@ export default function WeighbridgeDetailPage() {
           <Grid size={{ xs: 12, md: 4 }}>
             <Typography variant="subtitle2">Serial No</Typography>
             <Typography>{ticket.serialNo || '-'}</Typography>
+          </Grid>
+          <Grid size={{ xs: 12, md: 4 }}>
+            <Typography variant="subtitle2">Purchase Order</Typography>
+            <Typography>{poMap[ticket.poId] || ticket.poId || '-'}</Typography>
           </Grid>
           <Grid size={{ xs: 12, md: 4 }}>
             <Typography variant="subtitle2">Vehicle</Typography>
@@ -120,6 +137,10 @@ export default function WeighbridgeDetailPage() {
           <Grid size={{ xs: 12, md: 4 }}>
             <Typography variant="subtitle2">Net Weight</Typography>
             <Typography>{ticket.netWeight ?? '-'}</Typography>
+          </Grid>
+          <Grid size={{ xs: 12, md: 4 }}>
+            <Typography variant="subtitle2">Status</Typography>
+            <Typography>{ticket.status || '-'}</Typography>
           </Grid>
         </Grid>
         <Divider />

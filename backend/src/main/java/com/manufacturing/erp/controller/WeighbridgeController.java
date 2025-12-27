@@ -52,6 +52,13 @@ public class WeighbridgeController {
     return toResponse(ticket);
   }
 
+  @PutMapping("/tickets/{id}/unload")
+  public WeighbridgeDtos.TicketResponse unload(@PathVariable Long id,
+                                               @Valid @RequestBody WeighbridgeDtos.UnloadTicketRequest request) {
+    var ticket = weighbridgeService.unload(id, request);
+    return toResponse(ticket);
+  }
+
   private WeighbridgeDtos.TicketResponse toResponse(com.manufacturing.erp.domain.WeighbridgeTicket ticket) {
     return new WeighbridgeDtos.TicketResponse(
         ticket.getId(),

@@ -8,5 +8,7 @@ export const mastersEntities = {
   godowns: moduleConfigs.godowns,
   items: moduleConfigs.items,
   uoms: moduleConfigs.uoms,
-  brokers: moduleConfigs.brokers
+  brokers: moduleConfigs.brokers,
+  'charge-types': moduleConfigs.chargeTypes,
+  'expense-parties': moduleConfigs.expenseParties
 };

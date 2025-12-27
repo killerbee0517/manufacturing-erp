@@ -39,9 +39,21 @@ public class Enums {
     MOVE
   }
 
+  public enum CalcType {
+    FLAT,
+    PERCENT
+  }
+
   public enum LocationType {
     GODOWN,
     BIN
+  }
+
+  public enum PayablePartyType {
+    SUPPLIER,
+    BROKER,
+    VEHICLE,
+    EXPENSE
   }
 
   public enum ReadingType {

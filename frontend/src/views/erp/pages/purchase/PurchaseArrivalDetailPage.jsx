@@ -19,6 +19,7 @@ export default function PurchaseArrivalDetailPage() {
   const [poMap, setPoMap] = useState({});
   const [godownMap, setGodownMap] = useState({});
   const [ticketMap, setTicketMap] = useState({});
+  const [chargeTypeMap, setChargeTypeMap] = useState({});
 
   useEffect(() => {
     setLoading(true);
@@ -60,6 +61,17 @@ export default function PurchaseArrivalDetailPage() {
         setTicketMap(lookup);
       })
       .catch(() => setTicketMap({}));
+
+    apiClient
+      .get('/api/deduction-charge-types')
+      .then((response) => {
+        const lookup = (response.data || []).reduce((acc, type) => {
+          acc[type.id] = type.name;
+          return acc;
+        }, {});
+        setChargeTypeMap(lookup);
+      })
+      .catch(() => setChargeTypeMap({}));
   }, [id]);
 
   if (!arrival) {
@@ -123,6 +135,32 @@ export default function PurchaseArrivalDetailPage() {
             <Typography>{arrival.createdAt ? new Date(arrival.createdAt).toLocaleString() : '-'}</Typography>
           </Grid>
         </Grid>
+        <Divider />
+        <Stack spacing={1}>
+          <Typography variant="h5">Charges & Deductions</Typography>
+          {arrival.charges?.length ? (
+            arrival.charges.map((charge) => (
+              <Grid container spacing={2} key={charge.id}>
+                <Grid size={{ xs: 12, md: 4 }}>
+                  <Typography variant="subtitle2">Type</Typography>
+                  <Typography>{chargeTypeMap[charge.chargeTypeId] || charge.chargeTypeId}</Typography>
+                </Grid>
+                <Grid size={{ xs: 12, md: 4 }}>
+                  <Typography variant="subtitle2">Amount</Typography>
+                  <Typography>
+                    {charge.amount} {charge.isDeduction ? '(Deduction)' : ''}
+                  </Typography>
+                </Grid>
+                <Grid size={{ xs: 12, md: 4 }}>
+                  <Typography variant="subtitle2">Payable To</Typography>
+                  <Typography>{charge.payablePartyType || '-'}</Typography>
+                </Grid>
+              </Grid>
+            ))
+          ) : (
+            <Typography color="text.secondary">No charges added.</Typography>
+          )}
+        </Stack>
       </Stack>
     </MainCard>
   );
