@@ -2,31 +2,37 @@ package com.manufacturing.erp.service;
 
 import com.manufacturing.erp.domain.BomHeader;
 import com.manufacturing.erp.domain.BomLine;
+import com.manufacturing.erp.domain.Enums.InventoryLocationType;
 import com.manufacturing.erp.domain.Enums.LedgerTxnType;
 import com.manufacturing.erp.domain.Enums.ProcessInputSourceType;
 import com.manufacturing.erp.domain.Enums.ProcessOutputType;
 import com.manufacturing.erp.domain.Enums.ProductionStatus;
 import com.manufacturing.erp.domain.Enums.StockStatus;
 import com.manufacturing.erp.domain.Godown;
+import com.manufacturing.erp.domain.InventoryMovement;
 import com.manufacturing.erp.domain.Item;
-import com.manufacturing.erp.domain.ProcessRun;
-import com.manufacturing.erp.domain.ProcessRunConsumption;
-import com.manufacturing.erp.domain.ProcessRunOutput;
-import com.manufacturing.erp.domain.ProcessStep;
 import com.manufacturing.erp.domain.ProcessTemplate;
+import com.manufacturing.erp.domain.ProcessTemplateInput;
+import com.manufacturing.erp.domain.ProcessTemplateStep;
+import com.manufacturing.erp.domain.ProcessTemplateStep.StepType;
 import com.manufacturing.erp.domain.ProductionBatch;
+import com.manufacturing.erp.domain.ProductionBatchInput;
+import com.manufacturing.erp.domain.ProductionBatchOutput;
+import com.manufacturing.erp.domain.ProductionBatchStep;
 import com.manufacturing.erp.domain.ProductionOrder;
 import com.manufacturing.erp.domain.Uom;
 import com.manufacturing.erp.dto.ProductionDtos;
 import com.manufacturing.erp.repository.BomHeaderRepository;
 import com.manufacturing.erp.repository.GodownRepository;
+import com.manufacturing.erp.repository.InventoryMovementRepository;
 import com.manufacturing.erp.repository.ItemRepository;
-import com.manufacturing.erp.repository.ProcessRunConsumptionRepository;
-import com.manufacturing.erp.repository.ProcessRunOutputRepository;
-import com.manufacturing.erp.repository.ProcessRunRepository;
-import com.manufacturing.erp.repository.ProcessStepRepository;
+import com.manufacturing.erp.repository.ProcessTemplateInputRepository;
 import com.manufacturing.erp.repository.ProcessTemplateRepository;
+import com.manufacturing.erp.repository.ProcessTemplateStepRepository;
+import com.manufacturing.erp.repository.ProductionBatchInputRepository;
+import com.manufacturing.erp.repository.ProductionBatchOutputRepository;
 import com.manufacturing.erp.repository.ProductionBatchRepository;
+import com.manufacturing.erp.repository.ProductionBatchStepRepository;
 import com.manufacturing.erp.repository.ProductionOrderRepository;
 import com.manufacturing.erp.repository.UomRepository;
 import java.math.BigDecimal;
@@ -43,41 +49,47 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class ProductionService {
   private final ProcessTemplateRepository processTemplateRepository;
-  private final ProcessStepRepository processStepRepository;
+  private final ProcessTemplateInputRepository processTemplateInputRepository;
+  private final ProcessTemplateStepRepository processTemplateStepRepository;
   private final ProductionOrderRepository productionOrderRepository;
   private final ProductionBatchRepository productionBatchRepository;
-  private final ProcessRunRepository processRunRepository;
-  private final ProcessRunConsumptionRepository processRunConsumptionRepository;
-  private final ProcessRunOutputRepository processRunOutputRepository;
+  private final ProductionBatchInputRepository productionBatchInputRepository;
+  private final ProductionBatchOutputRepository productionBatchOutputRepository;
+  private final ProductionBatchStepRepository productionBatchStepRepository;
   private final BomHeaderRepository bomHeaderRepository;
   private final GodownRepository godownRepository;
   private final ItemRepository itemRepository;
   private final UomRepository uomRepository;
+  private final InventoryMovementRepository inventoryMovementRepository;
   private final StockLedgerService stockLedgerService;
 
   public ProductionService(ProcessTemplateRepository processTemplateRepository,
-                           ProcessStepRepository processStepRepository,
+                           ProcessTemplateInputRepository processTemplateInputRepository,
+                           ProcessTemplateStepRepository processTemplateStepRepository,
                            ProductionOrderRepository productionOrderRepository,
                            ProductionBatchRepository productionBatchRepository,
-                           ProcessRunRepository processRunRepository,
-                           ProcessRunConsumptionRepository processRunConsumptionRepository,
-                           ProcessRunOutputRepository processRunOutputRepository,
+                           ProductionBatchInputRepository productionBatchInputRepository,
+                           ProductionBatchOutputRepository productionBatchOutputRepository,
+                           ProductionBatchStepRepository productionBatchStepRepository,
                            BomHeaderRepository bomHeaderRepository,
                            GodownRepository godownRepository,
                            ItemRepository itemRepository,
                            UomRepository uomRepository,
+                           InventoryMovementRepository inventoryMovementRepository,
                            StockLedgerService stockLedgerService) {
     this.processTemplateRepository = processTemplateRepository;
-    this.processStepRepository = processStepRepository;
+    this.processTemplateInputRepository = processTemplateInputRepository;
+    this.processTemplateStepRepository = processTemplateStepRepository;
     this.productionOrderRepository = productionOrderRepository;
     this.productionBatchRepository = productionBatchRepository;
-    this.processRunRepository = processRunRepository;
-    this.processRunConsumptionRepository = processRunConsumptionRepository;
-    this.processRunOutputRepository = processRunOutputRepository;
+    this.productionBatchInputRepository = productionBatchInputRepository;
+    this.productionBatchOutputRepository = productionBatchOutputRepository;
+    this.productionBatchStepRepository = productionBatchStepRepository;
     this.bomHeaderRepository = bomHeaderRepository;
     this.godownRepository = godownRepository;
     this.itemRepository = itemRepository;
     this.uomRepository = uomRepository;
+    this.inventoryMovementRepository = inventoryMovementRepository;
     this.stockLedgerService = stockLedgerService;
   }
 
@@ -139,26 +151,37 @@ public class ProductionService {
   @Transactional
   public ProductionDtos.ProcessTemplateResponse createTemplate(ProductionDtos.ProcessTemplateRequest request) {
     ProcessTemplate template = new ProcessTemplate();
+    template.setCode(request.code() != null ? request.code() : "PT-" + System.currentTimeMillis());
     template.setName(request.name());
     template.setDescription(request.description());
+    template.setOutputItem(request.outputItemId() != null ? fetchItem(request.outputItemId()) : null);
+    template.setOutputUom(request.outputUomId() != null ? fetchUom(request.outputUomId()) : null);
+    template.setEnabled(request.enabled() != null ? request.enabled() : Boolean.TRUE);
     ProcessTemplate saved = processTemplateRepository.save(template);
-    List<ProcessStep> steps = buildSteps(request.steps(), saved);
+    List<ProcessTemplateStep> steps = buildSteps(request.steps(), saved);
+    List<ProcessTemplateInput> inputs = buildInputs(request.inputs(), saved);
     saved.getSteps().clear();
     saved.getSteps().addAll(steps);
-    ProcessTemplate updated = processTemplateRepository.save(saved);
-    return toTemplateResponse(updated);
+    saved.getInputs().clear();
+    saved.getInputs().addAll(inputs);
+    return toTemplateResponse(processTemplateRepository.save(saved));
   }
 
   @Transactional
   public ProductionDtos.ProcessTemplateResponse updateTemplate(Long id, ProductionDtos.ProcessTemplateRequest request) {
     ProcessTemplate template = processTemplateRepository.findById(id)
         .orElseThrow(() -> new IllegalArgumentException("Process template not found"));
+    template.setCode(request.code());
     template.setName(request.name());
     template.setDescription(request.description());
+    template.setOutputItem(request.outputItemId() != null ? fetchItem(request.outputItemId()) : null);
+    template.setOutputUom(request.outputUomId() != null ? fetchUom(request.outputUomId()) : null);
+    template.setEnabled(request.enabled() != null ? request.enabled() : template.getEnabled());
     template.getSteps().clear();
     template.getSteps().addAll(buildSteps(request.steps(), template));
-    ProcessTemplate saved = processTemplateRepository.save(template);
-    return toTemplateResponse(saved);
+    template.getInputs().clear();
+    template.getInputs().addAll(buildInputs(request.inputs(), template));
+    return toTemplateResponse(processTemplateRepository.save(template));
   }
 
   @Transactional
@@ -209,185 +232,221 @@ public class ProductionService {
     productionOrderRepository.deleteById(id);
   }
 
+  // region batches
   @Transactional
-  public ProductionDtos.ProductionBatchResponse startBatch(Long orderId) {
-    ProductionOrder order = productionOrderRepository.findById(orderId)
-        .orElseThrow(() -> new IllegalArgumentException("Production order not found"));
+  public ProductionDtos.ProductionBatchResponse createBatch(ProductionDtos.ProductionBatchRequest request) {
+    ProcessTemplate template = fetchTemplate(request.templateId());
     ProductionBatch batch = new ProductionBatch();
     batch.setBatchNo("BATCH-" + System.currentTimeMillis());
-    batch.setProductionOrder(order);
-    batch.setStatus(ProductionStatus.STARTED);
-    batch.setStartDate(order.getOrderDate());
-    batch.setStartedAt(Instant.now());
+    batch.setTemplate(template);
+    batch.setStatus(ProductionStatus.DRAFT);
+    batch.setPlannedOutputQty(request.plannedOutputQty());
+    batch.setUom(request.uomId() != null ? fetchUom(request.uomId()) : template.getOutputUom());
+    batch.setRemarks(request.remarks());
     ProductionBatch saved = productionBatchRepository.save(batch);
-    if (order.getStatus() == ProductionStatus.DRAFT) {
-      order.setStatus(ProductionStatus.STARTED);
-      productionOrderRepository.save(order);
-    }
     return toBatchResponse(saved);
   }
 
-  public List<ProductionDtos.ProductionBatchResponse> listBatches(Long orderId) {
-    return productionBatchRepository.findByProductionOrderId(orderId).stream()
+  @Transactional(readOnly = true)
+  public List<ProductionDtos.ProductionBatchResponse> listBatches(String status, Long templateId) {
+    return productionBatchRepository.findAll().stream()
+        .filter(batch -> status == null || batch.getStatus().name().equalsIgnoreCase(status))
+        .filter(batch -> templateId == null || (batch.getTemplate() != null && batch.getTemplate().getId().equals(templateId)))
         .map(this::toBatchResponse)
         .toList();
   }
 
   @Transactional
-  public ProductionDtos.ProcessRunResponse createRun(ProductionDtos.ProcessRunRequest request) {
-    ProductionBatch batch = productionBatchRepository.findById(request.batchId())
-        .orElseThrow(() -> new IllegalArgumentException("Production batch not found"));
-    ProcessStep step = request.stepId() != null
-        ? processStepRepository.findById(request.stepId())
-            .orElseThrow(() -> new IllegalArgumentException("Process step not found"))
-        : null;
-
-    ProcessRun run = new ProcessRun();
-    run.setProductionBatch(batch);
-    run.setProcessStep(step);
-    run.setStepName(request.stepName() != null ? request.stepName() : step != null ? step.getName() : "Adhoc");
-    run.setRunDate(request.runDate() != null ? request.runDate() : LocalDate.now());
-    run.setStartedAt(request.startedAt());
-    run.setEndedAt(request.endedAt());
-    run.setStatus(ProductionStatus.COMPLETED);
-    ProcessRun savedRun = processRunRepository.save(run);
-
-    BigDecimal totalConsumptionAmount = BigDecimal.ZERO;
-    List<ProcessRunConsumption> consumptions = new ArrayList<>();
-    if (request.consumptions() != null) {
-      for (ProductionDtos.ProcessRunInputRequest itemRequest : request.consumptions()) {
-        Item item = fetchItem(itemRequest.itemId());
-        Uom uom = fetchUom(itemRequest.uomId());
-        ProcessInputSourceType sourceType = ProcessInputSourceType.valueOf(itemRequest.sourceType());
-        ProcessRunOutput sourceOutput = null;
-        Godown sourceGodown = null;
-        if (sourceType == ProcessInputSourceType.WIP) {
-          sourceOutput = processRunOutputRepository.findById(itemRequest.sourceRunOutputId())
-              .orElseThrow(() -> new IllegalArgumentException("WIP output not found"));
-          if (!sourceOutput.getProcessRun().getProductionBatch().getId().equals(batch.getId())) {
-            throw new IllegalArgumentException("WIP output must belong to same batch");
-          }
-          BigDecimal available = sourceOutput.getQuantity().subtract(sourceOutput.getConsumedQuantity());
-          if (available.compareTo(itemRequest.quantity()) < 0) {
-            throw new IllegalArgumentException("Insufficient WIP quantity available");
-          }
-          sourceOutput.setConsumedQuantity(sourceOutput.getConsumedQuantity().add(itemRequest.quantity()));
-          processRunOutputRepository.save(sourceOutput);
-        } else {
-          sourceGodown = fetchGodown(itemRequest.sourceGodownId());
-          stockLedgerService.postEntry("PROCESS_RUN", savedRun.getId(), null, LedgerTxnType.OUT,
-              item, uom, null, null, sourceGodown, null, null, null, itemRequest.quantity(), itemRequest.quantity(), StockStatus.UNRESTRICTED,
-              itemRequest.rate(), itemRequest.amount());
-        }
-        ProcessRunConsumption consumption = new ProcessRunConsumption();
-        consumption.setProcessRun(savedRun);
-        consumption.setItem(item);
-        consumption.setUom(uom);
-        consumption.setSourceType(sourceType);
-        consumption.setSourceGodown(sourceGodown);
-        consumption.setSourceRunOutput(sourceOutput);
-        consumption.setQuantity(itemRequest.quantity());
-        consumption.setRate(itemRequest.rate());
-        consumption.setAmount(itemRequest.amount());
-        consumptions.add(consumption);
-        totalConsumptionAmount = totalConsumptionAmount.add(defaultZero(itemRequest.amount()));
-      }
+  public ProductionDtos.ProductionBatchResponse startBatch(Long batchId) {
+    ProductionBatch batch = productionBatchRepository.findById(batchId)
+        .orElseThrow(() -> new IllegalArgumentException("Batch not found"));
+    batch.setStatus(ProductionStatus.RUNNING);
+    batch.setStartedAt(Instant.now());
+    if (batch.getStartDate() == null) {
+      batch.setStartDate(LocalDate.now());
     }
-    processRunConsumptionRepository.saveAll(consumptions);
+    productionBatchStepRepository.deleteAll(productionBatchStepRepository.findByBatchIdOrderByStepNoAsc(batchId));
+    List<ProductionBatchStep> steps = new ArrayList<>();
+    List<ProcessTemplateStep> templateSteps = processTemplateStepRepository.findByTemplateIdOrderByStepNoAsc(batch.getTemplate().getId());
+    for (ProcessTemplateStep step : templateSteps) {
+      ProductionBatchStep s = new ProductionBatchStep();
+      s.setBatch(batch);
+      s.setStepNo(step.getStepNo());
+      s.setStepName(step.getStepName());
+      s.setStatus(ProductionBatchStep.StepStatus.PENDING);
+      steps.add(s);
+    }
+    productionBatchStepRepository.saveAll(steps);
+    return toBatchResponse(productionBatchRepository.save(batch));
+  }
 
-    List<ProcessRunOutput> outputs = new ArrayList<>();
-    if (request.outputs() != null) {
-      for (ProductionDtos.ProcessRunOutputRequest itemRequest : request.outputs()) {
-        Item item = fetchItem(itemRequest.itemId());
-        Uom uom = fetchUom(itemRequest.uomId());
-        ProcessOutputType outputType = ProcessOutputType.valueOf(itemRequest.outputType());
-        Godown destGodown = fetchGodown(itemRequest.destGodownId());
-        ProcessRunOutput output = new ProcessRunOutput();
-        output.setProcessRun(savedRun);
-        output.setItem(item);
-        output.setUom(uom);
-        output.setDestGodown(destGodown);
-        output.setQuantity(itemRequest.quantity());
-        output.setOutputType(outputType);
-        output.setRate(itemRequest.rate());
-        output.setAmount(itemRequest.amount());
-        outputs.add(output);
-        if (outputType == ProcessOutputType.FG) {
-          stockLedgerService.postEntry("PROCESS_RUN", savedRun.getId(), null, LedgerTxnType.IN,
-              item, uom, null, null, null, destGodown, null, null, itemRequest.quantity(), itemRequest.quantity(), StockStatus.UNRESTRICTED,
-              itemRequest.rate(), itemRequest.amount());
+  @Transactional(readOnly = true)
+  public ProductionDtos.ProductionBatchResponse getBatch(Long id) {
+    return toBatchResponse(productionBatchRepository.findById(id)
+        .orElseThrow(() -> new IllegalArgumentException("Batch not found")));
+  }
+
+  @Transactional
+  public void issueMaterials(Long batchId, ProductionDtos.BatchIssueRequest request) {
+    ProductionBatch batch = productionBatchRepository.findById(batchId)
+        .orElseThrow(() -> new IllegalArgumentException("Batch not found"));
+    List<ProductionBatchInput> inputs = new ArrayList<>();
+    for (ProductionDtos.BatchInputRequest line : request.inputs()) {
+      ProductionBatchInput input = new ProductionBatchInput();
+      input.setBatch(batch);
+      input.setItem(fetchItem(line.itemId()));
+      input.setUom(fetchUom(line.uomId()));
+      input.setIssuedQty(line.qty());
+      input.setSourceType(ProcessInputSourceType.valueOf(line.sourceType()));
+      input.setSourceRefId(line.sourceRefId());
+      input.setSourceGodown(line.sourceGodownId() != null ? fetchGodown(line.sourceGodownId()) : null);
+      input.setIssuedAt(line.issuedAt() != null ? line.issuedAt() : Instant.now());
+      inputs.add(input);
+
+      // update WIP consumption if needed
+      if (input.getSourceType() == ProcessInputSourceType.WIP && line.sourceRefId() != null) {
+        ProductionBatchOutput source = productionBatchOutputRepository.findById(line.sourceRefId())
+            .orElseThrow(() -> new IllegalArgumentException("WIP source not found"));
+        if (source.getOutputType() != ProcessOutputType.WIP) {
+          throw new IllegalArgumentException("Only WIP outputs can be consumed as WIP inputs");
+        }
+        BigDecimal available = source.getProducedQty().subtract(source.getConsumedQty());
+        if (available.compareTo(line.qty()) < 0) {
+          throw new IllegalArgumentException("Insufficient WIP quantity");
+        }
+        source.setConsumedQty(source.getConsumedQty().add(line.qty()));
+        productionBatchOutputRepository.save(source);
+        recordMovement("PROD_ISSUE", batch, input.getItem(), input.getUom(), BigDecimal.ZERO, line.qty(),
+            InventoryLocationType.WIP, source.getId());
+      } else {
+        recordMovement("PROD_ISSUE", batch, input.getItem(), input.getUom(), BigDecimal.ZERO, line.qty(),
+            InventoryLocationType.GODOWN, input.getSourceGodown() != null ? input.getSourceGodown().getId() : null);
+        if (input.getSourceGodown() != null) {
+          stockLedgerService.postEntry("PROD_ISSUE", batch.getId(), null, LedgerTxnType.OUT,
+              input.getItem(), input.getUom(), null, null, input.getSourceGodown(), null, null, null,
+              line.qty(), line.qty(), StockStatus.UNRESTRICTED, null, null);
         }
       }
     }
-    processRunOutputRepository.saveAll(outputs);
-
-    return toRunResponse(savedRun);
+    productionBatchInputRepository.saveAll(inputs);
   }
 
-  public ProductionDtos.ProcessRunResponse getRun(Long id) {
-    ProcessRun run = processRunRepository.findById(id)
-        .orElseThrow(() -> new IllegalArgumentException("Process run not found"));
-    return toRunResponse(run);
+  @Transactional
+  public void completeStep(Long batchId, Integer stepNo, ProductionDtos.BatchStepCompleteRequest request) {
+    List<ProductionBatchStep> steps = productionBatchStepRepository.findByBatchIdOrderByStepNoAsc(batchId);
+    ProductionBatchStep step = steps.stream()
+        .filter(s -> s.getStepNo().equals(stepNo))
+        .findFirst()
+        .orElseThrow(() -> new IllegalArgumentException("Step not found"));
+    step.setStatus(ProductionBatchStep.StepStatus.DONE);
+    step.setStartedAt(step.getStartedAt() != null ? step.getStartedAt() : Instant.now());
+    step.setCompletedAt(Instant.now());
+    step.setNotes(request != null ? request.notes() : null);
+    productionBatchStepRepository.save(step);
   }
 
-  public List<ProductionDtos.ProcessRunResponse> listRuns(Long batchId) {
-    return processRunRepository.findByProductionBatchId(batchId).stream().map(this::toRunResponse).toList();
+  @Transactional
+  public void produce(Long batchId, ProductionDtos.BatchProduceRequest request) {
+    ProductionBatch batch = productionBatchRepository.findById(batchId)
+        .orElseThrow(() -> new IllegalArgumentException("Batch not found"));
+    List<ProductionBatchOutput> outputs = new ArrayList<>();
+    for (ProductionDtos.BatchOutputRequest line : request.outputs()) {
+      ProductionBatchOutput output = new ProductionBatchOutput();
+      output.setBatch(batch);
+      output.setItem(fetchItem(line.itemId()));
+      output.setUom(fetchUom(line.uomId()));
+      output.setProducedQty(line.qty());
+      output.setOutputType(ProcessOutputType.valueOf(line.outputType()));
+      output.setDestinationGodown(line.destinationGodownId() != null ? fetchGodown(line.destinationGodownId()) : null);
+      output.setProducedAt(line.producedAt() != null ? line.producedAt() : Instant.now());
+      outputs.add(output);
+
+      InventoryLocationType locationType = output.getOutputType() == ProcessOutputType.FG
+          ? InventoryLocationType.GODOWN
+          : InventoryLocationType.WIP;
+      Long locationId = output.getDestinationGodown() != null ? output.getDestinationGodown().getId() : output.getBatch().getId();
+      recordMovement("PROD_OUTPUT", batch, output.getItem(), output.getUom(), line.qty(), BigDecimal.ZERO, locationType, locationId);
+      if (output.getOutputType() == ProcessOutputType.FG && output.getDestinationGodown() != null) {
+        stockLedgerService.postEntry("PROD_OUTPUT", batch.getId(), null, LedgerTxnType.IN,
+            output.getItem(), output.getUom(), null, null, null, output.getDestinationGodown(), null, null,
+            line.qty(), line.qty(), StockStatus.UNRESTRICTED, null, null);
+      }
+    }
+    productionBatchOutputRepository.saveAll(outputs);
   }
 
+  @Transactional
+  public ProductionDtos.ProductionBatchResponse completeBatch(Long batchId) {
+    ProductionBatch batch = productionBatchRepository.findById(batchId)
+        .orElseThrow(() -> new IllegalArgumentException("Batch not found"));
+    List<ProductionBatchOutput> outputs = productionBatchOutputRepository.findByBatchId(batchId);
+    BigDecimal totalProduced = outputs.stream().map(ProductionBatchOutput::getProducedQty).reduce(BigDecimal.ZERO, BigDecimal::add);
+    if (totalProduced.compareTo(BigDecimal.ZERO) <= 0) {
+      throw new IllegalStateException("Produce something before completing batch");
+    }
+    batch.setStatus(ProductionStatus.COMPLETED);
+    batch.setCompletedAt(Instant.now());
+    batch.setEndDate(LocalDate.now());
+    return toBatchResponse(productionBatchRepository.save(batch));
+  }
+
+  @Transactional(readOnly = true)
   public List<ProductionDtos.WipOutputResponse> listAvailableWipOutputs(Long batchId) {
-    List<ProcessRunOutput> outputs = processRunOutputRepository.findByProcessRunProductionBatchId(batchId);
-    List<ProductionDtos.WipOutputResponse> result = new ArrayList<>();
-    for (ProcessRunOutput output : outputs) {
-      if (output.getOutputType() != ProcessOutputType.WIP) {
-        continue;
-      }
-      BigDecimal available = output.getQuantity().subtract(output.getConsumedQuantity());
-      if (available.compareTo(BigDecimal.ZERO) <= 0) {
-        continue;
-      }
-      result.add(new ProductionDtos.WipOutputResponse(
-          output.getId(),
-          output.getProcessRun().getId(),
-          output.getItem().getId(),
-          output.getItem().getName(),
-          output.getUom().getId(),
-          output.getUom().getCode(),
-          output.getQuantity(),
-          output.getConsumedQuantity(),
-          available,
-          output.getRate()
-      ));
-    }
-    return result;
+    return productionBatchOutputRepository.findByBatchId(batchId).stream()
+        .filter(out -> out.getOutputType() == ProcessOutputType.WIP)
+        .map(out -> {
+          BigDecimal available = out.getProducedQty().subtract(out.getConsumedQty());
+          return new ProductionDtos.WipOutputResponse(
+              out.getId(),
+              out.getBatch().getId(),
+              out.getItem().getId(),
+              out.getItem().getName(),
+              out.getUom().getId(),
+              out.getUom().getCode(),
+              out.getProducedQty(),
+              out.getConsumedQty(),
+              available
+          );
+        })
+        .filter(res -> res.availableQuantity().compareTo(BigDecimal.ZERO) > 0)
+        .toList();
   }
 
+  @Transactional(readOnly = true)
+  public List<ProductionDtos.WipOutputResponse> listWipBalances() {
+    return productionBatchOutputRepository.findAll().stream()
+        .filter(out -> out.getOutputType() == ProcessOutputType.WIP)
+        .map(out -> {
+          BigDecimal available = out.getProducedQty().subtract(out.getConsumedQty());
+          return new ProductionDtos.WipOutputResponse(
+              out.getId(),
+              out.getBatch().getId(),
+              out.getItem().getId(),
+              out.getItem().getName(),
+              out.getUom().getId(),
+              out.getUom().getCode(),
+              out.getProducedQty(),
+              out.getConsumedQty(),
+              available
+          );
+        })
+        .filter(res -> res.availableQuantity().compareTo(BigDecimal.ZERO) > 0)
+        .toList();
+  }
+
+  @Transactional(readOnly = true)
   public ProductionDtos.BatchCostSummaryResponse getCostSummary(Long batchId) {
-    List<ProcessRun> runs = processRunRepository.findByProductionBatchId(batchId);
-    BigDecimal totalConsumption = BigDecimal.ZERO;
-    BigDecimal totalConsumptionAmount = BigDecimal.ZERO;
-    BigDecimal totalOutput = BigDecimal.ZERO;
-    BigDecimal totalOutputAmount = BigDecimal.ZERO;
-    for (ProcessRun run : runs) {
-      List<ProcessRunConsumption> consumptions = processRunConsumptionRepository.findByProcessRunId(run.getId());
-      for (ProcessRunConsumption consumption : consumptions) {
-        totalConsumption = totalConsumption.add(consumption.getQuantity());
-        totalConsumptionAmount = totalConsumptionAmount.add(defaultZero(consumption.getAmount()));
-      }
-      List<ProcessRunOutput> outputs = processRunOutputRepository.findByProcessRunId(run.getId());
-      for (ProcessRunOutput output : outputs) {
-        totalOutput = totalOutput.add(output.getQuantity());
-        totalOutputAmount = totalOutputAmount.add(defaultZero(output.getAmount()));
-      }
-    }
+    List<ProductionBatchInput> inputs = productionBatchInputRepository.findByBatchId(batchId);
+    List<ProductionBatchOutput> outputs = productionBatchOutputRepository.findByBatchId(batchId);
+    BigDecimal totalConsumption = inputs.stream().map(ProductionBatchInput::getIssuedQty).reduce(BigDecimal.ZERO, BigDecimal::add);
+    BigDecimal totalOutput = outputs.stream().map(ProductionBatchOutput::getProducedQty).reduce(BigDecimal.ZERO, BigDecimal::add);
     BigDecimal unitCost = BigDecimal.ZERO;
     if (totalOutput.compareTo(BigDecimal.ZERO) > 0) {
-      unitCost = totalConsumptionAmount.compareTo(BigDecimal.ZERO) > 0
-          ? totalConsumptionAmount.divide(totalOutput, 4, RoundingMode.HALF_UP)
-          : totalConsumption.divide(totalOutput, 4, RoundingMode.HALF_UP);
+      unitCost = totalConsumption.divide(totalOutput, 4, RoundingMode.HALF_UP);
     }
-    return new ProductionDtos.BatchCostSummaryResponse(batchId, totalConsumption, totalConsumptionAmount,
-        totalOutput, totalOutputAmount, unitCost);
+    return new ProductionDtos.BatchCostSummaryResponse(batchId, totalConsumption, BigDecimal.ZERO, totalOutput, BigDecimal.ZERO, unitCost);
   }
+  // endregion
 
   private ProcessTemplate fetchTemplate(Long id) {
     if (id == null) {
@@ -415,23 +474,42 @@ public class ProductionService {
         .orElseThrow(() -> new IllegalArgumentException("Godown not found"));
   }
 
-  private List<ProcessStep> buildSteps(List<ProductionDtos.ProcessStepRequest> requests, ProcessTemplate template) {
+  private List<ProcessTemplateStep> buildSteps(List<ProductionDtos.ProcessTemplateStepRequest> requests, ProcessTemplate template) {
     if (requests == null) {
       return List.of();
     }
-    List<ProcessStep> steps = new ArrayList<>();
-    for (ProductionDtos.ProcessStepRequest request : requests) {
-      ProcessStep step = new ProcessStep();
+    List<ProcessTemplateStep> steps = new ArrayList<>();
+    for (ProductionDtos.ProcessTemplateStepRequest request : requests) {
+      ProcessTemplateStep step = new ProcessTemplateStep();
       step.setTemplate(template);
-      step.setName(request.name());
-      step.setDescription(request.description());
-      step.setSequenceNo(request.sequenceNo());
-      step.setSourceGodown(fetchGodown(request.sourceGodownId()));
-      step.setDestGodown(fetchGodown(request.destGodownId()));
+      step.setStepNo(request.stepNo());
+      step.setStepName(request.stepName());
+      if (request.stepType() != null) {
+        step.setStepType(StepType.valueOf(request.stepType()));
+      }
+      step.setNotes(request.notes());
       steps.add(step);
     }
-    steps.sort(Comparator.comparing(ProcessStep::getSequenceNo));
+    steps.sort(Comparator.comparing(ProcessTemplateStep::getStepNo));
     return steps;
+  }
+
+  private List<ProcessTemplateInput> buildInputs(List<ProductionDtos.ProcessTemplateInputRequest> requests, ProcessTemplate template) {
+    if (requests == null) {
+      return List.of();
+    }
+    List<ProcessTemplateInput> inputs = new ArrayList<>();
+    for (ProductionDtos.ProcessTemplateInputRequest request : requests) {
+      ProcessTemplateInput input = new ProcessTemplateInput();
+      input.setTemplate(template);
+      input.setItem(fetchItem(request.itemId()));
+      input.setUom(fetchUom(request.uomId()));
+      input.setDefaultQty(request.defaultQty());
+      input.setOptional(request.optional() != null ? request.optional() : Boolean.FALSE);
+      input.setNotes(request.notes());
+      inputs.add(input);
+    }
+    return inputs;
   }
 
   private List<BomLine> buildBomLines(BomHeader bom, List<ProductionDtos.BomLineRequest> requests) {
@@ -457,23 +535,37 @@ public class ProductionService {
   }
 
   private ProductionDtos.ProcessTemplateResponse toTemplateResponse(ProcessTemplate template) {
-    List<ProductionDtos.ProcessStepResponse> steps = template.getSteps().stream()
-        .sorted(Comparator.comparing(ProcessStep::getSequenceNo))
-        .map(step -> new ProductionDtos.ProcessStepResponse(
+    List<ProductionDtos.ProcessTemplateStepResponse> steps = processTemplateStepRepository
+        .findByTemplateIdOrderByStepNoAsc(template.getId()).stream()
+        .map(step -> new ProductionDtos.ProcessTemplateStepResponse(
             step.getId(),
-            step.getName(),
-            step.getDescription(),
-            step.getSequenceNo(),
-            step.getSourceGodown() != null ? step.getSourceGodown().getId() : null,
-            step.getSourceGodown() != null ? step.getSourceGodown().getName() : null,
-            step.getDestGodown() != null ? step.getDestGodown().getId() : null,
-            step.getDestGodown() != null ? step.getDestGodown().getName() : null
-        ))
-        .toList();
+            step.getStepNo(),
+            step.getStepName(),
+            step.getStepType().name(),
+            step.getNotes()
+        )).toList();
+    List<ProductionDtos.ProcessTemplateInputResponse> inputs = processTemplateInputRepository.findByTemplateId(template.getId()).stream()
+        .map(input -> new ProductionDtos.ProcessTemplateInputResponse(
+            input.getId(),
+            input.getItem().getId(),
+            input.getItem().getName(),
+            input.getUom().getId(),
+            input.getUom().getCode(),
+            input.getDefaultQty(),
+            input.getOptional(),
+            input.getNotes()
+        )).toList();
     return new ProductionDtos.ProcessTemplateResponse(
         template.getId(),
+        template.getCode(),
         template.getName(),
         template.getDescription(),
+        template.getOutputItem() != null ? template.getOutputItem().getId() : null,
+        template.getOutputItem() != null ? template.getOutputItem().getName() : null,
+        template.getOutputUom() != null ? template.getOutputUom().getId() : null,
+        template.getOutputUom() != null ? template.getOutputUom().getCode() : null,
+        template.getEnabled(),
+        inputs,
         steps
     );
   }
@@ -497,29 +589,75 @@ public class ProductionService {
   }
 
   private ProductionDtos.ProductionBatchResponse toBatchResponse(ProductionBatch batch) {
+    List<ProductionBatchInput> inputs = productionBatchInputRepository.findByBatchId(batch.getId());
+    List<ProductionBatchOutput> outputs = productionBatchOutputRepository.findByBatchId(batch.getId());
+    List<ProductionBatchStep> steps = productionBatchStepRepository.findByBatchIdOrderByStepNoAsc(batch.getId());
     return new ProductionDtos.ProductionBatchResponse(
         batch.getId(),
         batch.getBatchNo(),
-        batch.getProductionOrder().getId(),
+        batch.getTemplate() != null ? batch.getTemplate().getId() : null,
+        batch.getTemplate() != null ? batch.getTemplate().getName() : null,
+        batch.getProductionOrder() != null ? batch.getProductionOrder().getId() : null,
         batch.getStatus().name(),
+        batch.getPlannedOutputQty(),
+        batch.getUom() != null ? batch.getUom().getId() : null,
+        batch.getUom() != null ? batch.getUom().getCode() : null,
         batch.getStartDate(),
         batch.getEndDate(),
         batch.getStartedAt(),
-        batch.getCompletedAt()
+        batch.getCompletedAt(),
+        inputs.stream().map(input -> new ProductionDtos.BatchInputResponse(
+            input.getId(),
+            input.getItem().getId(),
+            input.getItem().getName(),
+            input.getUom().getId(),
+            input.getUom().getCode(),
+            input.getIssuedQty(),
+            input.getSourceType().name(),
+            input.getSourceRefId(),
+            input.getSourceGodown() != null ? input.getSourceGodown().getId() : null,
+            input.getSourceGodown() != null ? input.getSourceGodown().getName() : null,
+            input.getIssuedAt()
+        )).toList(),
+        outputs.stream().map(output -> new ProductionDtos.BatchOutputResponse(
+            output.getId(),
+            output.getItem().getId(),
+            output.getItem().getName(),
+            output.getUom().getId(),
+            output.getUom().getCode(),
+            output.getProducedQty(),
+            output.getConsumedQty(),
+            output.getOutputType().name(),
+            output.getDestinationGodown() != null ? output.getDestinationGodown().getId() : null,
+            output.getDestinationGodown() != null ? output.getDestinationGodown().getName() : null,
+            output.getProducedAt()
+        )).toList(),
+        steps.stream().map(step -> new ProductionDtos.BatchStepResponse(
+            step.getId(),
+            step.getStepNo(),
+            step.getStepName(),
+            step.getStatus().name(),
+            step.getStartedAt(),
+            step.getCompletedAt(),
+            step.getNotes()
+        )).toList()
     );
   }
 
-  private ProductionDtos.ProcessRunResponse toRunResponse(ProcessRun run) {
-    return new ProductionDtos.ProcessRunResponse(
-        run.getId(),
-        run.getProductionBatch().getId(),
-        run.getProcessStep() != null ? run.getProcessStep().getId() : null,
-        run.getStepName(),
-        run.getRunDate(),
-        run.getStartedAt(),
-        run.getEndedAt(),
-        run.getStatus().name()
-    );
+  private void recordMovement(String txnType, ProductionBatch batch, Item item, Uom uom,
+                              BigDecimal qtyIn, BigDecimal qtyOut,
+                              InventoryLocationType locationType, Long locationId) {
+    InventoryMovement movement = new InventoryMovement();
+    movement.setTxnType(txnType);
+    movement.setRefType("BATCH");
+    movement.setRefId(batch.getId());
+    movement.setItem(item);
+    movement.setQtyIn(defaultZero(qtyIn));
+    movement.setQtyOut(defaultZero(qtyOut));
+    movement.setUom(uom);
+    movement.setLocationType(locationType);
+    movement.setLocationId(locationId);
+    inventoryMovementRepository.save(movement);
   }
 
   private ProductionDtos.BomResponse toBomResponse(BomHeader bom) {

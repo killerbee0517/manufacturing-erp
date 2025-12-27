@@ -78,7 +78,8 @@ public class Enums {
 
   public enum ProductionStatus {
     DRAFT,
-    STARTED,
+    RUNNING,
+    PAUSED,
     COMPLETED,
     CANCELLED
   }
@@ -92,5 +93,10 @@ public class Enums {
     WIP,
     FG,
     BYPRODUCT
+  }
+
+  public enum InventoryLocationType {
+    GODOWN,
+    WIP
   }
 }

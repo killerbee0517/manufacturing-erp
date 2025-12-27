@@ -19,14 +19,24 @@ import DataTable from 'components/common/DataTable';
 import apiClient from 'api/client';
 import { productionApi } from 'api/production';
 
-const createStep = (sequenceNo = 1) => ({ name: '', description: '', sequenceNo, sourceGodownId: '', destGodownId: '' });
+const createStep = (stepNo = 1) => ({ stepNo, stepName: '', stepType: 'PROCESS', notes: '' });
+const createInput = () => ({ itemId: '', uomId: '', defaultQty: '', optional: false, notes: '' });
 
 export default function ProcessTemplatesPage() {
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(false);
   const [activeTemplate, setActiveTemplate] = useState(null);
-  const [godowns, setGodowns] = useState([]);
-  const [formValues, setFormValues] = useState({ name: '', description: '', steps: [createStep()] });
+  const [items, setItems] = useState([]);
+  const [uoms, setUoms] = useState([]);
+  const [formValues, setFormValues] = useState({
+    code: '',
+    name: '',
+    description: '',
+    outputItemId: '',
+    outputUomId: '',
+    inputs: [createInput()],
+    steps: [createStep()]
+  });
 
   const columns = [
     { field: 'name', headerName: 'Template Name' },
@@ -48,10 +58,8 @@ export default function ProcessTemplatesPage() {
 
   useEffect(() => {
     loadTemplates();
-    apiClient
-      .get('/api/godowns')
-      .then((response) => setGodowns(response.data || []))
-      .catch(() => setGodowns([]));
+    apiClient.get('/api/items').then((response) => setItems(response.data || []));
+    apiClient.get('/api/uoms').then((response) => setUoms(response.data || []));
   }, []);
 
   const handleStepChange = (index, field, value) => {
@@ -79,17 +87,36 @@ export default function ProcessTemplatesPage() {
   const handleCreate = async (event) => {
     event.preventDefault();
     await productionApi.createTemplate({
+      code: formValues.code || null,
       name: formValues.name,
       description: formValues.description,
+      outputItemId: formValues.outputItemId ? Number(formValues.outputItemId) : null,
+      outputUomId: formValues.outputUomId ? Number(formValues.outputUomId) : null,
+      inputs: formValues.inputs
+        .filter((input) => input.itemId && input.uomId && input.defaultQty)
+        .map((input) => ({
+          itemId: Number(input.itemId),
+          uomId: Number(input.uomId),
+          defaultQty: Number(input.defaultQty),
+          optional: input.optional,
+          notes: input.notes || null
+        })),
       steps: formValues.steps.map((step) => ({
-        name: step.name,
-        description: step.description,
-        sequenceNo: Number(step.sequenceNo || 0) || 1,
-        sourceGodownId: step.sourceGodownId || null,
-        destGodownId: step.destGodownId || null
+        stepNo: Number(step.stepNo || 1),
+        stepName: step.stepName,
+        stepType: step.stepType || 'PROCESS',
+        notes: step.notes || null
       }))
     });
-    setFormValues({ name: '', description: '', steps: [createStep()] });
+    setFormValues({
+      code: '',
+      name: '',
+      description: '',
+      outputItemId: '',
+      outputUomId: '',
+      inputs: [createInput()],
+      steps: [createStep()]
+    });
     loadTemplates();
   };
 
@@ -113,6 +140,11 @@ export default function ProcessTemplatesPage() {
                 </Typography>
                 <Stack spacing={2} component="form" onSubmit={handleCreate}>
                   <TextField
+                    label="Code"
+                    value={formValues.code}
+                    onChange={(event) => setFormValues((prev) => ({ ...prev, code: event.target.value }))}
+                  />
+                  <TextField
                     label="Template Name"
                     value={formValues.name}
                     onChange={(event) => setFormValues((prev) => ({ ...prev, name: event.target.value }))}
@@ -123,55 +155,194 @@ export default function ProcessTemplatesPage() {
                     value={formValues.description}
                     onChange={(event) => setFormValues((prev) => ({ ...prev, description: event.target.value }))}
                   />
+                  <Grid container spacing={1}>
+                    <Grid size={{ xs: 12, md: 6 }}>
+                      <TextField
+                        select
+                        fullWidth
+                        label="Output Item"
+                        value={formValues.outputItemId}
+                        onChange={(event) => setFormValues((prev) => ({ ...prev, outputItemId: event.target.value }))}
+                      >
+                        <MenuItem value="">None</MenuItem>
+                        {items.map((item) => (
+                          <MenuItem key={item.id} value={item.id}>
+                            {item.name}
+                          </MenuItem>
+                        ))}
+                      </TextField>
+                    </Grid>
+                    <Grid size={{ xs: 12, md: 6 }}>
+                      <TextField
+                        select
+                        fullWidth
+                        label="Output UOM"
+                        value={formValues.outputUomId}
+                        onChange={(event) => setFormValues((prev) => ({ ...prev, outputUomId: event.target.value }))}
+                      >
+                        <MenuItem value="">None</MenuItem>
+                        {uoms.map((uom) => (
+                          <MenuItem key={uom.id} value={uom.id}>
+                            {uom.code}
+                          </MenuItem>
+                        ))}
+                      </TextField>
+                    </Grid>
+                  </Grid>
                   <Divider />
-                  <Typography variant="subtitle1">Steps</Typography>
-                  {formValues.steps.map((step, index) => (
-                    <Stack key={`step-${index}`} spacing={1}>
-                      <TextField
-                        label={`Step ${index + 1} Name`}
-                        value={step.name}
-                        onChange={(event) => handleStepChange(index, 'name', event.target.value)}
-                        required
-                      />
-                      <TextField
-                        label="Description"
-                        value={step.description}
-                        onChange={(event) => handleStepChange(index, 'description', event.target.value)}
-                      />
+                  <Typography variant="subtitle1">Default Inputs</Typography>
+                  {formValues.inputs.map((input, index) => (
+                    <Stack key={`input-${index}`} spacing={1}>
                       <Grid container spacing={1}>
                         <Grid size={{ xs: 12, md: 6 }}>
                           <TextField
                             select
                             fullWidth
-                            label="Source Godown"
-                            value={step.sourceGodownId}
-                            onChange={(event) => handleStepChange(index, 'sourceGodownId', event.target.value)}
+                            label="Item"
+                            value={input.itemId}
+                            onChange={(event) => {
+                              const updated = [...formValues.inputs];
+                              updated[index] = { ...updated[index], itemId: event.target.value };
+                              setFormValues((prev) => ({ ...prev, inputs: updated }));
+                            }}
                           >
-                            <MenuItem value="">None</MenuItem>
-                            {godowns.map((godown) => (
-                              <MenuItem key={godown.id} value={godown.id}>
-                                {godown.name}
+                            {items.map((item) => (
+                              <MenuItem key={item.id} value={item.id}>
+                                {item.name}
                               </MenuItem>
                             ))}
                           </TextField>
+                        </Grid>
+                        <Grid size={{ xs: 12, md: 3 }}>
+                          <TextField
+                            select
+                            fullWidth
+                            label="UOM"
+                            value={input.uomId}
+                            onChange={(event) => {
+                              const updated = [...formValues.inputs];
+                              updated[index] = { ...updated[index], uomId: event.target.value };
+                              setFormValues((prev) => ({ ...prev, inputs: updated }));
+                            }}
+                          >
+                            {uoms.map((uom) => (
+                              <MenuItem key={uom.id} value={uom.id}>
+                                {uom.code}
+                              </MenuItem>
+                            ))}
+                          </TextField>
+                        </Grid>
+                        <Grid size={{ xs: 12, md: 3 }}>
+                          <TextField
+                            fullWidth
+                            label="Default Qty"
+                            type="number"
+                            value={input.defaultQty}
+                            onChange={(event) => {
+                              const updated = [...formValues.inputs];
+                              updated[index] = { ...updated[index], defaultQty: event.target.value };
+                              setFormValues((prev) => ({ ...prev, inputs: updated }));
+                            }}
+                          />
+                        </Grid>
+                      </Grid>
+                      <Grid container spacing={1}>
+                        <Grid size={{ xs: 12, md: 6 }}>
+                          <TextField
+                            fullWidth
+                            label="Notes"
+                            value={input.notes}
+                            onChange={(event) => {
+                              const updated = [...formValues.inputs];
+                              updated[index] = { ...updated[index], notes: event.target.value };
+                              setFormValues((prev) => ({ ...prev, inputs: updated }));
+                            }}
+                          />
                         </Grid>
                         <Grid size={{ xs: 12, md: 6 }}>
                           <TextField
                             select
                             fullWidth
-                            label="Destination Godown"
-                            value={step.destGodownId}
-                            onChange={(event) => handleStepChange(index, 'destGodownId', event.target.value)}
+                            label="Optional?"
+                            value={input.optional ? 'yes' : 'no'}
+                            onChange={(event) => {
+                              const updated = [...formValues.inputs];
+                              updated[index] = { ...updated[index], optional: event.target.value === 'yes' };
+                              setFormValues((prev) => ({ ...prev, inputs: updated }));
+                            }}
                           >
-                            <MenuItem value="">None</MenuItem>
-                            {godowns.map((godown) => (
-                              <MenuItem key={godown.id} value={godown.id}>
-                                {godown.name}
-                              </MenuItem>
-                            ))}
+                            <MenuItem value="no">No</MenuItem>
+                            <MenuItem value="yes">Yes</MenuItem>
                           </TextField>
                         </Grid>
                       </Grid>
+                      {formValues.inputs.length > 1 && (
+                        <Button
+                          variant="text"
+                          color="error"
+                          onClick={() =>
+                            setFormValues((prev) => ({
+                              ...prev,
+                              inputs: prev.inputs.filter((_, idx) => idx !== index)
+                            }))
+                          }
+                        >
+                          Remove Input
+                        </Button>
+                      )}
+                      <Divider />
+                    </Stack>
+                  ))}
+                  <Button
+                    variant="outlined"
+                    onClick={() =>
+                      setFormValues((prev) => ({
+                        ...prev,
+                        inputs: [...prev.inputs, createInput()]
+                      }))
+                    }
+                  >
+                    Add Input
+                  </Button>
+                  <Divider />
+                  <Typography variant="subtitle1">Steps</Typography>
+                  {formValues.steps.map((step, index) => (
+                    <Stack key={`step-${index}`} spacing={1}>
+                      <Grid container spacing={1}>
+                        <Grid size={{ xs: 12, md: 4 }}>
+                          <TextField
+                            label="Step No"
+                            type="number"
+                            value={step.stepNo}
+                            onChange={(event) => handleStepChange(index, 'stepNo', event.target.value)}
+                          />
+                        </Grid>
+                        <Grid size={{ xs: 12, md: 8 }}>
+                          <TextField
+                            label="Step Name"
+                            value={step.stepName}
+                            onChange={(event) => handleStepChange(index, 'stepName', event.target.value)}
+                            required
+                          />
+                        </Grid>
+                      </Grid>
+                      <TextField
+                        select
+                        fullWidth
+                        label="Step Type"
+                        value={step.stepType}
+                        onChange={(event) => handleStepChange(index, 'stepType', event.target.value)}
+                      >
+                        <MenuItem value="CONSUME">Consume</MenuItem>
+                        <MenuItem value="PROCESS">Process</MenuItem>
+                        <MenuItem value="PRODUCE">Produce</MenuItem>
+                        <MenuItem value="QUALITY">Quality</MenuItem>
+                      </TextField>
+                      <TextField
+                        label="Notes"
+                        value={step.notes}
+                        onChange={(event) => handleStepChange(index, 'notes', event.target.value)}
+                      />
                       {formValues.steps.length > 1 && (
                         <Button variant="text" color="error" onClick={() => handleRemoveStep(index)}>
                           Remove Step
@@ -199,7 +370,9 @@ export default function ProcessTemplatesPage() {
                 <Stepper activeStep={-1} orientation="vertical">
                   {activeTemplate.steps?.map((step) => (
                     <Step key={step.id}>
-                      <StepLabel>{step.name}</StepLabel>
+                      <StepLabel>
+                        {step.stepNo}. {step.stepName}
+                      </StepLabel>
                     </Step>
                   ))}
                 </Stepper>
@@ -209,14 +382,11 @@ export default function ProcessTemplatesPage() {
                     <Grid key={step.id} size={{ xs: 12 }}>
                       <Card variant="outlined">
                         <CardContent>
-                          <Typography variant="subtitle1">{step.name}</Typography>
-                          <Typography variant="body2" color="text.secondary">
-                            {step.description || 'No description'}
+                          <Typography variant="subtitle1">
+                            {step.stepNo}. {step.stepName}
                           </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {step.sourceGodownName ? `From: ${step.sourceGodownName}` : 'No source godown'}
-                            {' · '}
-                            {step.destGodownName ? `To: ${step.destGodownName}` : 'No destination godown'}
+                          <Typography variant="body2" color="text.secondary">
+                            {step.stepType} {step.notes || ''}
                           </Typography>
                         </CardContent>
                       </Card>
