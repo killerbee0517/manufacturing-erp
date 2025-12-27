@@ -6,6 +6,7 @@ import com.manufacturing.erp.domain.Supplier;
 import com.manufacturing.erp.dto.MasterDtos;
 import com.manufacturing.erp.repository.BankRepository;
 import com.manufacturing.erp.repository.SupplierRepository;
+import com.manufacturing.erp.repository.SupplierTaxProfileRepository;
 import com.manufacturing.erp.service.LedgerService;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -28,11 +29,14 @@ public class SupplierController {
   private final SupplierRepository supplierRepository;
   private final BankRepository bankRepository;
   private final LedgerService ledgerService;
+  private final SupplierTaxProfileRepository supplierTaxProfileRepository;
 
-  public SupplierController(SupplierRepository supplierRepository, BankRepository bankRepository, LedgerService ledgerService) {
+  public SupplierController(SupplierRepository supplierRepository, BankRepository bankRepository, LedgerService ledgerService,
+                            SupplierTaxProfileRepository supplierTaxProfileRepository) {
     this.supplierRepository = supplierRepository;
     this.bankRepository = bankRepository;
     this.ledgerService = ledgerService;
+    this.supplierTaxProfileRepository = supplierTaxProfileRepository;
   }
 
   @GetMapping
@@ -95,10 +99,12 @@ public class SupplierController {
   }
 
   @DeleteMapping("/{id}")
+  @Transactional
   public void delete(@PathVariable Long id) {
     if (!supplierRepository.existsById(id)) {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Supplier not found");
     }
+    supplierTaxProfileRepository.deleteBySupplierId(id);
     supplierRepository.deleteById(id);
   }
 

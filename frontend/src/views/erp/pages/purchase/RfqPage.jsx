@@ -159,7 +159,7 @@ export default function RfqPage() {
                       event.stopPropagation();
                       setCloseTarget(row);
                     }}
-                    disabled={row.status === 'CLOSED'}
+                    disabled={['CLOSED', 'AWARDED'].includes(row.status)}
                   >
                     Close
                   </Button>

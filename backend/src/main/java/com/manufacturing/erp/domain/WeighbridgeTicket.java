@@ -20,6 +20,9 @@ public class WeighbridgeTicket extends BaseEntity {
   @Column(name = "ticket_no", nullable = false)
   private String serialNo;
 
+  @Column(name = "vehicle_no", nullable = false)
+  private String vehicleNo;
+
   @ManyToOne
   @JoinColumn(name = "vehicle_id")
   private Vehicle vehicle;
@@ -65,6 +68,14 @@ public class WeighbridgeTicket extends BaseEntity {
 
   public void setSerialNo(String serialNo) {
     this.serialNo = serialNo;
+  }
+
+  public String getVehicleNo() {
+    return vehicleNo;
+  }
+
+  public void setVehicleNo(String vehicleNo) {
+    this.vehicleNo = vehicleNo;
   }
 
   public Vehicle getVehicle() {

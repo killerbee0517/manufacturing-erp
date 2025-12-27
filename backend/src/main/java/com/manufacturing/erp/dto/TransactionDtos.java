@@ -138,6 +138,7 @@ public class TransactionDtos {
       String poNo,
       Long rfqId,
       Long supplierId,
+      String supplierName,
       LocalDate poDate,
       LocalDate deliveryDate,
       String supplierInvoiceNo,

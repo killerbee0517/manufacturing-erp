@@ -331,6 +331,9 @@ public class RfqService {
       }
     });
 
+    if (fullyAwarded && (rfq.getClosureReason() == null || rfq.getClosureReason().isBlank())) {
+      rfq.setClosureReason("AWARDED");
+    }
     rfq.setStatus(fullyAwarded ? DocumentStatus.AWARDED : DocumentStatus.PARTIALLY_AWARDED);
     Rfq saved = rfqRepository.save(rfq);
     return toResponse(saved, createdPoIds);
@@ -350,6 +353,9 @@ public class RfqService {
   @Transactional
   public TransactionDtos.RfqCloseResponse close(Long id, TransactionDtos.RfqCloseRequest request) {
     Rfq rfq = getRfqOrThrow(id);
+    if (rfq.getStatus() == DocumentStatus.AWARDED) {
+      throw new IllegalStateException("Awarded RFQ is already closed");
+    }
     if (request.closureReason() == null || request.closureReason().isBlank()) {
       throw new IllegalArgumentException("Closure reason is required");
     }

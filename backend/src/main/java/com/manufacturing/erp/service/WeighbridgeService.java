@@ -1,6 +1,7 @@
 package com.manufacturing.erp.service;
 
 import com.manufacturing.erp.domain.Enums.DocumentStatus;
+import com.manufacturing.erp.domain.Item;
 import com.manufacturing.erp.domain.PurchaseOrder;
 import com.manufacturing.erp.domain.Supplier;
 import com.manufacturing.erp.domain.Vehicle;
@@ -46,6 +47,7 @@ public class WeighbridgeService {
     WeighbridgeTicket ticket = new WeighbridgeTicket();
     ticket.setSerialNo(resolveSerialNo(request.serialNo()));
     ticket.setVehicle(vehicle);
+    ticket.setVehicleNo(vehicle.getVehicleNo());
     ticket.setPurchaseOrder(po);
     ticket.setSupplier(supplier);
     ticket.setItem(item);
@@ -70,6 +72,7 @@ public class WeighbridgeService {
 
     ticket.setSerialNo(resolveSerialNo(request.serialNo(), ticket.getSerialNo()));
     ticket.setVehicle(vehicle);
+    ticket.setVehicleNo(vehicle.getVehicleNo());
     ticket.setPurchaseOrder(po);
     ticket.setSupplier(supplier);
     ticket.setItem(item);
@@ -91,6 +94,7 @@ public class WeighbridgeService {
         .orElseThrow(() -> new IllegalArgumentException("Vehicle not found"));
     ticket.setPurchaseOrder(po);
     ticket.setVehicle(vehicle);
+    ticket.setVehicleNo(vehicle.getVehicleNo());
     ticket.setSecondDate(request.secondDate());
     ticket.setSecondTime(request.secondTime());
     ticket.setUnloadedWeight(request.unloadedWeight());

@@ -27,6 +27,7 @@ import apiClient from 'api/client';
 import RfqCloseDialog from './components/RfqCloseDialog';
 
 export default function RfqDetailPage() {
+  const awardedStatuses = useMemo(() => new Set(['AWARDED', 'PARTIALLY_AWARDED']), []);
   const { id } = useParams();
   const navigate = useNavigate();
   const [rfq, setRfq] = useState(null);
@@ -740,7 +741,12 @@ export default function RfqDetailPage() {
             <Button variant="outlined" disabled={rfq.status !== 'DRAFT'} onClick={handleSubmit}>
               Submit
             </Button>
-            <Button variant="outlined" color="secondary" onClick={() => setCloseOpen(true)} disabled={rfq.status === 'CLOSED'}>
+            <Button
+              variant="outlined"
+              color="secondary"
+              onClick={() => setCloseOpen(true)}
+              disabled={['CLOSED', 'AWARDED'].includes(rfq.status)}
+            >
               Close RFQ
             </Button>
           </Stack>

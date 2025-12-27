@@ -187,6 +187,7 @@ public class PurchaseOrderService {
         po.getPoNo(),
         po.getRfq() != null ? po.getRfq().getId() : null,
         po.getSupplier() != null ? po.getSupplier().getId() : null,
+        po.getSupplier() != null ? po.getSupplier().getName() : null,
         po.getPoDate(),
         po.getDeliveryDate(),
         po.getSupplierInvoiceNo(),

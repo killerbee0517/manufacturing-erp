@@ -1,10 +1,15 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
 import Grid from '@mui/material/Grid';
 import Stack from '@mui/material/Stack';
+import Table from '@mui/material/Table';
+import TableBody from '@mui/material/TableBody';
+import TableCell from '@mui/material/TableCell';
+import TableHead from '@mui/material/TableHead';
+import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 
@@ -29,12 +34,47 @@ export default function WeighbridgeCreatePage() {
   });
   const [saving, setSaving] = useState(false);
   const [poInfo, setPoInfo] = useState(null);
+  const [itemMap, setItemMap] = useState({});
+  const [uomMap, setUomMap] = useState({});
 
   const netWeight = useMemo(() => {
     const gross = Number(header.grossWeight || 0);
     const unloaded = Number(header.unloadedWeight || 0);
     return gross - unloaded;
   }, [header.grossWeight, header.unloadedWeight]);
+
+  useEffect(() => {
+    apiClient
+      .get('/api/items')
+      .then((response) => {
+        const lookup = (response.data || []).reduce((acc, item) => {
+          acc[item.id] = item.name;
+          return acc;
+        }, {});
+        setItemMap(lookup);
+      })
+      .catch(() => setItemMap({}));
+    apiClient
+      .get('/api/uoms')
+      .then((response) => {
+        const lookup = (response.data || []).reduce((acc, uom) => {
+          acc[uom.id] = uom.code;
+          return acc;
+        }, {});
+        setUomMap(lookup);
+      })
+      .catch(() => setUomMap({}));
+  }, []);
+
+  const formatAmount = (quantity, rate) => {
+    const qty = Number(quantity);
+    const rateNum = Number(rate);
+    if (!Number.isFinite(qty) || !Number.isFinite(rateNum)) {
+      return '-';
+    }
+    const amount = qty * rateNum;
+    return Number.isFinite(amount) ? amount.toFixed(2) : '-';
+  };
 
   const handlePoChange = async (poId) => {
     setHeader((prev) => ({ ...prev, poId, supplierId: '' }));
@@ -189,16 +229,35 @@ export default function WeighbridgeCreatePage() {
           <Stack spacing={1}>
             <Typography variant="h5">PO Items</Typography>
             <Typography color="text.secondary">
-              Supplier: {poInfo.supplierName || poInfo.supplierId} • Lines: {poInfo.lines?.length || 0}
+              Supplier: {poInfo.supplierName || poInfo.supplierId || '-'} | Lines: {poInfo.lines?.length || 0}
             </Typography>
-            <Grid container spacing={1}>
-              {poInfo.lines?.map((line) => (
-                <Grid key={line.id} size={{ xs: 12, md: 6 }}>
-                  <Typography variant="subtitle2">{line.itemId}</Typography>
-                  <Typography color="text.secondary">Quantity: {line.quantity}</Typography>
-                </Grid>
-              ))}
-            </Grid>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>Item</TableCell>
+                  <TableCell>UOM</TableCell>
+                  <TableCell>Qty</TableCell>
+                  <TableCell>Rate</TableCell>
+                  <TableCell>Amount</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {(poInfo.lines || []).map((line) => (
+                  <TableRow key={line.id}>
+                    <TableCell>{itemMap[line.itemId] || line.itemId}</TableCell>
+                    <TableCell>{uomMap[line.uomId] || line.uomId || '-'}</TableCell>
+                    <TableCell>{line.quantity ?? '-'}</TableCell>
+                    <TableCell>{line.rate ?? '-'}</TableCell>
+                    <TableCell>{line.amount ?? formatAmount(line.quantity, line.rate)}</TableCell>
+                  </TableRow>
+                ))}
+                {!poInfo.lines?.length && (
+                  <TableRow>
+                    <TableCell colSpan={5}>No PO lines</TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
           </Stack>
         )}
         <Divider />
@@ -231,18 +290,3 @@ export default function WeighbridgeCreatePage() {
     </MainCard>
   );
 }
-  const handlePoChange = async (poId) => {
-    setHeader((prev) => ({ ...prev, poId, supplierId: '' }));
-    if (!poId) {
-      setPoInfo(null);
-      return;
-    }
-    const response = await apiClient.get(`/api/purchase-orders/${poId}`);
-    const po = response.data;
-    setPoInfo(po);
-    setHeader((prev) => ({
-      ...prev,
-      supplierId: po.supplierId || '',
-      itemId: po.lines?.length === 1 ? po.lines[0].itemId : ''
-    }));
-  };

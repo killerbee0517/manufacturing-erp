@@ -23,6 +23,25 @@ CREATE TABLE expense_parties (
   updated_by VARCHAR(100) NOT NULL DEFAULT 'system'
 ) ENGINE=InnoDB;
 
+CREATE TABLE purchase_arrivals (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  purchase_order_id BIGINT NULL,
+  weighbridge_ticket_id BIGINT NULL,
+  godown_id BIGINT NULL,
+  unloading_charges DECIMAL(14,2) NOT NULL DEFAULT 0,
+  deductions DECIMAL(14,2) NOT NULL DEFAULT 0,
+  tds_percent DECIMAL(14,2) NOT NULL DEFAULT 0,
+  gross_amount DECIMAL(14,2) NOT NULL DEFAULT 0,
+  net_payable DECIMAL(14,2) NOT NULL DEFAULT 0,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  created_by VARCHAR(100) NOT NULL DEFAULT 'system',
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_by VARCHAR(100) NOT NULL DEFAULT 'system',
+  CONSTRAINT fk_purchase_arrival_po FOREIGN KEY (purchase_order_id) REFERENCES purchase_orders(id),
+  CONSTRAINT fk_purchase_arrival_weighbridge FOREIGN KEY (weighbridge_ticket_id) REFERENCES weighbridge_tickets(id),
+  CONSTRAINT fk_purchase_arrival_godown FOREIGN KEY (godown_id) REFERENCES godowns(id)
+) ENGINE=InnoDB;
+
 CREATE TABLE purchase_arrival_charges (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
   purchase_arrival_id BIGINT NOT NULL,
