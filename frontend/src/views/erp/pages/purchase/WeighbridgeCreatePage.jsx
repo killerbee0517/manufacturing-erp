@@ -36,6 +36,22 @@ export default function WeighbridgeCreatePage() {
     return gross - unloaded;
   }, [header.grossWeight, header.unloadedWeight]);
 
+  const handlePoChange = async (poId) => {
+    setHeader((prev) => ({ ...prev, poId, supplierId: '' }));
+    if (!poId) {
+      setPoInfo(null);
+      return;
+    }
+    const response = await apiClient.get(`/api/purchase-orders/${poId}`);
+    const po = response.data;
+    setPoInfo(po);
+    setHeader((prev) => ({
+      ...prev,
+      supplierId: po.supplierId || '',
+      itemId: po.lines?.length === 1 ? po.lines[0].itemId : ''
+    }));
+  };
+
   const handleSave = async () => {
     setSaving(true);
     try {
@@ -43,14 +59,9 @@ export default function WeighbridgeCreatePage() {
         serialNo: header.serialNo || undefined,
         poId: Number(header.poId),
         vehicleId: Number(header.vehicleId),
-        supplierId: header.supplierId ? Number(header.supplierId) : null,
-        itemId: header.itemId ? Number(header.itemId) : null,
         dateIn: header.dateIn,
         timeIn: header.timeIn,
-        grossWeight: Number(header.grossWeight),
-        unloadedWeight: header.unloadedWeight ? Number(header.unloadedWeight) : null,
-        secondDate: header.secondDate || null,
-        secondTime: header.secondTime || null
+        grossWeight: Number(header.grossWeight)
       };
       await apiClient.post('/api/weighbridge/tickets', payload);
       navigate('/purchase/weighbridge-in');
@@ -123,7 +134,7 @@ export default function WeighbridgeCreatePage() {
               optionLabelKey="name"
               optionValueKey="id"
               placeholder="Search items"
-              required
+              disabled
             />
           </Grid>
           <Grid size={{ xs: 12, md: 4 }}>
@@ -174,6 +185,22 @@ export default function WeighbridgeCreatePage() {
             />
           </Grid>
         </Grid>
+        {poInfo && (
+          <Stack spacing={1}>
+            <Typography variant="h5">PO Items</Typography>
+            <Typography color="text.secondary">
+              Supplier: {poInfo.supplierName || poInfo.supplierId} • Lines: {poInfo.lines?.length || 0}
+            </Typography>
+            <Grid container spacing={1}>
+              {poInfo.lines?.map((line) => (
+                <Grid key={line.id} size={{ xs: 12, md: 6 }}>
+                  <Typography variant="subtitle2">{line.itemId}</Typography>
+                  <Typography color="text.secondary">Quantity: {line.quantity}</Typography>
+                </Grid>
+              ))}
+            </Grid>
+          </Stack>
+        )}
         <Divider />
         <Stack spacing={1}>
           <Typography variant="h5">Second Weighment</Typography>

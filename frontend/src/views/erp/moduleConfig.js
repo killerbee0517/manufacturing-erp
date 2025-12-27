@@ -162,6 +162,45 @@ export const moduleConfigs = {
       { label: 'Code', field: 'code' }
     ]
   },
+  chargeTypes: {
+    title: 'Charges & Deductions',
+    subtitle: 'Masters',
+    createEndpoint: '/api/deduction-charge-types',
+    listEndpoint: '/api/deduction-charge-types',
+    fields: [
+      { name: 'code', label: 'Code', type: 'text', required: true },
+      { name: 'name', label: 'Name', type: 'text', required: true },
+      { name: 'defaultCalcType', label: 'Calc Type', type: 'select', options: ['FLAT', 'PERCENT'], required: true },
+      { name: 'defaultRate', label: 'Default Rate/Value', type: 'number' },
+      { name: 'isDeduction', label: 'Is Deduction', type: 'select', options: [true, false], required: true },
+      { name: 'enabled', label: 'Enabled', type: 'select', options: [true, false], required: true }
+    ],
+    columns: [
+      { label: 'ID', field: 'id' },
+      { label: 'Code', field: 'code' },
+      { label: 'Name', field: 'name' },
+      { label: 'Calc', field: 'defaultCalcType' },
+      { label: 'Rate', field: 'defaultRate' },
+      { label: 'Deduction', field: 'isDeduction' },
+      { label: 'Enabled', field: 'enabled' }
+    ]
+  },
+  expenseParties: {
+    title: 'Payee Parties',
+    subtitle: 'Masters',
+    createEndpoint: '/api/expense-parties',
+    listEndpoint: '/api/expense-parties',
+    fields: [
+      { name: 'name', label: 'Name', type: 'text', required: true },
+      { name: 'partyType', label: 'Type', type: 'select', options: ['BROKER', 'VEHICLE', 'EXPENSE'], required: true }
+    ],
+    columns: [
+      { label: 'ID', field: 'id' },
+      { label: 'Name', field: 'name' },
+      { label: 'Type', field: 'partyType' },
+      { label: 'Ledger', field: 'ledgerId' }
+    ]
+  },
   users: {
     title: 'Users & Roles',
     subtitle: 'Admin',

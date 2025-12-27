@@ -46,6 +46,19 @@ public class PurchaseArrivalController {
   }
 
   private PurchaseArrivalDtos.PurchaseArrivalResponse toResponse(com.manufacturing.erp.domain.PurchaseArrival arrival) {
+    var charges = arrival.getCharges().stream()
+        .map(charge -> new PurchaseArrivalDtos.PurchaseArrivalChargeResponse(
+            charge.getId(),
+            charge.getChargeType() != null ? charge.getChargeType().getId() : null,
+            charge.getCalcType() != null ? charge.getCalcType().name() : null,
+            charge.getRate(),
+            charge.getAmount(),
+            charge.isDeduction(),
+            charge.getPayablePartyType() != null ? charge.getPayablePartyType().name() : null,
+            charge.getPayablePartyId(),
+            charge.getRemarks()
+        ))
+        .toList();
     return new PurchaseArrivalDtos.PurchaseArrivalResponse(
         arrival.getId(),
         arrival.getPurchaseOrder() != null ? arrival.getPurchaseOrder().getId() : null,
@@ -56,6 +69,7 @@ public class PurchaseArrivalController {
         arrival.getTdsPercent(),
         arrival.getGrossAmount(),
         arrival.getNetPayable(),
+        charges,
         arrival.getCreatedAt());
   }
 }

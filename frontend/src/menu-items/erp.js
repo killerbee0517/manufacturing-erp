@@ -65,6 +65,8 @@ const erp = {
         { id: 'masters-items', title: 'Item Master', type: 'item', url: '/masters/items' },
         { id: 'masters-uoms', title: 'UOM Master', type: 'item', url: '/masters/uoms' },
         { id: 'masters-brokers', title: 'Broker Master', type: 'item', url: '/masters/brokers' },
+        { id: 'masters-charge-types', title: 'Charges & Deductions', type: 'item', url: '/masters/charge-types' },
+        { id: 'masters-expense-parties', title: 'Payee Parties', type: 'item', url: '/masters/expense-parties' },
         { id: 'admin-users', title: 'User Management', type: 'item', url: '/admin/users' },
         { id: 'admin-roles', title: 'Role Management', type: 'item', url: '/admin/roles' }
       ]

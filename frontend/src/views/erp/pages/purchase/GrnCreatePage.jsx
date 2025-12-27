@@ -24,7 +24,7 @@ const toLine = (line) => ({
   itemId: line.itemId,
   uomId: line.uomId,
   quantity: line.quantity,
-  weight: ''
+  weight: line.weight || line.quantity
 });
 
 export default function GrnCreatePage() {
@@ -111,6 +111,27 @@ export default function GrnCreatePage() {
     setLines((po.lines || []).map(toLine));
   };
 
+  const handleTicketChange = async (ticketId) => {
+    setHeader((prev) => ({ ...prev, weighbridgeTicketId: ticketId }));
+    if (!ticketId) return;
+    const response = await apiClient.get(`/api/weighbridge/tickets/${ticketId}`);
+    const ticket = response.data;
+    if (ticket.poId) {
+      await handlePurchaseOrderChange(ticket.poId);
+      setHeader((prev) => ({
+        ...prev,
+        purchaseOrderId: ticket.poId,
+        supplierId: ticket.supplierId || prev.supplierId
+      }));
+    }
+    setHeader((prev) => ({
+      ...prev,
+      firstWeight: ticket.grossWeight || '',
+      secondWeight: ticket.unloadedWeight || '',
+      grnDate: prev.grnDate
+    }));
+  };
+
   const updateLine = (index, key, value) => {
     setLines((prev) => {
       const next = [...prev];
@@ -193,11 +214,11 @@ export default function GrnCreatePage() {
             />
           </Grid>
           <Grid size={{ xs: 12, md: 4 }}>
-            <MasterAutocomplete
-              label="Godown"
-              endpoint="/api/godowns"
-              value={header.godownId}
-              onChange={(nextValue) => setHeader((prev) => ({ ...prev, godownId: nextValue }))}
+          <MasterAutocomplete
+            label="Godown"
+            endpoint="/api/godowns"
+            value={header.godownId}
+            onChange={(nextValue) => setHeader((prev) => ({ ...prev, godownId: nextValue }))}
               optionLabelKey="name"
               optionValueKey="id"
               placeholder="Select godown"
@@ -210,7 +231,7 @@ export default function GrnCreatePage() {
               select
               label="Weighbridge Ticket"
               value={header.weighbridgeTicketId}
-              onChange={(event) => setHeader((prev) => ({ ...prev, weighbridgeTicketId: event.target.value }))}
+              onChange={(event) => handleTicketChange(event.target.value)}
             >
               <MenuItem value="">None</MenuItem>
               {tickets.map((ticket) => (
@@ -230,6 +251,7 @@ export default function GrnCreatePage() {
               label="1st Weight"
               value={header.firstWeight}
               onChange={(event) => setHeader((prev) => ({ ...prev, firstWeight: event.target.value }))}
+              InputProps={{ readOnly: Boolean(header.weighbridgeTicketId) }}
             />
           </Grid>
           <Grid size={{ xs: 12, md: 4 }}>
@@ -239,6 +261,7 @@ export default function GrnCreatePage() {
               label="2nd Weight"
               value={header.secondWeight}
               onChange={(event) => setHeader((prev) => ({ ...prev, secondWeight: event.target.value }))}
+              InputProps={{ readOnly: Boolean(header.weighbridgeTicketId) }}
             />
           </Grid>
           <Grid size={{ xs: 12, md: 4 }}>
@@ -271,11 +294,7 @@ export default function GrnCreatePage() {
                   <TableCell>{itemMap[line.itemId] || line.itemId}</TableCell>
                   <TableCell>{uomMap[line.uomId] || line.uomId}</TableCell>
                   <TableCell>
-                    <TextField
-                      type="number"
-                      value={line.quantity}
-                      onChange={(event) => updateLine(index, 'quantity', event.target.value)}
-                    />
+                    <TextField type="number" value={line.quantity} InputProps={{ readOnly: true }} />
                   </TableCell>
                   <TableCell>
                     <TextField
@@ -283,6 +302,7 @@ export default function GrnCreatePage() {
                       value={line.weight}
                       onChange={(event) => updateLine(index, 'weight', event.target.value)}
                       placeholder="Optional"
+                      InputProps={{ readOnly: Boolean(header.weighbridgeTicketId) }}
                     />
                   </TableCell>
                 </TableRow>

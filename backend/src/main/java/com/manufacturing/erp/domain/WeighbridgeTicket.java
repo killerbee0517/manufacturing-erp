@@ -52,7 +52,7 @@ public class WeighbridgeTicket extends BaseEntity {
   @Column(name = "tare_weight")
   private BigDecimal unloadedWeight;
 
-  @Column(name = "net_weight", nullable = false)
+  @Column(name = "net_weight")
   private BigDecimal netWeight;
 
   @Enumerated(EnumType.STRING)

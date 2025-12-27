@@ -10,14 +10,16 @@ public class WeighbridgeDtos {
       String serialNo,
       @NotNull Long poId,
       @NotNull Long vehicleId,
-      Long supplierId,
-      Long itemId,
       @NotNull LocalDate dateIn,
       @NotNull LocalTime timeIn,
-      @NotNull BigDecimal grossWeight,
-      BigDecimal unloadedWeight,
+      @NotNull BigDecimal grossWeight) {}
+
+  public record UnloadTicketRequest(
+      @NotNull Long poId,
+      @NotNull Long vehicleId,
       LocalDate secondDate,
-      LocalTime secondTime) {}
+      LocalTime secondTime,
+      @NotNull BigDecimal unloadedWeight) {}
 
   public record TicketResponse(
       Long id,

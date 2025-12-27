@@ -4,9 +4,12 @@ import com.manufacturing.erp.common.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "purchase_arrivals")
@@ -37,6 +40,9 @@ public class PurchaseArrival extends BaseEntity {
 
   @Column(nullable = false)
   private Instant createdAt;
+
+  @OneToMany(mappedBy = "purchaseArrival", orphanRemoval = true, cascade = jakarta.persistence.CascadeType.ALL)
+  private List<PurchaseArrivalCharge> charges = new ArrayList<>();
 
   public PurchaseOrder getPurchaseOrder() {
     return purchaseOrder;
@@ -108,5 +114,13 @@ public class PurchaseArrival extends BaseEntity {
 
   public void setCreatedAt(Instant createdAt) {
     this.createdAt = createdAt;
+  }
+
+  public List<PurchaseArrivalCharge> getCharges() {
+    return charges;
+  }
+
+  public void setCharges(List<PurchaseArrivalCharge> charges) {
+    this.charges = charges;
   }
 }

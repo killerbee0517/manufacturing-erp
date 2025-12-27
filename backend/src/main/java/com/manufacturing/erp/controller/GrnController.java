@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -28,10 +29,20 @@ public class GrnController {
   }
 
   @GetMapping
-  public List<GrnDtos.GrnResponse> list() {
-    return grnRepository.findAll().stream()
-        .map(this::toResponse)
-        .toList();
+  public List<GrnDtos.GrnResponse> list(@RequestParam(required = false) Long poId,
+                                        @RequestParam(required = false) Long weighbridgeId) {
+    var source = grnRepository.findAll();
+    if (poId != null) {
+      source = source.stream()
+          .filter(grn -> grn.getPurchaseOrder() != null && grn.getPurchaseOrder().getId().equals(poId))
+          .toList();
+    }
+    if (weighbridgeId != null) {
+      source = source.stream()
+          .filter(grn -> grn.getWeighbridgeTicket() != null && grn.getWeighbridgeTicket().getId().equals(weighbridgeId))
+          .toList();
+    }
+    return source.stream().map(this::toResponse).toList();
   }
 
   @GetMapping("/{id}")

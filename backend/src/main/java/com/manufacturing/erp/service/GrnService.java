@@ -84,9 +84,9 @@ public class GrnService {
     grn.setGodown(godown);
     grn.setGrnDate(request.grnDate());
     grn.setNarration(request.narration());
-    grn.setFirstWeight(request.firstWeight());
-    grn.setSecondWeight(request.secondWeight());
-    grn.setNetWeight(resolveNetWeight(request));
+    grn.setFirstWeight(request.firstWeight() != null ? request.firstWeight() : ticket != null ? ticket.getGrossWeight() : null);
+    grn.setSecondWeight(request.secondWeight() != null ? request.secondWeight() : ticket != null ? ticket.getUnloadedWeight() : null);
+    grn.setNetWeight(resolveNetWeight(request, ticket));
     grn.setStatus(DocumentStatus.DRAFT);
     Grn saved = grnRepository.save(grn);
 
@@ -135,16 +135,27 @@ public class GrnService {
     grn.setStatus(DocumentStatus.DRAFT);
     Grn saved = grnRepository.save(grn);
 
+    BigDecimal totalPoQty = po.getLines().stream()
+        .map(line -> line.getQuantity() != null ? line.getQuantity() : BigDecimal.ZERO)
+        .reduce(BigDecimal.ZERO, BigDecimal::add);
+    BigDecimal net = ticket.getNetWeight() != null ? ticket.getNetWeight() : BigDecimal.ZERO;
+
     for (PurchaseOrderLine poLine : po.getLines()) {
+      BigDecimal lineQty = poLine.getQuantity() != null ? poLine.getQuantity() : BigDecimal.ZERO;
+      BigDecimal proportion = totalPoQty.compareTo(BigDecimal.ZERO) > 0
+          ? lineQty.divide(totalPoQty, 6, java.math.RoundingMode.HALF_UP)
+          : BigDecimal.ZERO;
+      BigDecimal lineWeight = net.multiply(proportion);
+
       GrnLine line = new GrnLine();
       line.setGrn(saved);
       line.setPurchaseOrderLine(poLine);
       line.setItem(poLine.getItem());
       line.setUom(poLine.getUom());
-      line.setQuantity(BigDecimal.ZERO);
-      line.setWeight(BigDecimal.ZERO);
+      line.setQuantity(lineQty);
+      line.setWeight(lineWeight);
       line.setRate(poLine.getRate());
-      line.setAmount(BigDecimal.ZERO);
+      line.setAmount(poLine.getRate() != null && lineQty != null ? poLine.getRate().multiply(lineQty) : BigDecimal.ZERO);
       grnLineRepository.save(line);
       saved.getLines().add(line);
     }
@@ -162,6 +173,15 @@ public class GrnService {
         .orElseThrow(() -> new IllegalArgumentException("Godown not found"));
     Location qcHold = locationRepository.findByCode("QC_HOLD")
         .orElseThrow(() -> new IllegalArgumentException("QC_HOLD location missing"));
+    if (grn.getFirstWeight() == null && grn.getWeighbridgeTicket() != null) {
+      grn.setFirstWeight(grn.getWeighbridgeTicket().getGrossWeight());
+    }
+    if (grn.getSecondWeight() == null && grn.getWeighbridgeTicket() != null) {
+      grn.setSecondWeight(grn.getWeighbridgeTicket().getUnloadedWeight());
+    }
+    if (grn.getNetWeight() == null && grn.getWeighbridgeTicket() != null) {
+      grn.setNetWeight(grn.getWeighbridgeTicket().getNetWeight());
+    }
 
     Map<Long, GrnLine> byPoLine = grn.getLines().stream()
         .filter(l -> l.getPurchaseOrderLine() != null)
@@ -198,14 +218,22 @@ public class GrnService {
         + "-" + System.nanoTime();
   }
 
-  private BigDecimal resolveNetWeight(GrnDtos.CreateGrnRequest request) {
+  private BigDecimal resolveNetWeight(GrnDtos.CreateGrnRequest request, WeighbridgeTicket ticket) {
     if (request.netWeight() != null) {
       return request.netWeight();
     }
-    if (request.firstWeight() != null && request.secondWeight() != null) {
-      return request.secondWeight().subtract(request.firstWeight()).abs();
+    BigDecimal first = request.firstWeight();
+    BigDecimal second = request.secondWeight();
+    if (first == null && ticket != null) {
+      first = ticket.getGrossWeight();
     }
-    return BigDecimal.ZERO;
+    if (second == null && ticket != null) {
+      second = ticket.getUnloadedWeight();
+    }
+    if (first != null && second != null) {
+      return second.subtract(first).abs();
+    }
+    return ticket != null ? ticket.getNetWeight() : BigDecimal.ZERO;
   }
 
   private BigDecimal resolveAmount(GrnDtos.GrnLineRequest request) {
