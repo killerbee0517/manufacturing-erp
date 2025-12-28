@@ -7,7 +7,6 @@ import com.manufacturing.erp.domain.Godown;
 import com.manufacturing.erp.domain.Grn;
 import com.manufacturing.erp.domain.GrnLine;
 import com.manufacturing.erp.domain.Item;
-import com.manufacturing.erp.domain.Location;
 import com.manufacturing.erp.domain.PurchaseOrder;
 import com.manufacturing.erp.domain.PurchaseOrderLine;
 import com.manufacturing.erp.domain.Supplier;
@@ -18,13 +17,12 @@ import com.manufacturing.erp.repository.GrnLineRepository;
 import com.manufacturing.erp.repository.GrnRepository;
 import com.manufacturing.erp.repository.GodownRepository;
 import com.manufacturing.erp.repository.ItemRepository;
-import com.manufacturing.erp.repository.LocationRepository;
 import com.manufacturing.erp.repository.PurchaseOrderRepository;
 import com.manufacturing.erp.repository.PurchaseOrderLineRepository;
 import com.manufacturing.erp.repository.UomRepository;
 import com.manufacturing.erp.repository.WeighbridgeTicketRepository;
 import java.math.BigDecimal;
-import java.util.Map;
+import java.util.Optional;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,7 +32,6 @@ public class GrnService {
   private final GrnLineRepository grnLineRepository;
   private final WeighbridgeTicketRepository weighbridgeTicketRepository;
   private final ItemRepository itemRepository;
-  private final LocationRepository locationRepository;
   private final UomRepository uomRepository;
   private final StockLedgerService stockLedgerService;
   private final PurchaseOrderRepository purchaseOrderRepository;
@@ -45,7 +42,6 @@ public class GrnService {
                     GrnLineRepository grnLineRepository,
                     WeighbridgeTicketRepository weighbridgeTicketRepository,
                     ItemRepository itemRepository,
-                    LocationRepository locationRepository,
                     UomRepository uomRepository,
                     StockLedgerService stockLedgerService,
                     PurchaseOrderRepository purchaseOrderRepository,
@@ -55,7 +51,6 @@ public class GrnService {
     this.grnLineRepository = grnLineRepository;
     this.weighbridgeTicketRepository = weighbridgeTicketRepository;
     this.itemRepository = itemRepository;
-    this.locationRepository = locationRepository;
     this.uomRepository = uomRepository;
     this.stockLedgerService = stockLedgerService;
     this.purchaseOrderRepository = purchaseOrderRepository;
@@ -83,6 +78,7 @@ public class GrnService {
     grn.setPurchaseOrder(purchaseOrder);
     grn.setGodown(godown);
     grn.setGrnDate(request.grnDate());
+    grn.setReceivedDate(request.grnDate());
     grn.setNarration(request.narration());
     grn.setFirstWeight(request.firstWeight() != null ? request.firstWeight() : ticket != null ? ticket.getGrossWeight() : null);
     grn.setSecondWeight(request.secondWeight() != null ? request.secondWeight() : ticket != null ? ticket.getUnloadedWeight() : null);
@@ -107,7 +103,10 @@ public class GrnService {
       line.setBagType("N/A");
       line.setBagCount(0);
       line.setQuantity(lineRequest.quantity());
+      line.setExpectedQty(lineRequest.quantity());
       line.setReceivedQty(lineRequest.quantity());
+      line.setAcceptedQty(lineRequest.quantity());
+      line.setRejectedQty(BigDecimal.ZERO);
       line.setWeight(lineRequest.weight() != null ? lineRequest.weight() : lineRequest.quantity());
       line.setRate(lineRequest.rate());
       line.setAmount(lineRequest.amount() != null ? lineRequest.amount() : resolveAmount(lineRequest));
@@ -120,6 +119,13 @@ public class GrnService {
 
   @Transactional
   public Grn createDraftFromWeighbridge(WeighbridgeTicket ticket) {
+    Optional<Grn> existing = grnRepository.findFirstByWeighbridgeTicketId(ticket.getId());
+    if (existing.isPresent()) {
+      return existing.get();
+    }
+    if (ticket.getStatus() != DocumentStatus.UNLOADED && ticket.getStatus() != DocumentStatus.POSTED) {
+      throw new IllegalStateException("Weighbridge ticket must be completed before creating GRN");
+    }
     PurchaseOrder po = ticket.getPurchaseOrder();
     if (po == null) {
       throw new IllegalStateException("Weighbridge ticket must reference a purchase order");
@@ -130,6 +136,7 @@ public class GrnService {
     grn.setPurchaseOrder(po);
     grn.setWeighbridgeTicket(ticket);
     grn.setGrnDate(java.time.LocalDate.now());
+    grn.setReceivedDate(java.time.LocalDate.now());
     grn.setFirstWeight(ticket.getGrossWeight());
     grn.setSecondWeight(ticket.getUnloadedWeight());
     grn.setNetWeight(ticket.getNetWeight());
@@ -156,7 +163,10 @@ public class GrnService {
       line.setBagType("N/A");
       line.setBagCount(0);
       line.setQuantity(lineQty);
+      line.setExpectedQty(lineQty);
       line.setReceivedQty(lineQty);
+      line.setAcceptedQty(lineQty);
+      line.setRejectedQty(BigDecimal.ZERO);
       line.setWeight(lineWeight);
       line.setRate(poLine.getRate());
       line.setAmount(poLine.getRate() != null && lineQty != null ? poLine.getRate().multiply(lineQty) : BigDecimal.ZERO);
@@ -167,16 +177,31 @@ public class GrnService {
   }
 
   @Transactional
-  public Grn confirm(Long grnId, GrnDtos.ConfirmGrnRequest request) {
+  public Grn updateDraft(Long grnId, GrnDtos.UpdateGrnRequest request) {
+    Grn grn = grnRepository.findById(grnId)
+        .orElseThrow(() -> new IllegalArgumentException("GRN not found"));
+    if (grn.getStatus() != DocumentStatus.DRAFT) {
+      throw new IllegalStateException("Only draft GRN can be updated");
+    }
+    if (request.godownId() != null) {
+      Godown godown = godownRepository.findById(request.godownId())
+          .orElseThrow(() -> new IllegalArgumentException("Godown not found"));
+      grn.setGodown(godown);
+    }
+    grn.setNarration(request.narration());
+    return grnRepository.save(grn);
+  }
+
+  @Transactional
+  public Grn post(Long grnId) {
     Grn grn = grnRepository.findById(grnId)
         .orElseThrow(() -> new IllegalArgumentException("GRN not found"));
     if (grn.getStatus() == DocumentStatus.POSTED) {
       return grn;
     }
-    Godown godown = godownRepository.findById(request.godownId())
-        .orElseThrow(() -> new IllegalArgumentException("Godown not found"));
-    Location qcHold = locationRepository.findByCode("QC_HOLD")
-        .orElseThrow(() -> new IllegalArgumentException("QC_HOLD location missing"));
+    if (grn.getGodown() == null) {
+      throw new IllegalStateException("Godown is required before posting GRN");
+    }
     if (grn.getFirstWeight() == null && grn.getWeighbridgeTicket() != null) {
       grn.setFirstWeight(grn.getWeighbridgeTicket().getGrossWeight());
     }
@@ -186,33 +211,31 @@ public class GrnService {
     if (grn.getNetWeight() == null && grn.getWeighbridgeTicket() != null) {
       grn.setNetWeight(grn.getWeighbridgeTicket().getNetWeight());
     }
-
-    Map<Long, GrnLine> byPoLine = grn.getLines().stream()
-        .filter(l -> l.getPurchaseOrderLine() != null)
-        .collect(java.util.stream.Collectors.toMap(l -> l.getPurchaseOrderLine().getId(), l -> l));
-    Map<Long, GrnLine> byItem = grn.getLines().stream()
-        .collect(java.util.stream.Collectors.toMap(l -> l.getItem().getId(), l -> l, (a, b) -> a));
-
-    for (GrnDtos.GrnLineRequest lineRequest : request.lines()) {
-      GrnLine line = lineRequest.poLineId() != null ? byPoLine.get(lineRequest.poLineId()) : byItem.get(lineRequest.itemId());
-      if (line == null) {
-        throw new IllegalArgumentException("Invalid GRN line");
-      }
-      line.setQuantity(lineRequest.quantity());
-      line.setReceivedQty(lineRequest.quantity());
-      line.setWeight(lineRequest.weight() != null ? lineRequest.weight() : lineRequest.quantity());
-      line.setRate(lineRequest.rate());
-      line.setAmount(lineRequest.amount() != null ? lineRequest.amount() : resolveAmount(lineRequest));
-      grnLineRepository.save(line);
-
+    for (GrnLine line : grn.getLines()) {
+      BigDecimal qty = resolveAcceptedQty(line);
+      BigDecimal weight = line.getWeight() != null ? line.getWeight() : qty;
       stockLedgerService.postEntry("GRN", grn.getId(), line.getId(), LedgerTxnType.IN,
-          line.getItem(), line.getUom(), null, qcHold, null, godown,
-          line.getQuantity(), line.getWeight(), StockStatus.QC_HOLD);
+          line.getItem(), line.getUom(), null, null, null, grn.getGodown(),
+          qty, weight, StockStatus.UNRESTRICTED, line.getRate(), line.getAmount());
     }
-    grn.setGodown(godown);
-    grn.setNarration(request.narration());
     grn.setStatus(DocumentStatus.POSTED);
     return grnRepository.save(grn);
+  }
+
+  private BigDecimal resolveAcceptedQty(GrnLine line) {
+    if (line.getAcceptedQty() != null) {
+      return line.getAcceptedQty();
+    }
+    if (line.getReceivedQty() != null) {
+      return line.getReceivedQty();
+    }
+    if (line.getQuantity() != null) {
+      return line.getQuantity();
+    }
+    if (line.getExpectedQty() != null) {
+      return line.getExpectedQty();
+    }
+    return BigDecimal.ZERO;
   }
 
   private String resolveGrnNo(String provided) {

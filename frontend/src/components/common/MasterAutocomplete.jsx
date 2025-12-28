@@ -21,7 +21,8 @@ export default function MasterAutocomplete({
   size,
   fullWidth,
   disabled,
-  limit
+  limit,
+  queryParams
 }) {
   const [options, setOptions] = useState([]);
   const [inputValue, setInputValue] = useState('');
@@ -47,7 +48,8 @@ export default function MasterAutocomplete({
         const response = await apiClient.get(endpoint, {
           params: {
             q: searchValue || undefined,
-            limit
+            limit,
+            ...(queryParams || {})
           }
         });
         const payload = response.data || [];
@@ -129,7 +131,8 @@ MasterAutocomplete.propTypes = {
   size: PropTypes.string,
   fullWidth: PropTypes.bool,
   disabled: PropTypes.bool,
-  limit: PropTypes.number
+  limit: PropTypes.number,
+  queryParams: PropTypes.object
 };
 
 MasterAutocomplete.defaultProps = {
@@ -141,5 +144,6 @@ MasterAutocomplete.defaultProps = {
   size: 'medium',
   fullWidth: true,
   disabled: false,
-  limit: 20
+  limit: 20,
+  queryParams: undefined
 };

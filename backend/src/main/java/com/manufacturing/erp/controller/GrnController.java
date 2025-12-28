@@ -9,6 +9,7 @@ import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -30,7 +31,8 @@ public class GrnController {
 
   @GetMapping
   public List<GrnDtos.GrnResponse> list(@RequestParam(required = false) Long poId,
-                                        @RequestParam(required = false) Long weighbridgeId) {
+                                        @RequestParam(required = false) Long weighbridgeId,
+                                        @RequestParam(required = false) String status) {
     var source = grnRepository.findAll();
     if (poId != null) {
       source = source.stream()
@@ -41,6 +43,10 @@ public class GrnController {
       source = source.stream()
           .filter(grn -> grn.getWeighbridgeTicket() != null && grn.getWeighbridgeTicket().getId().equals(weighbridgeId))
           .toList();
+    }
+    if (status != null && !status.isBlank()) {
+      var filter = com.manufacturing.erp.domain.Enums.DocumentStatus.valueOf(status.toUpperCase());
+      source = source.stream().filter(grn -> grn.getStatus() == filter).toList();
     }
     return source.stream().map(this::toResponse).toList();
   }
@@ -66,9 +72,15 @@ public class GrnController {
     return toResponse(grn);
   }
 
-  @PostMapping("/{id}/confirm")
-  public GrnDtos.GrnResponse confirm(@PathVariable Long id, @Valid @RequestBody GrnDtos.ConfirmGrnRequest request) {
-    var grn = grnService.confirm(id, request);
+  @PutMapping("/{id}")
+  public GrnDtos.GrnResponse update(@PathVariable Long id, @RequestBody GrnDtos.UpdateGrnRequest request) {
+    var grn = grnService.updateDraft(id, request);
+    return toResponse(grn);
+  }
+
+  @PostMapping("/{id}/post")
+  public GrnDtos.GrnResponse post(@PathVariable Long id) {
+    var grn = grnService.post(id);
     return toResponse(grn);
   }
 
@@ -77,17 +89,28 @@ public class GrnController {
         .map(line -> new GrnDtos.GrnLineResponse(
             line.getId(),
             line.getItem() != null ? line.getItem().getId() : null,
+            line.getItem() != null ? line.getItem().getName() : null,
             line.getUom() != null ? line.getUom().getId() : null,
-            line.getQuantity(),
-            line.getWeight()))
+            line.getUom() != null ? line.getUom().getCode() : null,
+            line.getExpectedQty(),
+            line.getReceivedQty(),
+            line.getAcceptedQty(),
+            line.getRejectedQty(),
+            line.getWeight(),
+            line.getRate(),
+            line.getAmount()))
         .toList();
     return new GrnDtos.GrnResponse(
         grn.getId(),
         grn.getGrnNo(),
         grn.getSupplier() != null ? grn.getSupplier().getId() : null,
+        grn.getSupplier() != null ? grn.getSupplier().getName() : null,
         grn.getPurchaseOrder() != null ? grn.getPurchaseOrder().getId() : null,
+        grn.getPurchaseOrder() != null ? grn.getPurchaseOrder().getPoNo() : null,
         grn.getWeighbridgeTicket() != null ? grn.getWeighbridgeTicket().getId() : null,
+        grn.getWeighbridgeTicket() != null ? grn.getWeighbridgeTicket().getSerialNo() : null,
         grn.getGodown() != null ? grn.getGodown().getId() : null,
+        grn.getGodown() != null ? grn.getGodown().getName() : null,
         grn.getGrnDate(),
         grn.getFirstWeight(),
         grn.getSecondWeight(),

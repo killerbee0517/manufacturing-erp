@@ -10,14 +10,42 @@ import java.util.List;
 public class PurchaseInvoiceDtos {
   public record LineRequest(
       @NotNull Long itemId,
+      @NotNull Long uomId,
       @NotNull BigDecimal quantity,
-      @NotNull BigDecimal lineAmount) {}
+      @NotNull BigDecimal rate,
+      BigDecimal amount) {}
 
-  public record CreateInvoiceRequest(
-      @NotBlank String invoiceNo,
-      @NotNull Long supplierId,
+  public record UpdateInvoiceRequest(
+      String supplierInvoiceNo,
       @NotNull LocalDate invoiceDate,
-      @NotEmpty List<LineRequest> lines) {}
+      String narration) {}
 
-  public record InvoiceResponse(Long id, String invoiceNo, BigDecimal totalAmount, BigDecimal tdsAmount, BigDecimal netPayable) {}
+  public record InvoiceLineResponse(
+      Long id,
+      Long itemId,
+      String itemName,
+      Long uomId,
+      String uomCode,
+      BigDecimal quantity,
+      BigDecimal rate,
+      BigDecimal amount) {}
+
+  public record InvoiceResponse(
+      Long id,
+      String invoiceNo,
+      Long supplierId,
+      String supplierName,
+      Long purchaseOrderId,
+      String purchaseOrderNo,
+      Long grnId,
+      String grnNo,
+      String supplierInvoiceNo,
+      LocalDate invoiceDate,
+      String narration,
+      String status,
+      BigDecimal subtotal,
+      BigDecimal taxTotal,
+      BigDecimal roundOff,
+      BigDecimal grandTotal,
+      List<InvoiceLineResponse> lines) {}
 }

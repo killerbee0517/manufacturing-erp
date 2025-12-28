@@ -30,7 +30,9 @@ const PurchaseArrivalPage = Loadable(lazy(() => import('views/erp/pages/purchase
 const PurchaseArrivalCreatePage = Loadable(lazy(() => import('views/erp/pages/purchase/PurchaseArrivalCreatePage')));
 const PurchaseArrivalDetailPage = Loadable(lazy(() => import('views/erp/pages/purchase/PurchaseArrivalDetailPage')));
 const PurchaseInvoicePage = Loadable(lazy(() => import('views/erp/pages/purchase/PurchaseInvoicePage')));
+const PurchaseInvoiceDetailPage = Loadable(lazy(() => import('views/erp/pages/purchase/PurchaseInvoiceDetailPage')));
 const DebitNotePage = Loadable(lazy(() => import('views/erp/pages/purchase/DebitNotePage')));
+const DebitNoteDetailPage = Loadable(lazy(() => import('views/erp/pages/purchase/DebitNoteDetailPage')));
 const SalesOrderPage = Loadable(lazy(() => import('views/erp/pages/sales/SalesOrderPage')));
 const SalesOrderFormPage = Loadable(lazy(() => import('views/erp/pages/sales/SalesOrderFormPage')));
 const DeliveryNotePage = Loadable(lazy(() => import('views/erp/pages/sales/DeliveryNotePage')));
@@ -113,7 +115,9 @@ const MainRoutes = {
         { path: 'arrival/new', element: <PurchaseArrivalCreatePage /> },
         { path: 'arrival/:id', element: <PurchaseArrivalDetailPage /> },
         { path: 'purchase-invoice', element: <PurchaseInvoicePage /> },
-        { path: 'debit-note', element: <DebitNotePage /> }
+        { path: 'purchase-invoice/:id', element: <PurchaseInvoiceDetailPage /> },
+        { path: 'debit-note', element: <DebitNotePage /> },
+        { path: 'debit-note/:id', element: <DebitNoteDetailPage /> }
       ]
     },
     {

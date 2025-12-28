@@ -18,9 +18,16 @@ public class GrnDtos {
   public record GrnLineResponse(
       Long id,
       Long itemId,
+      String itemName,
       Long uomId,
-      BigDecimal quantity,
-      BigDecimal weight) {}
+      String uomCode,
+      BigDecimal expectedQty,
+      BigDecimal receivedQty,
+      BigDecimal acceptedQty,
+      BigDecimal rejectedQty,
+      BigDecimal weight,
+      BigDecimal rate,
+      BigDecimal amount) {}
 
   public record CreateGrnRequest(
       String grnNo,
@@ -34,6 +41,10 @@ public class GrnDtos {
       String narration,
       @NotNull List<GrnLineRequest> lines) {}
 
+  public record UpdateGrnRequest(
+      Long godownId,
+      String narration) {}
+
   public record ConfirmGrnRequest(
       @NotNull Long godownId,
       String narration,
@@ -43,9 +54,13 @@ public class GrnDtos {
       Long id,
       String grnNo,
       Long supplierId,
+      String supplierName,
       Long purchaseOrderId,
+      String purchaseOrderNo,
       Long weighbridgeTicketId,
+      String weighbridgeSerialNo,
       Long godownId,
+      String godownName,
       LocalDate grnDate,
       BigDecimal firstWeight,
       BigDecimal secondWeight,
