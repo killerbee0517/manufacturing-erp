@@ -44,6 +44,9 @@ public class Grn extends BaseEntity {
   @Column(nullable = false)
   private LocalDate grnDate;
 
+  @Column(name = "received_date")
+  private LocalDate receivedDate;
+
   private String narration;
 
   private java.math.BigDecimal firstWeight;
@@ -123,6 +126,14 @@ public class Grn extends BaseEntity {
 
   public void setGrnDate(LocalDate grnDate) {
     this.grnDate = grnDate;
+  }
+
+  public LocalDate getReceivedDate() {
+    return receivedDate;
+  }
+
+  public void setReceivedDate(LocalDate receivedDate) {
+    this.receivedDate = receivedDate;
   }
 
   public String getNarration() {

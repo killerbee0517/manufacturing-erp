@@ -32,8 +32,17 @@ public class GrnLine extends BaseEntity {
   @Column(name = "quantity")
   private BigDecimal quantity;
 
+  @Column(name = "expected_qty")
+  private BigDecimal expectedQty;
+
   @Column(name = "received_qty")
   private BigDecimal receivedQty;
+
+  @Column(name = "accepted_qty")
+  private BigDecimal acceptedQty;
+
+  @Column(name = "rejected_qty")
+  private BigDecimal rejectedQty;
 
   private BigDecimal weight;
 
@@ -89,12 +98,36 @@ public class GrnLine extends BaseEntity {
     this.quantity = quantity;
   }
 
+  public BigDecimal getExpectedQty() {
+    return expectedQty;
+  }
+
+  public void setExpectedQty(BigDecimal expectedQty) {
+    this.expectedQty = expectedQty;
+  }
+
   public BigDecimal getReceivedQty() {
     return receivedQty;
   }
 
   public void setReceivedQty(BigDecimal receivedQty) {
     this.receivedQty = receivedQty;
+  }
+
+  public BigDecimal getAcceptedQty() {
+    return acceptedQty;
+  }
+
+  public void setAcceptedQty(BigDecimal acceptedQty) {
+    this.acceptedQty = acceptedQty;
+  }
+
+  public BigDecimal getRejectedQty() {
+    return rejectedQty;
+  }
+
+  public void setRejectedQty(BigDecimal rejectedQty) {
+    this.rejectedQty = rejectedQty;
   }
 
   public BigDecimal getWeight() {

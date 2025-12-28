@@ -6,6 +6,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
+import com.manufacturing.erp.domain.Uom;
 
 @Entity
 @Table(name = "purchase_invoice_lines")
@@ -16,11 +17,16 @@ public class PurchaseInvoiceLine extends BaseEntity {
   @ManyToOne
   private Item item;
 
+  @ManyToOne
+  private Uom uom;
+
   @Column(nullable = false)
   private BigDecimal quantity;
 
-  @Column(nullable = false)
-  private BigDecimal lineAmount;
+  private BigDecimal rate;
+
+  @Column(nullable = false, name = "line_amount")
+  private BigDecimal amount;
 
   public PurchaseInvoice getPurchaseInvoice() {
     return purchaseInvoice;
@@ -38,6 +44,14 @@ public class PurchaseInvoiceLine extends BaseEntity {
     this.item = item;
   }
 
+  public Uom getUom() {
+    return uom;
+  }
+
+  public void setUom(Uom uom) {
+    this.uom = uom;
+  }
+
   public BigDecimal getQuantity() {
     return quantity;
   }
@@ -46,11 +60,19 @@ public class PurchaseInvoiceLine extends BaseEntity {
     this.quantity = quantity;
   }
 
-  public BigDecimal getLineAmount() {
-    return lineAmount;
+  public BigDecimal getRate() {
+    return rate;
   }
 
-  public void setLineAmount(BigDecimal lineAmount) {
-    this.lineAmount = lineAmount;
+  public void setRate(BigDecimal rate) {
+    this.rate = rate;
+  }
+
+  public BigDecimal getAmount() {
+    return amount;
+  }
+
+  public void setAmount(BigDecimal amount) {
+    this.amount = amount;
   }
 }

@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -26,10 +27,14 @@ public class WeighbridgeController {
   }
 
   @GetMapping("/tickets")
-  public List<WeighbridgeDtos.TicketResponse> list() {
-    return ticketRepository.findAll().stream()
-        .map(this::toResponse)
-        .toList();
+  public List<WeighbridgeDtos.TicketResponse> list(@RequestParam(required = false) String status) {
+    var tickets = ticketRepository.findAll();
+    if (status != null && !status.isBlank()) {
+      var normalized = status.equalsIgnoreCase("COMPLETED") ? com.manufacturing.erp.domain.Enums.DocumentStatus.UNLOADED.name() : status;
+      var target = com.manufacturing.erp.domain.Enums.DocumentStatus.valueOf(normalized.toUpperCase());
+      tickets = tickets.stream().filter(t -> t.getStatus() == target).toList();
+    }
+    return tickets.stream().map(this::toResponse).toList();
   }
 
   @GetMapping("/tickets/{id}")

@@ -13,8 +13,6 @@ export default function GrnPage() {
   const navigate = useNavigate();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [supplierMap, setSupplierMap] = useState({});
-  const [poMap, setPoMap] = useState({});
 
   useEffect(() => {
     setLoading(true);
@@ -23,29 +21,6 @@ export default function GrnPage() {
       .then((response) => setRows(response.data || []))
       .catch(() => setRows([]))
       .finally(() => setLoading(false));
-
-    apiClient
-      .get('/api/suppliers')
-      .then((response) => {
-        const lookup = (response.data || []).reduce((acc, supplier) => {
-          acc[supplier.id] = supplier.name;
-          return acc;
-        }, {});
-        setSupplierMap(lookup);
-      })
-      .catch(() => setSupplierMap({}));
-
-    apiClient
-      .get('/api/purchase-orders')
-      .then((response) => {
-        const payload = response.data?.content || response.data || [];
-        const lookup = payload.reduce((acc, po) => {
-          acc[po.id] = po.poNo;
-          return acc;
-        }, {});
-        setPoMap(lookup);
-      })
-      .catch(() => setPoMap({}));
   }, []);
 
   return (
@@ -63,8 +38,8 @@ export default function GrnPage() {
         <DataTable
           columns={[
             { field: 'grnNo', headerName: 'GRN No' },
-            { field: 'supplierId', headerName: 'Supplier', render: (row) => supplierMap[row.supplierId] || row.supplierId },
-            { field: 'purchaseOrderId', headerName: 'PO', render: (row) => poMap[row.purchaseOrderId] || row.purchaseOrderId },
+            { field: 'supplierName', headerName: 'Supplier', render: (row) => row.supplierName || row.supplierId },
+            { field: 'purchaseOrderNo', headerName: 'PO', render: (row) => row.purchaseOrderNo || row.purchaseOrderId },
             { field: 'grnDate', headerName: 'Date' },
             { field: 'status', headerName: 'Status' }
           ]}
