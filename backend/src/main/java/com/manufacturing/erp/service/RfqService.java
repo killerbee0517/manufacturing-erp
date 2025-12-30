@@ -317,10 +317,7 @@ public class RfqService {
         .collect(Collectors.toSet());
 
     boolean fullyAwarded = rfq.getLines().stream().allMatch(line ->
-        rfq.getAwards().stream()
-            .filter(a -> a.getRfqLine().getId().equals(line.getId()))
-            .map(RfqAward::getAwardedQty)
-            .reduce(BigDecimal.ZERO, BigDecimal::add)
+        awardedPerLine.getOrDefault(line.getId(), BigDecimal.ZERO)
             .compareTo(line.getQuantity()) >= 0);
 
     rfq.getSuppliers().forEach(invite -> {
@@ -335,8 +332,9 @@ public class RfqService {
       rfq.setClosureReason("AWARDED");
     }
     rfq.setStatus(fullyAwarded ? DocumentStatus.AWARDED : DocumentStatus.PARTIALLY_AWARDED);
-    Rfq saved = rfqRepository.save(rfq);
-    return toResponse(saved, createdPoIds);
+    rfqRepository.save(rfq);
+    Rfq refreshed = rfqRepository.findById(rfq.getId()).orElse(rfq);
+    return toResponse(refreshed, createdPoIds);
   }
 
   @Transactional
