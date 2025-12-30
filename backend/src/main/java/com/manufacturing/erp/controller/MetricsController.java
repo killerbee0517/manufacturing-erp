@@ -32,7 +32,8 @@ public class MetricsController {
   @GetMapping("/dashboard")
   public MetricsDtos.DashboardMetrics dashboard() {
     long openGrns = grnRepository.countByStatusNot(DocumentStatus.POSTED);
-    long pendingQc = qcInspectionRepository.countByStatus(QcStatus.PENDING);
+    long pendingQc = qcInspectionRepository.countByStatus(QcStatus.DRAFT)
+        + qcInspectionRepository.countByStatus(QcStatus.SUBMITTED);
     long invoicesReady = purchaseInvoiceRepository.count();
     long transfersInFlight = stockLedgerRepository.count();
     return new MetricsDtos.DashboardMetrics(openGrns, pendingQc, invoicesReady, transfersInFlight);

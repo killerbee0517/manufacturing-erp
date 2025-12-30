@@ -45,7 +45,13 @@ public class GrnDtos {
 
   public record UpdateGrnRequest(
       Long godownId,
-      String narration) {}
+      String narration,
+      List<UpdateGrnLineRequest> lines) {}
+
+  public record UpdateGrnLineRequest(
+      @NotNull Long id,
+      BigDecimal acceptedQty,
+      BigDecimal rejectedQty) {}
 
   public record ConfirmGrnRequest(
       @NotNull Long godownId,

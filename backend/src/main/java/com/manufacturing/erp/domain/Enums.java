@@ -21,10 +21,13 @@ public class Enums {
   }
 
   public enum QcStatus {
+    DRAFT,
+    SUBMITTED,
+    APPROVED,
+    REJECTED,
     PENDING,
     HOLD,
-    ACCEPTED,
-    REJECTED
+    ACCEPTED
   }
 
   public enum StockStatus {
