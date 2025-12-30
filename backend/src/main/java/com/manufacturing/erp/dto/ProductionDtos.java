@@ -8,37 +8,6 @@ import java.time.LocalDate;
 import java.util.List;
 
 public class ProductionDtos {
-  public record BomLineRequest(
-      @NotNull Long componentItemId,
-      @NotNull Long uomId,
-      @NotNull BigDecimal qtyPerUnit,
-      BigDecimal scrapPercent) {}
-
-  public record BomRequest(
-      @NotNull Long finishedItemId,
-      @NotBlank String name,
-      String version,
-      Boolean enabled,
-      List<BomLineRequest> lines) {}
-
-  public record BomLineResponse(
-      Long id,
-      Long componentItemId,
-      String componentItemName,
-      Long uomId,
-      String uomCode,
-      BigDecimal qtyPerUnit,
-      BigDecimal scrapPercent) {}
-
-  public record BomResponse(
-      Long id,
-      Long finishedItemId,
-      String finishedItemName,
-      String name,
-      String version,
-      Boolean enabled,
-      List<BomLineResponse> lines) {}
-
   public record ProcessTemplateInputRequest(
       @NotNull Long itemId,
       @NotNull Long uomId,
@@ -95,7 +64,6 @@ public class ProductionDtos {
   public record ProductionOrderRequest(
       String orderNo,
       Long templateId,
-      @NotNull Long bomId,
       @NotNull Long finishedItemId,
       @NotNull Long uomId,
       @NotNull BigDecimal plannedQty,
@@ -106,8 +74,6 @@ public class ProductionDtos {
       String orderNo,
       Long templateId,
       String templateName,
-      Long bomId,
-      String bomName,
       Long finishedItemId,
       String finishedItemName,
       Long uomId,

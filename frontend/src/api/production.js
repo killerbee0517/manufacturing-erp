@@ -1,11 +1,6 @@
 import apiClient from './client';
 
 export const productionApi = {
-  listBoms: () => apiClient.get('/api/production/bom'),
-  getBom: (id) => apiClient.get(`/api/production/bom/${id}`),
-  createBom: (payload) => apiClient.post('/api/production/bom', payload),
-  updateBom: (id, payload) => apiClient.put(`/api/production/bom/${id}`, payload),
-  deleteBom: (id) => apiClient.delete(`/api/production/bom/${id}`),
   listTemplates: () => apiClient.get('/api/production/templates'),
   getTemplate: (id) => apiClient.get(`/api/production/templates/${id}`),
   createTemplate: (payload) => apiClient.post('/api/production/templates', payload),

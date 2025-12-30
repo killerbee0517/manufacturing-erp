@@ -1,7 +1,5 @@
 package com.manufacturing.erp.service;
 
-import com.manufacturing.erp.domain.BomHeader;
-import com.manufacturing.erp.domain.BomLine;
 import com.manufacturing.erp.domain.Enums.InventoryLocationType;
 import com.manufacturing.erp.domain.Enums.LedgerTxnType;
 import com.manufacturing.erp.domain.Enums.ProcessInputSourceType;
@@ -22,7 +20,6 @@ import com.manufacturing.erp.domain.ProductionBatchStep;
 import com.manufacturing.erp.domain.ProductionOrder;
 import com.manufacturing.erp.domain.Uom;
 import com.manufacturing.erp.dto.ProductionDtos;
-import com.manufacturing.erp.repository.BomHeaderRepository;
 import com.manufacturing.erp.repository.GodownRepository;
 import com.manufacturing.erp.repository.InventoryMovementRepository;
 import com.manufacturing.erp.repository.ItemRepository;
@@ -40,7 +37,6 @@ import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import org.springframework.stereotype.Service;
@@ -56,7 +52,6 @@ public class ProductionService {
   private final ProductionBatchInputRepository productionBatchInputRepository;
   private final ProductionBatchOutputRepository productionBatchOutputRepository;
   private final ProductionBatchStepRepository productionBatchStepRepository;
-  private final BomHeaderRepository bomHeaderRepository;
   private final GodownRepository godownRepository;
   private final ItemRepository itemRepository;
   private final UomRepository uomRepository;
@@ -71,7 +66,6 @@ public class ProductionService {
                            ProductionBatchInputRepository productionBatchInputRepository,
                            ProductionBatchOutputRepository productionBatchOutputRepository,
                            ProductionBatchStepRepository productionBatchStepRepository,
-                           BomHeaderRepository bomHeaderRepository,
                            GodownRepository godownRepository,
                            ItemRepository itemRepository,
                            UomRepository uomRepository,
@@ -85,58 +79,12 @@ public class ProductionService {
     this.productionBatchInputRepository = productionBatchInputRepository;
     this.productionBatchOutputRepository = productionBatchOutputRepository;
     this.productionBatchStepRepository = productionBatchStepRepository;
-    this.bomHeaderRepository = bomHeaderRepository;
     this.godownRepository = godownRepository;
     this.itemRepository = itemRepository;
     this.uomRepository = uomRepository;
     this.inventoryMovementRepository = inventoryMovementRepository;
     this.stockLedgerService = stockLedgerService;
   }
-
-  // region BOM
-  public List<ProductionDtos.BomResponse> listBoms() {
-    return bomHeaderRepository.findAll().stream().map(this::toBomResponse).toList();
-  }
-
-  public ProductionDtos.BomResponse getBom(Long id) {
-    BomHeader bom = bomHeaderRepository.findById(id)
-        .orElseThrow(() -> new IllegalArgumentException("BOM not found"));
-    return toBomResponse(bom);
-  }
-
-  @Transactional
-  public ProductionDtos.BomResponse createBom(ProductionDtos.BomRequest request) {
-    BomHeader bom = new BomHeader();
-    bom.setFinishedItem(fetchItem(request.finishedItemId()));
-    bom.setName(request.name());
-    bom.setVersion(request.version());
-    bom.setEnabled(request.enabled() != null ? request.enabled() : Boolean.TRUE);
-    BomHeader saved = bomHeaderRepository.save(bom);
-    List<BomLine> lines = buildBomLines(saved, request.lines());
-    saved.getLines().clear();
-    saved.getLines().addAll(lines);
-    BomHeader updated = bomHeaderRepository.save(saved);
-    return toBomResponse(updated);
-  }
-
-  @Transactional
-  public ProductionDtos.BomResponse updateBom(Long id, ProductionDtos.BomRequest request) {
-    BomHeader bom = bomHeaderRepository.findById(id)
-        .orElseThrow(() -> new IllegalArgumentException("BOM not found"));
-    bom.setFinishedItem(fetchItem(request.finishedItemId()));
-    bom.setName(request.name());
-    bom.setVersion(request.version());
-    bom.setEnabled(request.enabled() != null ? request.enabled() : Boolean.TRUE);
-    bom.getLines().clear();
-    bom.getLines().addAll(buildBomLines(bom, request.lines()));
-    return toBomResponse(bomHeaderRepository.save(bom));
-  }
-
-  @Transactional
-  public void deleteBom(Long id) {
-    bomHeaderRepository.deleteById(id);
-  }
-  // endregion
 
   public List<ProductionDtos.ProcessTemplateResponse> listTemplates() {
     return processTemplateRepository.findAll().stream().map(this::toTemplateResponse).toList();
@@ -204,7 +152,6 @@ public class ProductionService {
     ProductionOrder order = new ProductionOrder();
     order.setOrderNo(request.orderNo() != null ? request.orderNo() : "ORD-" + System.currentTimeMillis());
     order.setTemplate(fetchTemplate(request.templateId()));
-    order.setBom(fetchBom(request.bomId()));
     order.setFinishedItem(fetchItem(request.finishedItemId()));
     order.setUom(fetchUom(request.uomId()));
     order.setPlannedQty(request.plannedQty());
@@ -219,7 +166,6 @@ public class ProductionService {
         .orElseThrow(() -> new IllegalArgumentException("Production order not found"));
     order.setOrderNo(request.orderNo());
     order.setTemplate(fetchTemplate(request.templateId()));
-    order.setBom(fetchBom(request.bomId()));
     order.setFinishedItem(fetchItem(request.finishedItemId()));
     order.setUom(fetchUom(request.uomId()));
     order.setPlannedQty(request.plannedQty());
@@ -539,28 +485,6 @@ public class ProductionService {
     return inputs;
   }
 
-  private List<BomLine> buildBomLines(BomHeader bom, List<ProductionDtos.BomLineRequest> requests) {
-    if (requests == null) {
-      return Collections.emptyList();
-    }
-    List<BomLine> lines = new ArrayList<>();
-    for (ProductionDtos.BomLineRequest req : requests) {
-      BomLine line = new BomLine();
-      line.setBom(bom);
-      line.setComponentItem(fetchItem(req.componentItemId()));
-      line.setUom(fetchUom(req.uomId()));
-      line.setQtyPerUnit(req.qtyPerUnit());
-      line.setScrapPercent(req.scrapPercent());
-      lines.add(line);
-    }
-    return lines;
-  }
-
-  private BomHeader fetchBom(Long id) {
-    return bomHeaderRepository.findById(id)
-        .orElseThrow(() -> new IllegalArgumentException("BOM not found"));
-  }
-
   private ProductionDtos.ProcessTemplateResponse toTemplateResponse(ProcessTemplate template) {
     List<ProductionDtos.ProcessTemplateStepResponse> steps = processTemplateStepRepository
         .findByTemplateIdOrderByStepNoAsc(template.getId()).stream()
@@ -603,8 +527,6 @@ public class ProductionService {
         order.getOrderNo(),
         order.getTemplate() != null ? order.getTemplate().getId() : null,
         order.getTemplate() != null ? order.getTemplate().getName() : null,
-        order.getBom() != null ? order.getBom().getId() : null,
-        order.getBom() != null ? order.getBom().getName() : null,
         order.getFinishedItem() != null ? order.getFinishedItem().getId() : null,
         order.getFinishedItem() != null ? order.getFinishedItem().getName() : null,
         order.getUom() != null ? order.getUom().getId() : null,
@@ -687,27 +609,6 @@ public class ProductionService {
     movement.setLocationType(locationType);
     movement.setLocationId(locationId);
     inventoryMovementRepository.save(movement);
-  }
-
-  private ProductionDtos.BomResponse toBomResponse(BomHeader bom) {
-    List<ProductionDtos.BomLineResponse> lineResponses = bom.getLines().stream().map(line -> new ProductionDtos.BomLineResponse(
-        line.getId(),
-        line.getComponentItem().getId(),
-        line.getComponentItem().getName(),
-        line.getUom().getId(),
-        line.getUom().getCode(),
-        line.getQtyPerUnit(),
-        line.getScrapPercent()
-    )).toList();
-    return new ProductionDtos.BomResponse(
-        bom.getId(),
-        bom.getFinishedItem().getId(),
-        bom.getFinishedItem().getName(),
-        bom.getName(),
-        bom.getVersion(),
-        bom.getEnabled(),
-        lineResponses
-    );
   }
 
   private BigDecimal defaultZero(BigDecimal value) {

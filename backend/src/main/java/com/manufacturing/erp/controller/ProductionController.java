@@ -27,31 +27,6 @@ public class ProductionController {
   }
 
   // BOM
-  @GetMapping("/bom")
-  public List<ProductionDtos.BomResponse> listBoms() {
-    return productionService.listBoms();
-  }
-
-  @GetMapping("/bom/{id}")
-  public ProductionDtos.BomResponse getBom(@PathVariable Long id) {
-    return productionService.getBom(id);
-  }
-
-  @PostMapping("/bom")
-  public ProductionDtos.BomResponse createBom(@Valid @RequestBody ProductionDtos.BomRequest request) {
-    return productionService.createBom(request);
-  }
-
-  @PutMapping("/bom/{id}")
-  public ProductionDtos.BomResponse updateBom(@PathVariable Long id, @Valid @RequestBody ProductionDtos.BomRequest request) {
-    return productionService.updateBom(id, request);
-  }
-
-  @DeleteMapping("/bom/{id}")
-  public void deleteBom(@PathVariable Long id) {
-    productionService.deleteBom(id);
-  }
-
   @GetMapping("/templates")
   public List<ProductionDtos.ProcessTemplateResponse> listTemplates() {
     return productionService.listTemplates();

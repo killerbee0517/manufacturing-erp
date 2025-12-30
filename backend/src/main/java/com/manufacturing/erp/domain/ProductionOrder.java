@@ -2,7 +2,6 @@ package com.manufacturing.erp.domain;
 
 import com.manufacturing.erp.common.BaseEntity;
 import com.manufacturing.erp.domain.Enums.ProductionStatus;
-import com.manufacturing.erp.domain.BomHeader;
 import com.manufacturing.erp.domain.Item;
 import com.manufacturing.erp.domain.Uom;
 import jakarta.persistence.Column;
@@ -24,10 +23,6 @@ public class ProductionOrder extends BaseEntity {
   @ManyToOne
   @JoinColumn(name = "template_id")
   private ProcessTemplate template;
-
-  @ManyToOne
-  @JoinColumn(name = "bom_id")
-  private BomHeader bom;
 
   @ManyToOne
   @JoinColumn(name = "finished_item_id")
@@ -61,14 +56,6 @@ public class ProductionOrder extends BaseEntity {
 
   public void setTemplate(ProcessTemplate template) {
     this.template = template;
-  }
-
-  public BomHeader getBom() {
-    return bom;
-  }
-
-  public void setBom(BomHeader bom) {
-    this.bom = bom;
   }
 
   public Item getFinishedItem() {
