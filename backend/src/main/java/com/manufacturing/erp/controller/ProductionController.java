@@ -1,6 +1,7 @@
 package com.manufacturing.erp.controller;
 
 import com.manufacturing.erp.dto.ProductionDtos;
+import com.manufacturing.erp.service.ProductionRunService;
 import com.manufacturing.erp.service.ProductionService;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -18,9 +19,11 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/production")
 public class ProductionController {
   private final ProductionService productionService;
+  private final ProductionRunService productionRunService;
 
-  public ProductionController(ProductionService productionService) {
+  public ProductionController(ProductionService productionService, ProductionRunService productionRunService) {
     this.productionService = productionService;
+    this.productionRunService = productionRunService;
   }
 
   // BOM
@@ -163,5 +166,38 @@ public class ProductionController {
   @GetMapping("/wip/balances")
   public List<ProductionDtos.WipOutputResponse> wipBalances() {
     return productionService.listWipBalances();
+  }
+
+  // Runs
+  @GetMapping("/batches/{id}/runs")
+  public List<ProductionDtos.ProductionRunResponse> listRuns(@PathVariable Long id) {
+    return productionRunService.listRunsForBatch(id);
+  }
+
+  @PostMapping("/batches/{id}/runs")
+  public ProductionDtos.ProductionRunResponse createRun(@PathVariable Long id,
+                                                        @Valid @RequestBody ProductionDtos.ProductionRunRequest request) {
+    return productionRunService.createRun(id, request);
+  }
+
+  @GetMapping("/runs/{id}")
+  public ProductionDtos.ProductionRunResponse getRun(@PathVariable Long id) {
+    return productionRunService.getRun(id);
+  }
+
+  @PutMapping("/runs/{id}")
+  public ProductionDtos.ProductionRunResponse updateRun(@PathVariable Long id,
+                                                        @Valid @RequestBody ProductionDtos.ProductionRunRequest request) {
+    return productionRunService.updateRun(id, request);
+  }
+
+  @PostMapping("/runs/{id}/post")
+  public ProductionDtos.ProductionRunResponse postRun(@PathVariable Long id) {
+    return productionRunService.postRun(id);
+  }
+
+  @GetMapping("/batches/{id}/wip")
+  public List<ProductionDtos.WipSelectionResponse> listBatchWip(@PathVariable Long id) {
+    return productionRunService.listAvailableWipForBatch(id);
   }
 }

@@ -87,7 +87,7 @@ export default function ProductionRunsPage() {
       return;
     }
     productionApi
-      .listWipOutputs(formValues.batchId)
+      .listBatchWip(formValues.batchId)
       .then((response) => setWipOutputs(response.data || []))
       .catch(() => setWipOutputs([]));
   }, [formValues.batchId]);
@@ -116,32 +116,27 @@ export default function ProductionRunsPage() {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    await productionApi.createRun({
-      batchId: Number(formValues.batchId),
-      stepId: formValues.stepId ? Number(formValues.stepId) : null,
+    await productionApi.createRun(Number(formValues.batchId), {
+      stepNo: formValues.stepId ? Number(formValues.stepId) : null,
       runDate: formValues.runDate || null,
-      consumptions: consumptions
+      inputs: consumptions
         .filter((line) => line.itemId && line.uomId && line.quantity)
         .map((line) => ({
           itemId: Number(line.itemId),
           uomId: Number(line.uomId),
-          quantity: Number(line.quantity),
+          qty: Number(line.quantity),
           sourceType: line.sourceType,
-          sourceGodownId: line.sourceType === 'GODOWN' && line.sourceGodownId ? Number(line.sourceGodownId) : null,
-          sourceRunOutputId: line.sourceType === 'WIP' && line.sourceRunOutputId ? Number(line.sourceRunOutputId) : null,
-          rate: line.rate ? Number(line.rate) : null,
-          amount: line.amount ? Number(line.amount) : null
+          sourceRefId: line.sourceType === 'WIP' && line.sourceRunOutputId ? Number(line.sourceRunOutputId) : null,
+          godownId: line.sourceType === 'GODOWN' && line.sourceGodownId ? Number(line.sourceGodownId) : null
         })),
       outputs: outputs
         .filter((line) => line.itemId && line.uomId && line.quantity)
         .map((line) => ({
           itemId: Number(line.itemId),
           uomId: Number(line.uomId),
-          quantity: Number(line.quantity),
+          qty: Number(line.quantity),
           outputType: line.outputType,
-          destGodownId: line.destGodownId ? Number(line.destGodownId) : null,
-          rate: line.rate ? Number(line.rate) : null,
-          amount: line.amount ? Number(line.amount) : null
+          destGodownId: line.destGodownId ? Number(line.destGodownId) : null
         }))
     });
     setConsumptions([createInputLine()]);

@@ -23,5 +23,12 @@ export const productionApi = {
   completeBatch: (id) => apiClient.post(`/api/production/batches/${id}/complete`),
   listWipOutputs: (batchId) => apiClient.get(`/api/production/batches/${batchId}/wip-outputs`),
   getCostSummary: (batchId) => apiClient.get(`/api/production/batches/${batchId}/cost-summary`),
-  listWipBalances: () => apiClient.get('/api/production/wip/balances')
+  listWipBalances: () => apiClient.get('/api/production/wip/balances'),
+  listBatchRuns: (batchId) => apiClient.get(`/api/production/batches/${batchId}/runs`),
+  createRun: (batchId, payload) => apiClient.post(`/api/production/batches/${batchId}/runs`, payload),
+  updateRun: (runId, payload) => apiClient.put(`/api/production/runs/${runId}`, payload),
+  getRun: (runId) => apiClient.get(`/api/production/runs/${runId}`),
+  postRun: (runId) => apiClient.post(`/api/production/runs/${runId}/post`),
+  listBatchWip: (batchId) => apiClient.get(`/api/production/batches/${batchId}/wip`),
+  searchWip: (search) => apiClient.get('/api/wip', { params: { search } })
 };

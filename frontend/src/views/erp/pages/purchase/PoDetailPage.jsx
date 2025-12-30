@@ -73,6 +73,10 @@ export default function PoDetailPage() {
     loadPo();
   };
 
+  const handlePrint = () => {
+    window.open(`/api/purchase-orders/${id}/print`, '_blank', 'noopener,noreferrer');
+  };
+
   if (!po) {
     return (
       <MainCard>
@@ -88,6 +92,9 @@ export default function PoDetailPage() {
         breadcrumbs={[{ label: 'Purchase', to: '/purchase/po' }, { label: 'Purchase Order Detail' }]}
         actions={
           <Stack direction="row" spacing={1}>
+            <Button variant="outlined" onClick={handlePrint}>
+              Print PO
+            </Button>
             <Button variant="outlined" onClick={() => navigate(`/purchase/po/${id}/edit`)}>
               Edit
             </Button>

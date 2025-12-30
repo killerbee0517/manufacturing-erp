@@ -23,8 +23,17 @@ public class ProcessRun extends BaseEntity {
   @JoinColumn(name = "process_step_id")
   private ProcessStep processStep;
 
+  @Column(name = "run_no")
+  private Integer runNo;
+
+  @Column(name = "step_no")
+  private Integer stepNo;
+
   @Column(name = "run_date", nullable = false)
   private LocalDate runDate;
+
+  @Column(name = "notes")
+  private String notes;
 
   @Column(name = "step_name")
   private String stepName;
@@ -55,12 +64,36 @@ public class ProcessRun extends BaseEntity {
     this.processStep = processStep;
   }
 
+  public Integer getRunNo() {
+    return runNo;
+  }
+
+  public void setRunNo(Integer runNo) {
+    this.runNo = runNo;
+  }
+
+  public Integer getStepNo() {
+    return stepNo;
+  }
+
+  public void setStepNo(Integer stepNo) {
+    this.stepNo = stepNo;
+  }
+
   public String getStepName() {
     return stepName;
   }
 
   public void setStepName(String stepName) {
     this.stepName = stepName;
+  }
+
+  public String getNotes() {
+    return notes;
+  }
+
+  public void setNotes(String notes) {
+    this.notes = notes;
   }
 
   public Instant getStartedAt() {
