@@ -209,6 +209,79 @@ public class ProductionDtos {
       BigDecimal totalOutputAmount,
       BigDecimal unitCost) {}
 
+  public record RunInputRequest(
+      @NotNull Long itemId,
+      @NotNull Long uomId,
+      @NotNull BigDecimal qty,
+      @NotNull String sourceType,
+      Long sourceRefId,
+      Long godownId) {}
+
+  public record RunOutputRequest(
+      @NotNull Long itemId,
+      @NotNull Long uomId,
+      @NotNull BigDecimal qty,
+      @NotNull String outputType,
+      Long destGodownId) {}
+
+  public record ProductionRunRequest(
+      Integer stepNo,
+      String stepName,
+      String notes,
+      LocalDate runDate,
+      List<RunInputRequest> inputs,
+      List<RunOutputRequest> outputs) {}
+
+  public record RunInputResponse(
+      Long id,
+      Long itemId,
+      String itemName,
+      Long uomId,
+      String uomCode,
+      BigDecimal qty,
+      String sourceType,
+      Long sourceRefId,
+      Long sourceGodownId,
+      String sourceGodownName) {}
+
+  public record RunOutputResponse(
+      Long id,
+      Long itemId,
+      String itemName,
+      Long uomId,
+      String uomCode,
+      BigDecimal qty,
+      BigDecimal consumedQty,
+      String outputType,
+      Long destGodownId,
+      String destGodownName) {}
+
+  public record ProductionRunResponse(
+      Long id,
+      Long batchId,
+      Integer runNo,
+      Integer stepNo,
+      String stepName,
+      String status,
+      LocalDate runDate,
+      Instant startedAt,
+      Instant endedAt,
+      String notes,
+      List<RunInputResponse> inputs,
+      List<RunOutputResponse> outputs) {}
+
+  public record WipSelectionResponse(
+      Long id,
+      Long batchId,
+      Long runId,
+      Long itemId,
+      String itemName,
+      Long uomId,
+      String uomCode,
+      BigDecimal quantity,
+      BigDecimal consumedQuantity,
+      BigDecimal availableQuantity) {}
+
   public record WipOutputResponse(
       Long id,
       Long batchId,

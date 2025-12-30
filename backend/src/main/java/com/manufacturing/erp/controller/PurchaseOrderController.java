@@ -1,11 +1,17 @@
 package com.manufacturing.erp.controller;
 
 import com.manufacturing.erp.dto.TransactionDtos;
+import com.manufacturing.erp.service.PurchaseOrderPrintService;
 import com.manufacturing.erp.service.PurchaseOrderService;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -19,9 +25,12 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/purchase-orders")
 public class PurchaseOrderController {
   private final PurchaseOrderService purchaseOrderService;
+  private final PurchaseOrderPrintService purchaseOrderPrintService;
 
-  public PurchaseOrderController(PurchaseOrderService purchaseOrderService) {
+  public PurchaseOrderController(PurchaseOrderService purchaseOrderService,
+                                 PurchaseOrderPrintService purchaseOrderPrintService) {
     this.purchaseOrderService = purchaseOrderService;
+    this.purchaseOrderPrintService = purchaseOrderPrintService;
   }
 
   @GetMapping
@@ -53,6 +62,16 @@ public class PurchaseOrderController {
   @PostMapping("/{id}/approve")
   public TransactionDtos.PurchaseOrderResponse approve(@PathVariable Long id) {
     return purchaseOrderService.approve(id);
+  }
+
+  @GetMapping(value = "/{id}/print", produces = MediaType.APPLICATION_PDF_VALUE)
+  public ResponseEntity<byte[]> print(@PathVariable Long id) {
+    byte[] pdf = purchaseOrderPrintService.renderPurchaseOrder(id);
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(MediaType.APPLICATION_PDF);
+    headers.setContentDisposition(
+        ContentDisposition.inline().filename("PO-" + id + ".pdf").build());
+    return new ResponseEntity<>(pdf, headers, HttpStatus.OK);
   }
 
   private Sort parseSort(String sort) {
