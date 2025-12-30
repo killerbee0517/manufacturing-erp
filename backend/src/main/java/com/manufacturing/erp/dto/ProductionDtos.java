@@ -122,6 +122,7 @@ public class ProductionDtos {
       String itemName,
       Long uomId,
       String uomCode,
+      Integer stepNo,
       BigDecimal qty,
       String sourceType,
       Long sourceRefId,
@@ -135,6 +136,7 @@ public class ProductionDtos {
       String itemName,
       Long uomId,
       String uomCode,
+      Integer stepNo,
       BigDecimal qty,
       BigDecimal consumedQty,
       String outputType,
@@ -176,6 +178,7 @@ public class ProductionDtos {
       String remarks) {}
 
   public record BatchInputRequest(
+      @NotNull Integer stepNo,
       @NotNull Long itemId,
       @NotNull Long uomId,
       @NotNull BigDecimal qty,
@@ -191,6 +194,7 @@ public class ProductionDtos {
       String notes) {}
 
   public record BatchOutputRequest(
+      @NotNull Integer stepNo,
       @NotNull Long itemId,
       @NotNull Long uomId,
       @NotNull BigDecimal qty,

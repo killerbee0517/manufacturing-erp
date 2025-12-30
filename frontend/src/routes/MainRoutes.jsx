@@ -44,10 +44,9 @@ const StockTransferFormPage = Loadable(lazy(() => import('views/erp/pages/invent
 const StockLedgerPage = Loadable(lazy(() => import('views/erp/pages/inventory/StockLedgerPage')));
 const ItemBalancesPage = Loadable(lazy(() => import('views/erp/pages/inventory/ItemBalancesPage')));
 const ProcessTemplatesPage = Loadable(lazy(() => import('views/erp/pages/production/ProcessTemplatesPage')));
-const ProductionOrdersPage = Loadable(lazy(() => import('views/erp/pages/production/ProductionOrdersPage')));
 const ProductionBatchesPage = Loadable(lazy(() => import('views/erp/pages/production/ProductionBatchesPage')));
 const ProductionCostSummaryPage = Loadable(lazy(() => import('views/erp/pages/production/ProductionCostSummaryPage')));
-const BomPage = Loadable(lazy(() => import('views/erp/pages/production/BomPage')));
+const WipStockPage = Loadable(lazy(() => import('views/erp/pages/production/WipStockPage')));
 const LedgerReportPage = Loadable(lazy(() => import('views/erp/pages/reports/LedgerReportPage')));
 const OutstandingReportPage = Loadable(lazy(() => import('views/erp/pages/reports/OutstandingReportPage')));
 const AgeingReportPage = Loadable(lazy(() => import('views/erp/pages/reports/AgeingReportPage')));
@@ -145,10 +144,9 @@ const MainRoutes = {
     {
       path: 'production',
       children: [
-        { path: 'bom', element: <BomPage /> },
         { path: 'templates', element: <ProcessTemplatesPage /> },
-        { path: 'orders', element: <ProductionOrdersPage /> },
         { path: 'batches', element: <ProductionBatchesPage /> },
+        { path: 'wip-stock', element: <WipStockPage /> },
         { path: 'cost-summary', element: <ProductionCostSummaryPage /> }
       ]
     },

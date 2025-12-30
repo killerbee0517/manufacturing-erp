@@ -306,7 +306,7 @@ export default function RfqDetailPage() {
     });
   };
 
-  const submitAwards = async () => {
+  const submitAwards = async (supplierFilter) => {
     if (!rfq) return;
     const supplierAwardMap = {};
     const validationErrors = {};
@@ -314,6 +314,9 @@ export default function RfqDetailPage() {
       const allocations = awardAllocations[line.id] || {};
       let totalForLine = awardedByLine[line.id]?.total || 0;
       Object.entries(allocations).forEach(([supplierId, alloc]) => {
+        if (supplierFilter && Number(supplierId) !== Number(supplierFilter)) {
+          return;
+        }
         const qtyNum = Number(alloc.awardQty);
         if (Number.isFinite(qtyNum) && qtyNum > 0) {
           totalForLine += qtyNum;
@@ -604,6 +607,22 @@ export default function RfqDetailPage() {
 
   const renderCompareTab = () => {
     const submittedQuotes = Object.values(compareQuotes || {}).filter((quote) => quote.status === 'SUBMITTED');
+    const isSupplierFullyAwarded = (supplierId) => {
+      if (!rfq?.lines?.length) return false;
+      let hasQuotedLine = false;
+      return rfq.lines.every((line) => {
+        const qLine = compareQuotes?.[supplierId]?.lines?.find((ql) => ql.rfqLineId === line.id);
+        if (!qLine || qLine.quotedQty == null) {
+          return true;
+        }
+        hasQuotedLine = true;
+        const quotedQty = Number(qLine.quotedQty || 0);
+        const alreadyAwarded = awardedByLine[line.id]?.bySupplier?.[supplierId] || 0;
+        const allocation = awardAllocations[line.id]?.[supplierId]?.awardQty;
+        const pendingAward = Number(allocation || 0);
+        return quotedQty > 0 ? (alreadyAwarded + pendingAward) >= quotedQty : true;
+      }) && hasQuotedLine;
+    };
     return (
       <Stack spacing={3}>
         <Typography>
@@ -644,12 +663,19 @@ export default function RfqDetailPage() {
                     <TableCell>Award Qty</TableCell>
                     <TableCell>Award Rate</TableCell>
                     <TableCell>Award Delivery</TableCell>
+                    <TableCell />
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {lineQuotes.length ? (
                     lineQuotes.map(({ quote, qLine }) => {
                       const allocation = lineAllocations[quote.supplierId] || {};
+                      const disableAward =
+                        awarding
+                        || isFullyAwarded
+                        || compareLoading
+                        || !hasSubmittedQuotes
+                        || isSupplierFullyAwarded(quote.supplierId);
                       return (
                         <TableRow key={quote.supplierId}>
                           <TableCell>{supplierMap[quote.supplierId] || quote.supplierId}</TableCell>
@@ -684,12 +710,22 @@ export default function RfqDetailPage() {
                               InputLabelProps={{ shrink: true }}
                             />
                           </TableCell>
+                          <TableCell align="right">
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              onClick={() => submitAwards(quote.supplierId)}
+                              disabled={disableAward}
+                            >
+                              Award Supplier
+                            </Button>
+                          </TableCell>
                         </TableRow>
                       );
                     })
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={7}>No submitted quotes yet.</TableCell>
+                      <TableCell colSpan={8}>No submitted quotes yet.</TableCell>
                     </TableRow>
                   )}
                 </TableBody>
@@ -703,16 +739,6 @@ export default function RfqDetailPage() {
             {awardErrors.form}
           </Typography>
         )}
-        <Stack direction="row" spacing={1} justifyContent="flex-end">
-          <Button
-            variant="contained"
-            color="secondary"
-            onClick={submitAwards}
-            disabled={awarding || isFullyAwarded || compareLoading || !hasSubmittedQuotes}
-          >
-            Award &amp; Generate PO
-          </Button>
-        </Stack>
       </Stack>
     );
   };

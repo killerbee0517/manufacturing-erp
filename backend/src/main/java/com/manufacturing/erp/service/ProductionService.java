@@ -290,8 +290,16 @@ public class ProductionService {
   public void issueMaterials(Long batchId, ProductionDtos.BatchIssueRequest request) {
     ProductionBatch batch = productionBatchRepository.findById(batchId)
         .orElseThrow(() -> new IllegalArgumentException("Batch not found"));
+    if (batch.getStatus() != ProductionStatus.RUNNING) {
+      throw new IllegalStateException("Batch must be running to issue materials");
+    }
+    Integer currentStep = getCurrentStepNo(batchId);
     List<ProductionBatchInput> inputs = new ArrayList<>();
     for (ProductionDtos.BatchInputRequest line : request.inputs()) {
+      if (line.stepNo() == null) {
+        throw new IllegalArgumentException("Step number is required for inputs");
+      }
+      enforceStepOrder(currentStep, line.stepNo());
       ProductionBatchInput input = new ProductionBatchInput();
       input.setBatch(batch);
       input.setItem(fetchItem(line.itemId()));
@@ -301,6 +309,7 @@ public class ProductionService {
       input.setSourceRefId(line.sourceRefId());
       input.setSourceGodown(line.sourceGodownId() != null ? fetchGodown(line.sourceGodownId()) : null);
       input.setIssuedAt(line.issuedAt() != null ? line.issuedAt() : Instant.now());
+      input.setStepNo(line.stepNo());
       inputs.add(input);
 
       // update WIP consumption if needed
@@ -349,16 +358,33 @@ public class ProductionService {
   public void produce(Long batchId, ProductionDtos.BatchProduceRequest request) {
     ProductionBatch batch = productionBatchRepository.findById(batchId)
         .orElseThrow(() -> new IllegalArgumentException("Batch not found"));
+    if (batch.getStatus() != ProductionStatus.RUNNING) {
+      throw new IllegalStateException("Batch must be running to record output");
+    }
+    Integer currentStep = getCurrentStepNo(batchId);
+    Integer lastStep = getLastStepNo(batchId);
     List<ProductionBatchOutput> outputs = new ArrayList<>();
     for (ProductionDtos.BatchOutputRequest line : request.outputs()) {
+      if (line.stepNo() == null) {
+        throw new IllegalArgumentException("Step number is required for outputs");
+      }
+      enforceStepOrder(currentStep, line.stepNo());
+      ProcessOutputType outputType = ProcessOutputType.valueOf(line.outputType());
+      if (outputType == ProcessOutputType.FG && lastStep != null && !lastStep.equals(line.stepNo())) {
+        throw new IllegalArgumentException("Finished output is only allowed on the final step");
+      }
+      if (outputType == ProcessOutputType.WIP && lastStep != null && lastStep.equals(line.stepNo())) {
+        throw new IllegalArgumentException("WIP output is not allowed on the final step");
+      }
       ProductionBatchOutput output = new ProductionBatchOutput();
       output.setBatch(batch);
       output.setItem(fetchItem(line.itemId()));
       output.setUom(fetchUom(line.uomId()));
       output.setProducedQty(line.qty());
-      output.setOutputType(ProcessOutputType.valueOf(line.outputType()));
+      output.setOutputType(outputType);
       output.setDestinationGodown(line.destinationGodownId() != null ? fetchGodown(line.destinationGodownId()) : null);
       output.setProducedAt(line.producedAt() != null ? line.producedAt() : Instant.now());
+      output.setStepNo(line.stepNo());
       outputs.add(output);
 
       InventoryLocationType locationType = output.getOutputType() == ProcessOutputType.FG
@@ -373,6 +399,7 @@ public class ProductionService {
       }
     }
     productionBatchOutputRepository.saveAll(outputs);
+    markStepDone(batchId, currentStep);
   }
 
   @Transactional
@@ -612,6 +639,7 @@ public class ProductionService {
             input.getItem().getName(),
             input.getUom().getId(),
             input.getUom().getCode(),
+            input.getStepNo(),
             input.getIssuedQty(),
             input.getSourceType().name(),
             input.getSourceRefId(),
@@ -625,6 +653,7 @@ public class ProductionService {
             output.getItem().getName(),
             output.getUom().getId(),
             output.getUom().getCode(),
+            output.getStepNo(),
             output.getProducedQty(),
             output.getConsumedQty(),
             output.getOutputType().name(),
@@ -683,5 +712,45 @@ public class ProductionService {
 
   private BigDecimal defaultZero(BigDecimal value) {
     return value != null ? value : BigDecimal.ZERO;
+  }
+
+  private Integer getCurrentStepNo(Long batchId) {
+    return productionBatchStepRepository.findByBatchIdOrderByStepNoAsc(batchId).stream()
+        .filter(step -> step.getStatus() == ProductionBatchStep.StepStatus.PENDING)
+        .map(ProductionBatchStep::getStepNo)
+        .findFirst()
+        .orElse(null);
+  }
+
+  private Integer getLastStepNo(Long batchId) {
+    return productionBatchStepRepository.findByBatchIdOrderByStepNoAsc(batchId).stream()
+        .map(ProductionBatchStep::getStepNo)
+        .max(Integer::compareTo)
+        .orElse(null);
+  }
+
+  private void enforceStepOrder(Integer currentStep, Integer requestedStep) {
+    if (currentStep == null) {
+      throw new IllegalStateException("No pending steps available for this batch");
+    }
+    if (!currentStep.equals(requestedStep)) {
+      throw new IllegalStateException("Complete step " + currentStep + " before working on step " + requestedStep);
+    }
+  }
+
+  private void markStepDone(Long batchId, Integer stepNo) {
+    if (stepNo == null) {
+      return;
+    }
+    ProductionBatchStep step = productionBatchStepRepository.findByBatchIdOrderByStepNoAsc(batchId).stream()
+        .filter(s -> s.getStepNo().equals(stepNo))
+        .findFirst()
+        .orElse(null);
+    if (step != null && step.getStatus() == ProductionBatchStep.StepStatus.PENDING) {
+      step.setStatus(ProductionBatchStep.StepStatus.DONE);
+      step.setStartedAt(step.getStartedAt() != null ? step.getStartedAt() : Instant.now());
+      step.setCompletedAt(Instant.now());
+      productionBatchStepRepository.save(step);
+    }
   }
 }

@@ -44,6 +44,9 @@ public class ProductionBatchInput extends BaseEntity {
   @Column(name = "issued_at")
   private Instant issuedAt;
 
+  @Column(name = "step_no")
+  private Integer stepNo;
+
   public ProductionBatch getBatch() {
     return batch;
   }
@@ -106,5 +109,13 @@ public class ProductionBatchInput extends BaseEntity {
 
   public void setIssuedAt(Instant issuedAt) {
     this.issuedAt = issuedAt;
+  }
+
+  public Integer getStepNo() {
+    return stepNo;
+  }
+
+  public void setStepNo(Integer stepNo) {
+    this.stepNo = stepNo;
   }
 }

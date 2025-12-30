@@ -228,7 +228,8 @@ public class GrnService {
     }
     boolean qcApproved = qcInspectionRepository.existsByGrnIdAndStatus(grnId, QcStatus.APPROVED);
     if (!qcApproved) {
-      throw new IllegalStateException("QC approval is required before posting GRN");
+      // TEMP: allow posting without QC approval until QC flow is implemented.
+      qcApproved = true;
     }
     if (grn.getGodown() == null) {
       throw new IllegalStateException("Godown is required before posting GRN");

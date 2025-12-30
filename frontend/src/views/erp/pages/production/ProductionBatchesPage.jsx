@@ -44,14 +44,12 @@ export default function ProductionBatchesPage() {
   const [uoms, setUoms] = useState([]);
   const [godowns, setGodowns] = useState([]);
   const [costSummary, setCostSummary] = useState(null);
-  const [tab, setTab] = useState('runs');
+  const [tab, setTab] = useState('issue');
   const [loading, setLoading] = useState(false);
   const [creatingBatch, setCreatingBatch] = useState(false);
   const [formValues, setFormValues] = useState({ templateId: '', plannedOutputQty: '', uomId: '' });
-  const [runForm, setRunForm] = useState({ stepNo: '', runDate: '', notes: '' });
-  const [runInputs, setRunInputs] = useState([createInputLine()]);
-  const [runOutputs, setRunOutputs] = useState([createOutputLine()]);
-  const [runs, setRuns] = useState([]);
+  const [issueInputs, setIssueInputs] = useState([createInputLine()]);
+  const [outputLines, setOutputLines] = useState([createOutputLine()]);
   const [batchWip, setBatchWip] = useState([]);
 
   const columns = [
@@ -99,13 +97,6 @@ export default function ProductionBatchesPage() {
     loadBatches();
   }, []);
 
-  const loadRuns = (batchId) => {
-    productionApi
-      .listBatchRuns(batchId)
-      .then((res) => setRuns(res.data || []))
-      .catch(() => setRuns([]));
-  };
-
   const loadBatchWip = (batchId) => {
     productionApi
       .listBatchWip(batchId)
@@ -117,12 +108,11 @@ export default function ProductionBatchesPage() {
     if (!id) return;
     productionApi.getBatch(id).then((response) => {
       setSelectedBatch(response.data);
-      setTab('runs');
+      setTab('issue');
       productionApi
         .getCostSummary(id)
         .then((res) => setCostSummary(res.data))
         .catch(() => setCostSummary(null));
-      loadRuns(id);
       loadBatchWip(id);
     });
   };
@@ -164,49 +154,46 @@ export default function ProductionBatchesPage() {
     loadBatchDetail(selectedBatch.id);
   };
 
-  const handleCreateRun = async (event) => {
+  const handleIssueMaterials = async (event) => {
     event.preventDefault();
-    if (!selectedBatch) return;
-    const stepNameFromTemplate =
-      runForm.stepNo && selectedTemplate
-        ? selectedTemplate.steps?.find((step) => step.stepNo === Number(runForm.stepNo))?.stepName
-        : null;
+    if (!selectedBatch || !currentStep) return;
     const payload = {
-      stepNo: runForm.stepNo ? Number(runForm.stepNo) : null,
-      stepName: stepNameFromTemplate,
-      notes: runForm.notes || null,
-      runDate: runForm.runDate || null,
-      inputs: runInputs
+      inputs: issueInputs
         .filter((line) => line.itemId && line.uomId && line.qty)
         .map((line) => ({
+          stepNo: currentStep.stepNo,
           itemId: Number(line.itemId),
           uomId: Number(line.uomId),
           qty: Number(line.qty),
           sourceType: line.sourceType,
           sourceRefId: line.sourceType === 'WIP' && line.sourceRefId ? Number(line.sourceRefId) : null,
-          godownId: line.sourceType === 'GODOWN' && line.godownId ? Number(line.godownId) : null
-        })),
-      outputs: runOutputs
+          sourceGodownId: line.sourceType === 'GODOWN' && line.godownId ? Number(line.godownId) : null
+        }))
+    };
+    await productionApi.issueBatch(selectedBatch.id, payload);
+    setIssueInputs([createInputLine()]);
+    loadBatchDetail(selectedBatch.id);
+    loadBatchWip(selectedBatch.id);
+  };
+
+  const handleProduceOutput = async (event) => {
+    event.preventDefault();
+    if (!selectedBatch || !currentStep) return;
+    const payload = {
+      outputs: outputLines
         .filter((line) => line.itemId && line.uomId && line.qty)
         .map((line) => ({
+          stepNo: currentStep.stepNo,
           itemId: Number(line.itemId),
           uomId: Number(line.uomId),
           qty: Number(line.qty),
           outputType: line.outputType,
-          destGodownId: line.outputType === 'FG' && line.destGodownId ? Number(line.destGodownId) : null
+          destinationGodownId: line.outputType !== 'WIP' && line.destGodownId ? Number(line.destGodownId) : null
         }))
     };
-    await productionApi.createRun(selectedBatch.id, payload);
-    setRunForm({ stepNo: '', runDate: '', notes: '' });
-    setRunInputs([createInputLine()]);
-    setRunOutputs([createOutputLine()]);
-    loadRuns(selectedBatch.id);
-    loadBatchWip(selectedBatch.id);
-  };
-
-  const handlePostRun = async (runId) => {
-    await productionApi.postRun(runId);
-    loadRuns(selectedBatch.id);
+    await productionApi.produceOutput(selectedBatch.id, payload);
+    setOutputLines([createOutputLine()]);
+    loadBatchDetail(selectedBatch.id);
     loadBatchWip(selectedBatch.id);
   };
 
@@ -214,6 +201,11 @@ export default function ProductionBatchesPage() {
     () => templates.find((t) => t.id === selectedBatch?.templateId),
     [templates, selectedBatch]
   );
+  const currentStep = useMemo(
+    () => selectedBatch?.steps?.find((step) => step.status === 'PENDING') || null,
+    [selectedBatch]
+  );
+  const canWorkOnStep = selectedBatch?.status === 'RUNNING' && currentStep;
 
   return (
     <MainCard>
@@ -290,6 +282,9 @@ export default function ProductionBatchesPage() {
                       <Typography variant="body2" color="text.secondary">
                         Status: {selectedBatch.status}
                       </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Current Step: {currentStep ? `${currentStep.stepNo}. ${currentStep.stepName}` : 'No pending steps'}
+                      </Typography>
                     </div>
                     <Stack direction="row" spacing={1}>
                       {selectedBatch.status === 'DRAFT' && (
@@ -308,316 +303,237 @@ export default function ProductionBatchesPage() {
               </Card>
               <Card variant="outlined">
                 <Tabs value={tab} onChange={(_, value) => setTab(value)} variant="scrollable" scrollButtons="auto">
-                  <Tab value="runs" label="Runs" />
+                  <Tab value="issue" label="Issue" />
+                  <Tab value="output" label="Output" />
                   <Tab value="steps" label="Steps" />
                   <Tab value="summary" label="Summary" />
                 </Tabs>
                 <Divider />
                 <CardContent>
-                  {tab === 'runs' && (
-                    <Stack spacing={3} component="form" onSubmit={handleCreateRun}>
+                  {tab === 'issue' && (
+                    <Stack spacing={3} component="form" onSubmit={handleIssueMaterials}>
                       <Stack spacing={1}>
-                        <Typography variant="h6">New Run</Typography>
-                        <Grid container spacing={2}>
-                          <Grid size={{ xs: 12, md: 4 }}>
-                            <TextField
-                              select
-                              fullWidth
-                              label="Step"
-                              value={runForm.stepNo}
-                              onChange={(event) => setRunForm((prev) => ({ ...prev, stepNo: event.target.value }))}
-                            >
-                              <MenuItem value="">Select Step</MenuItem>
-                              {selectedTemplate?.steps?.map((step) => (
-                                <MenuItem key={step.id} value={step.stepNo}>
-                                  {step.stepNo}. {step.stepName}
-                                </MenuItem>
-                              ))}
-                            </TextField>
-                          </Grid>
-                          <Grid size={{ xs: 12, md: 4 }}>
-                            <TextField
-                              fullWidth
-                              label="Run Date"
-                              type="date"
-                              value={runForm.runDate}
-                              onChange={(event) => setRunForm((prev) => ({ ...prev, runDate: event.target.value }))}
-                              InputLabelProps={{ shrink: true }}
-                            />
-                          </Grid>
-                          <Grid size={{ xs: 12, md: 4 }}>
-                            <TextField
-                              fullWidth
-                              label="Notes"
-                              value={runForm.notes}
-                              onChange={(event) => setRunForm((prev) => ({ ...prev, notes: event.target.value }))}
-                            />
-                          </Grid>
-                        </Grid>
+                        <Typography variant="h6">Issue Materials</Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Current Step: {currentStep ? `${currentStep.stepNo}. ${currentStep.stepName}` : 'No pending steps'}
+                        </Typography>
                       </Stack>
-                      <Grid container spacing={3}>
-                        <Grid size={{ xs: 12, md: 6 }}>
-                          <Card variant="outlined">
-                            <CardContent>
-                              <Stack spacing={2}>
-                                <Typography variant="h6">Inputs</Typography>
-                                {runInputs.map((line, index) => (
-                                  <Stack key={`input-${index}`} spacing={1}>
+                      <Card variant="outlined">
+                        <CardContent>
+                          <Stack spacing={2}>
+                            {issueInputs.map((line, index) => (
+                              <Stack key={`input-${index}`} spacing={1}>
+                                <TextField
+                                  select
+                                  fullWidth
+                                  label="Item"
+                                  value={line.itemId}
+                                  onChange={(event) => handleLineChange(setIssueInputs, index, 'itemId', event.target.value)}
+                                >
+                                  {items.map((item) => (
+                                    <MenuItem key={item.id} value={item.id}>
+                                      {item.name}
+                                    </MenuItem>
+                                  ))}
+                                </TextField>
+                                <Grid container spacing={1}>
+                                  <Grid size={{ xs: 12, md: 4 }}>
                                     <TextField
                                       select
                                       fullWidth
-                                      label="Item"
-                                      value={line.itemId}
-                                      onChange={(event) => handleLineChange(setRunInputs, index, 'itemId', event.target.value)}
+                                      label="UOM"
+                                      value={line.uomId}
+                                      onChange={(event) => handleLineChange(setIssueInputs, index, 'uomId', event.target.value)}
                                     >
-                                      {items.map((item) => (
-                                        <MenuItem key={item.id} value={item.id}>
-                                          {item.name}
+                                      {uoms.map((uom) => (
+                                        <MenuItem key={uom.id} value={uom.id}>
+                                          {uom.code}
                                         </MenuItem>
                                       ))}
                                     </TextField>
-                                    <Grid container spacing={1}>
-                                      <Grid size={{ xs: 12, md: 4 }}>
-                                        <TextField
-                                          select
-                                          fullWidth
-                                          label="UOM"
-                                          value={line.uomId}
-                                          onChange={(event) => handleLineChange(setRunInputs, index, 'uomId', event.target.value)}
-                                        >
-                                          {uoms.map((uom) => (
-                                            <MenuItem key={uom.id} value={uom.id}>
-                                              {uom.code}
-                                            </MenuItem>
-                                          ))}
-                                        </TextField>
-                                      </Grid>
-                                      <Grid size={{ xs: 12, md: 4 }}>
-                                        <TextField
-                                          fullWidth
-                                          label="Quantity"
-                                          type="number"
-                                          value={line.qty}
-                                          onChange={(event) => handleLineChange(setRunInputs, index, 'qty', event.target.value)}
-                                        />
-                                      </Grid>
-                                      <Grid size={{ xs: 12, md: 4 }}>
-                                        <TextField
-                                          select
-                                          fullWidth
-                                          label="Source Type"
-                                          value={line.sourceType}
-                                          onChange={(event) => handleLineChange(setRunInputs, index, 'sourceType', event.target.value)}
-                                        >
-                                          <MenuItem value="GODOWN">Godown</MenuItem>
-                                          <MenuItem value="WIP">WIP</MenuItem>
-                                        </TextField>
-                                      </Grid>
-                                    </Grid>
-                                    <Grid container spacing={1}>
-                                      {line.sourceType === 'GODOWN' ? (
-                                        <Grid size={{ xs: 12, md: 6 }}>
-                                          <TextField
-                                            select
-                                            fullWidth
-                                            label="Godown"
-                                            value={line.godownId}
-                                            onChange={(event) => handleLineChange(setRunInputs, index, 'godownId', event.target.value)}
-                                          >
-                                            <MenuItem value="">Select</MenuItem>
-                                            {godowns.map((godown) => (
-                                              <MenuItem key={godown.id} value={godown.id}>
-                                                {godown.name}
-                                              </MenuItem>
-                                            ))}
-                                          </TextField>
-                                        </Grid>
-                                      ) : (
-                                        <Grid size={{ xs: 12, md: 6 }}>
-                                          <TextField
-                                            select
-                                            fullWidth
-                                            label="WIP Source"
-                                            value={line.sourceRefId}
-                                            onChange={(event) => handleLineChange(setRunInputs, index, 'sourceRefId', event.target.value)}
-                                          >
-                                            <MenuItem value="">Select</MenuItem>
-                                            {batchWip.map((wip) => (
-                                              <MenuItem key={wip.id} value={wip.id}>
-                                                {wip.itemName} (Avail: {wip.availableQuantity})
-                                              </MenuItem>
-                                            ))}
-                                          </TextField>
-                                        </Grid>
-                                      )}
-                                    </Grid>
-                                    {runInputs.length > 1 && (
-                                      <Button variant="text" color="error" onClick={() => handleRemoveLine(setRunInputs, index)}>
-                                        Remove
-                                      </Button>
-                                    )}
-                                    <Divider />
-                                  </Stack>
-                                ))}
-                                <Button variant="outlined" onClick={() => handleAddLine(setRunInputs, createInputLine)}>
-                                  Add Input
-                                </Button>
-                              </Stack>
-                            </CardContent>
-                          </Card>
-                        </Grid>
-                        <Grid size={{ xs: 12, md: 6 }}>
-                          <Card variant="outlined">
-                            <CardContent>
-                              <Stack spacing={2}>
-                                <Typography variant="h6">Outputs</Typography>
-                                {runOutputs.map((line, index) => (
-                                  <Stack key={`output-${index}`} spacing={1}>
+                                  </Grid>
+                                  <Grid size={{ xs: 12, md: 4 }}>
+                                    <TextField
+                                      fullWidth
+                                      label="Quantity"
+                                      type="number"
+                                      value={line.qty}
+                                      onChange={(event) => handleLineChange(setIssueInputs, index, 'qty', event.target.value)}
+                                    />
+                                  </Grid>
+                                  <Grid size={{ xs: 12, md: 4 }}>
                                     <TextField
                                       select
                                       fullWidth
-                                      label="Item"
-                                      value={line.itemId}
-                                      onChange={(event) => handleLineChange(setRunOutputs, index, 'itemId', event.target.value)}
+                                      label="Source Type"
+                                      value={line.sourceType}
+                                      onChange={(event) => handleLineChange(setIssueInputs, index, 'sourceType', event.target.value)}
                                     >
-                                      {items.map((item) => (
-                                        <MenuItem key={item.id} value={item.id}>
-                                          {item.name}
-                                        </MenuItem>
-                                      ))}
+                                      <MenuItem value="GODOWN">Godown</MenuItem>
+                                      <MenuItem value="WIP">WIP</MenuItem>
                                     </TextField>
-                                    <Grid container spacing={1}>
-                                      <Grid size={{ xs: 12, md: 4 }}>
-                                        <TextField
-                                          select
-                                          fullWidth
-                                          label="UOM"
-                                          value={line.uomId}
-                                          onChange={(event) => handleLineChange(setRunOutputs, index, 'uomId', event.target.value)}
-                                        >
-                                          {uoms.map((uom) => (
-                                            <MenuItem key={uom.id} value={uom.id}>
-                                              {uom.code}
-                                            </MenuItem>
-                                          ))}
-                                        </TextField>
-                                      </Grid>
-                                      <Grid size={{ xs: 12, md: 4 }}>
-                                        <TextField
-                                          fullWidth
-                                          label="Quantity"
-                                          type="number"
-                                          value={line.qty}
-                                          onChange={(event) => handleLineChange(setRunOutputs, index, 'qty', event.target.value)}
-                                        />
-                                      </Grid>
-                                      <Grid size={{ xs: 12, md: 4 }}>
-                                        <TextField
-                                          select
-                                          fullWidth
-                                          label="Output Type"
-                                          value={line.outputType}
-                                          onChange={(event) => handleLineChange(setRunOutputs, index, 'outputType', event.target.value)}
-                                        >
-                                          <MenuItem value="WIP">WIP</MenuItem>
-                                          <MenuItem value="FG">Finished</MenuItem>
-                                          <MenuItem value="BYPRODUCT">Byproduct</MenuItem>
-                                        </TextField>
-                                      </Grid>
+                                  </Grid>
+                                </Grid>
+                                <Grid container spacing={1}>
+                                  {line.sourceType === 'GODOWN' ? (
+                                    <Grid size={{ xs: 12, md: 6 }}>
+                                      <TextField
+                                        select
+                                        fullWidth
+                                        label="Godown"
+                                        value={line.godownId}
+                                        onChange={(event) => handleLineChange(setIssueInputs, index, 'godownId', event.target.value)}
+                                      >
+                                        <MenuItem value="">Select</MenuItem>
+                                        {godowns.map((godown) => (
+                                          <MenuItem key={godown.id} value={godown.id}>
+                                            {godown.name}
+                                          </MenuItem>
+                                        ))}
+                                      </TextField>
                                     </Grid>
-                                    <Grid container spacing={1}>
-                                      <Grid size={{ xs: 12, md: 6 }}>
-                                        <TextField
-                                          select
-                                          fullWidth
-                                          label="Destination Godown"
-                                          value={line.destGodownId}
-                                          onChange={(event) => handleLineChange(setRunOutputs, index, 'destGodownId', event.target.value)}
-                                          disabled={line.outputType === 'WIP'}
-                                        >
-                                          <MenuItem value="">None</MenuItem>
-                                          {godowns.map((godown) => (
-                                            <MenuItem key={godown.id} value={godown.id}>
-                                              {godown.name}
-                                            </MenuItem>
-                                          ))}
-                                        </TextField>
-                                      </Grid>
+                                  ) : (
+                                    <Grid size={{ xs: 12, md: 6 }}>
+                                      <TextField
+                                        select
+                                        fullWidth
+                                        label="WIP Source"
+                                        value={line.sourceRefId}
+                                        onChange={(event) => handleLineChange(setIssueInputs, index, 'sourceRefId', event.target.value)}
+                                      >
+                                        <MenuItem value="">Select</MenuItem>
+                                        {batchWip.map((wip) => (
+                                          <MenuItem key={wip.id} value={wip.id}>
+                                            {wip.itemName} (Avail: {wip.availableQuantity})
+                                          </MenuItem>
+                                        ))}
+                                      </TextField>
                                     </Grid>
-                                    {runOutputs.length > 1 && (
-                                      <Button variant="text" color="error" onClick={() => handleRemoveLine(setRunOutputs, index)}>
-                                        Remove
-                                      </Button>
-                                    )}
-                                    <Divider />
-                                  </Stack>
-                                ))}
-                                <Button variant="outlined" onClick={() => handleAddLine(setRunOutputs, createOutputLine)}>
-                                  Add Output
-                                </Button>
-                              </Stack>
-                            </CardContent>
-                          </Card>
-                        </Grid>
-                      </Grid>
-                      <Stack direction="row" spacing={1} justifyContent="flex-end">
-                        <Button type="submit" variant="contained" color="secondary" disabled={!selectedBatch}>
-                          Save Run
-                        </Button>
-                      </Stack>
-                      <Divider />
-                      <Stack spacing={2}>
-                        <Typography variant="subtitle1">Runs</Typography>
-                        {runs.length === 0 && (
-                          <Typography variant="body2" color="text.secondary">
-                            No runs recorded yet.
-                          </Typography>
-                        )}
-                        {runs.map((run) => (
-                          <Card key={run.id} variant="outlined">
-                            <CardContent>
-                              <Stack direction="row" justifyContent="space-between" alignItems="center">
-                                <div>
-                                  <Typography variant="subtitle1">Run #{run.runNo || run.id}</Typography>
-                                  <Typography variant="body2" color="text.secondary">
-                                    Step: {run.stepNo ? `${run.stepNo}. ${run.stepName || ''}` : run.stepName || 'Adhoc'} | Status: {run.status}
-                                  </Typography>
-                                  <Typography variant="body2" color="text.secondary">
-                                    Run Date: {run.runDate || '-'}
-                                  </Typography>
-                                </div>
-                                {run.status !== 'COMPLETED' && (
-                                  <Button variant="contained" size="small" onClick={() => handlePostRun(run.id)}>
-                                    Post Run
+                                  )}
+                                </Grid>
+                                {issueInputs.length > 1 && (
+                                  <Button variant="text" color="error" onClick={() => handleRemoveLine(setIssueInputs, index)}>
+                                    Remove
                                   </Button>
                                 )}
+                                <Divider />
                               </Stack>
-                              <Divider sx={{ my: 1 }} />
-                              <Grid container spacing={2}>
-                                <Grid size={{ xs: 12, md: 6 }}>
-                                  <Typography variant="subtitle2">Inputs</Typography>
-                                  <Stack spacing={0.5}>
-                                    {run.inputs?.map((input) => (
-                                      <Typography key={input.id} variant="body2">
-                                        {input.itemName} - {input.qty} {input.uomCode} ({input.sourceType})
-                                      </Typography>
-                                    ))}
-                                  </Stack>
+                            ))}
+                            <Button variant="outlined" onClick={() => handleAddLine(setIssueInputs, createInputLine)}>
+                              Add Input
+                            </Button>
+                          </Stack>
+                        </CardContent>
+                      </Card>
+                      <Stack direction="row" spacing={1} justifyContent="flex-end">
+                        <Button type="submit" variant="contained" color="secondary" disabled={!canWorkOnStep}>
+                          Issue Materials
+                        </Button>
+                      </Stack>
+                    </Stack>
+                  )}
+                  {tab === 'output' && (
+                    <Stack spacing={3} component="form" onSubmit={handleProduceOutput}>
+                      <Stack spacing={1}>
+                        <Typography variant="h6">Record Output</Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Current Step: {currentStep ? `${currentStep.stepNo}. ${currentStep.stepName}` : 'No pending steps'}
+                        </Typography>
+                      </Stack>
+                      <Card variant="outlined">
+                        <CardContent>
+                          <Stack spacing={2}>
+                            {outputLines.map((line, index) => (
+                              <Stack key={`output-${index}`} spacing={1}>
+                                <TextField
+                                  select
+                                  fullWidth
+                                  label="Item"
+                                  value={line.itemId}
+                                  onChange={(event) => handleLineChange(setOutputLines, index, 'itemId', event.target.value)}
+                                >
+                                  {items.map((item) => (
+                                    <MenuItem key={item.id} value={item.id}>
+                                      {item.name}
+                                    </MenuItem>
+                                  ))}
+                                </TextField>
+                                <Grid container spacing={1}>
+                                  <Grid size={{ xs: 12, md: 4 }}>
+                                    <TextField
+                                      select
+                                      fullWidth
+                                      label="UOM"
+                                      value={line.uomId}
+                                      onChange={(event) => handleLineChange(setOutputLines, index, 'uomId', event.target.value)}
+                                    >
+                                      {uoms.map((uom) => (
+                                        <MenuItem key={uom.id} value={uom.id}>
+                                          {uom.code}
+                                        </MenuItem>
+                                      ))}
+                                    </TextField>
+                                  </Grid>
+                                  <Grid size={{ xs: 12, md: 4 }}>
+                                    <TextField
+                                      fullWidth
+                                      label="Quantity"
+                                      type="number"
+                                      value={line.qty}
+                                      onChange={(event) => handleLineChange(setOutputLines, index, 'qty', event.target.value)}
+                                    />
+                                  </Grid>
+                                  <Grid size={{ xs: 12, md: 4 }}>
+                                    <TextField
+                                      select
+                                      fullWidth
+                                      label="Output Type"
+                                      value={line.outputType}
+                                      onChange={(event) => handleLineChange(setOutputLines, index, 'outputType', event.target.value)}
+                                    >
+                                      <MenuItem value="WIP">WIP</MenuItem>
+                                      <MenuItem value="FG">Finished</MenuItem>
+                                      <MenuItem value="BYPRODUCT">Byproduct</MenuItem>
+                                    </TextField>
+                                  </Grid>
                                 </Grid>
-                                <Grid size={{ xs: 12, md: 6 }}>
-                                  <Typography variant="subtitle2">Outputs</Typography>
-                                  <Stack spacing={0.5}>
-                                    {run.outputs?.map((output) => (
-                                      <Typography key={output.id} variant="body2">
-                                        {output.itemName} - {output.qty} {output.uomCode} ({output.outputType})
-                                      </Typography>
-                                    ))}
-                                  </Stack>
+                                <Grid container spacing={1}>
+                                  <Grid size={{ xs: 12, md: 6 }}>
+                                    <TextField
+                                      select
+                                      fullWidth
+                                      label="Destination Godown"
+                                      value={line.destGodownId}
+                                      onChange={(event) => handleLineChange(setOutputLines, index, 'destGodownId', event.target.value)}
+                                      disabled={line.outputType === 'WIP'}
+                                    >
+                                      <MenuItem value="">None</MenuItem>
+                                      {godowns.map((godown) => (
+                                        <MenuItem key={godown.id} value={godown.id}>
+                                          {godown.name}
+                                        </MenuItem>
+                                      ))}
+                                    </TextField>
+                                  </Grid>
                                 </Grid>
-                              </Grid>
-                            </CardContent>
-                          </Card>
-                        ))}
+                                {outputLines.length > 1 && (
+                                  <Button variant="text" color="error" onClick={() => handleRemoveLine(setOutputLines, index)}>
+                                    Remove
+                                  </Button>
+                                )}
+                                <Divider />
+                              </Stack>
+                            ))}
+                            <Button variant="outlined" onClick={() => handleAddLine(setOutputLines, createOutputLine)}>
+                              Add Output
+                            </Button>
+                          </Stack>
+                        </CardContent>
+                      </Card>
+                      <Stack direction="row" spacing={1} justifyContent="flex-end">
+                        <Button type="submit" variant="contained" color="secondary" disabled={!canWorkOnStep}>
+                          Record Output
+                        </Button>
                       </Stack>
                     </Stack>
                   )}
@@ -628,15 +544,43 @@ export default function ProductionBatchesPage() {
                           <Typography>
                             {step.stepNo}. {step.stepName}
                           </Typography>
+                          <Chip
+                            label={selectedBatch?.steps?.find((batchStep) => batchStep.stepNo === step.stepNo)?.status || 'PENDING'}
+                            size="small"
+                          />
                         </Stack>
                       ))}
                     </Stack>
                   )}
                   {tab === 'summary' && (
-                    <Stack spacing={1}>
+                    <Stack spacing={2}>
                       <Typography variant="body2">Consumption Qty: {costSummary?.totalConsumptionQty ?? '-'}</Typography>
                       <Typography variant="body2">Output Qty: {costSummary?.totalOutputQty ?? '-'}</Typography>
                       <Typography variant="body2">Unit Cost: {costSummary?.unitCost ?? '-'}</Typography>
+                      <Divider />
+                      <Typography variant="subtitle2">Inputs</Typography>
+                      {(selectedBatch?.inputs || []).length === 0 && (
+                        <Typography variant="body2" color="text.secondary">
+                          No inputs recorded.
+                        </Typography>
+                      )}
+                      {(selectedBatch?.inputs || []).map((input) => (
+                        <Typography key={input.id} variant="body2">
+                          Step {input.stepNo}: {input.itemName} - {input.qty} {input.uomCode} ({input.sourceType})
+                        </Typography>
+                      ))}
+                      <Divider />
+                      <Typography variant="subtitle2">Outputs</Typography>
+                      {(selectedBatch?.outputs || []).length === 0 && (
+                        <Typography variant="body2" color="text.secondary">
+                          No outputs recorded.
+                        </Typography>
+                      )}
+                      {(selectedBatch?.outputs || []).map((output) => (
+                        <Typography key={output.id} variant="body2">
+                          Step {output.stepNo}: {output.itemName} - {output.qty} {output.uomCode} ({output.outputType})
+                        </Typography>
+                      ))}
                     </Stack>
                   )}
                 </CardContent>
