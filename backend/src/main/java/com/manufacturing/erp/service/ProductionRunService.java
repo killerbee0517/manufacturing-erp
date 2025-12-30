@@ -226,8 +226,8 @@ public class ProductionRunService {
         .filter(out -> out.getProcessRun().getStatus() == ProductionStatus.COMPLETED)
         .filter(out -> search == null
             || out.getItem().getName().toLowerCase().contains(search.toLowerCase())
-            || (out.getItem().getCode() != null
-            && out.getItem().getCode().toLowerCase().contains(search.toLowerCase())))
+            || (out.getItem().getSku() != null
+            && out.getItem().getSku().toLowerCase().contains(search.toLowerCase())))
         .map(this::toWipSelection)
         .filter(res -> res.availableQuantity().compareTo(BigDecimal.ZERO) > 0)
         .toList();
@@ -243,7 +243,6 @@ public class ProductionRunService {
           .findFirst()
           .orElse(null);
       if (matched != null) {
-        run.setProcessStep(matched);
         run.setStepName(matched.getStepName());
       }
     }
