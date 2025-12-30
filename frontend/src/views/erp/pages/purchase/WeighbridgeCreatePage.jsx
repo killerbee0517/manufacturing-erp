@@ -103,7 +103,17 @@ export default function WeighbridgeCreatePage() {
         timeIn: header.timeIn,
         grossWeight: Number(header.grossWeight)
       };
-      await apiClient.post('/api/weighbridge/tickets', payload);
+      const response = await apiClient.post('/api/weighbridge/tickets', payload);
+      const shouldUnload = header.unloadedWeight !== '' && header.unloadedWeight !== null && !Number.isNaN(Number(header.unloadedWeight));
+      if (shouldUnload && response.data?.id) {
+        await apiClient.put(`/api/weighbridge/tickets/${response.data.id}/unload`, {
+          poId: Number(header.poId),
+          vehicleId: Number(header.vehicleId),
+          secondDate: header.secondDate || null,
+          secondTime: header.secondTime || null,
+          unloadedWeight: Number(header.unloadedWeight)
+        });
+      }
       navigate('/purchase/weighbridge-in');
     } finally {
       setSaving(false);

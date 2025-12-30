@@ -259,11 +259,19 @@ export default function ModulePage({ config }) {
                                 required={field.required}
                               >
                                 <MenuItem value="">Select</MenuItem>
-                                {(field.options || []).map((option) => (
-                                  <MenuItem key={option} value={option}>
-                                    {option}
-                                  </MenuItem>
-                                ))}
+                                {(field.options || []).map((option) => {
+                                  const value = typeof option === 'object'
+                                    ? option.value ?? option.id ?? option.code ?? option.name
+                                    : option;
+                                  const label = typeof option === 'object'
+                                    ? option.label ?? option.name ?? option.code ?? option.value
+                                    : (typeof option === 'boolean' ? (option ? 'Yes' : 'No') : option);
+                                  return (
+                                    <MenuItem key={String(value)} value={value}>
+                                      {label}
+                                    </MenuItem>
+                                  );
+                                })}
                               </TextField>
                             ) : (
                               <TextField

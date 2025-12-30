@@ -56,7 +56,7 @@ ALTER TABLE debit_notes
   ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT 'DRAFT',
   ADD COLUMN total_deduction DECIMAL(14,2) DEFAULT 0;
 
-CREATE TABLE debit_note_lines (
+CREATE TABLE IF NOT EXISTS debit_note_lines (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
   debit_note_id BIGINT,
   rule_id BIGINT NULL,

@@ -1,0 +1,2 @@
+ALTER TABLE grn_lines
+  ADD COLUMN batch_id BIGINT NULL;

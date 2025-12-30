@@ -116,7 +116,7 @@ export default function WeighbridgeEditPage() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const hasUnload = header.unloadedWeight;
+      const hasUnload = header.unloadedWeight !== '' && header.unloadedWeight !== null && !Number.isNaN(Number(header.unloadedWeight));
       if (hasUnload) {
         const payload = {
           poId: Number(header.poId),

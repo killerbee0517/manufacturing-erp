@@ -44,7 +44,7 @@ export default function StockTransferFormPage() {
 
   const payload = useMemo(
     () => ({
-      transferNo: header.transferNo || null,
+      transferNo: isEdit ? header.transferNo || null : null,
       fromGodownId: header.fromGodownId ? Number(header.fromGodownId) : null,
       toGodownId: header.toGodownId ? Number(header.toGodownId) : null,
       transferDate: header.transferDate || null,
@@ -58,7 +58,7 @@ export default function StockTransferFormPage() {
           qty: Number(line.qty || 0)
         }))
     }),
-    [header, lines]
+    [header, lines, isEdit]
   );
 
   const load = async () => {
@@ -149,15 +149,11 @@ export default function StockTransferFormPage() {
       />
       <Stack spacing={3}>
         <Grid container spacing={2}>
-          <Grid size={{ xs: 12, md: 4 }}>
-            <TextField
-              fullWidth
-              label="Transfer No"
-              value={header.transferNo}
-              onChange={(event) => setHeader((prev) => ({ ...prev, transferNo: event.target.value }))}
-              disabled={disableEditing}
-            />
-          </Grid>
+          {isEdit && (
+            <Grid size={{ xs: 12, md: 4 }}>
+              <TextField fullWidth label="Transfer No" value={header.transferNo} disabled />
+            </Grid>
+          )}
           <Grid size={{ xs: 12, md: 4 }}>
             <MasterAutocomplete
               label="From Godown"

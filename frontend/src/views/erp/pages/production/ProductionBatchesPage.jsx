@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 
-import { LoadingButton } from '@mui/lab';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
@@ -265,9 +264,9 @@ export default function ProductionBatchesPage() {
                       </MenuItem>
                     ))}
                   </TextField>
-                  <LoadingButton loading={creatingBatch} variant="contained" color="secondary" type="submit">
-                    Create Batch
-                  </LoadingButton>
+                  <Button variant="contained" color="secondary" type="submit" disabled={creatingBatch}>
+                    {creatingBatch ? 'Creating...' : 'Create Batch'}
+                  </Button>
                 </Stack>
               </CardContent>
             </Card>

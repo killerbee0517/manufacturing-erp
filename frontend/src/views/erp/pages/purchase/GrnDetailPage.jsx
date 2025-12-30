@@ -27,6 +27,7 @@ export default function GrnDetailPage() {
   const [narration, setNarration] = useState('');
   const [saving, setSaving] = useState(false);
   const [posting, setPosting] = useState(false);
+  const [creatingInvoice, setCreatingInvoice] = useState(false);
 
   const fetchGrn = async () => {
     setLoading(true);
@@ -48,6 +49,7 @@ export default function GrnDetailPage() {
   }, [id]);
 
   const isDraft = useMemo(() => grn?.status === 'DRAFT', [grn]);
+  const isPosted = useMemo(() => grn?.status === 'POSTED', [grn]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -72,6 +74,16 @@ export default function GrnDetailPage() {
     }
   };
 
+  const handleCreateInvoice = async () => {
+    setCreatingInvoice(true);
+    try {
+      const response = await apiClient.post(`/api/purchase-invoices/from-grn/${id}`);
+      navigate(`/purchase/purchase-invoice/${response.data.id}`);
+    } finally {
+      setCreatingInvoice(false);
+    }
+  };
+
   if (!grn) {
     return (
       <MainCard>
@@ -90,6 +102,14 @@ export default function GrnDetailPage() {
           <Stack direction="row" spacing={1}>
             <Button variant="outlined" onClick={() => navigate('/purchase/grn')}>
               Back to GRN
+            </Button>
+            <Button
+              variant="outlined"
+              color="primary"
+              onClick={handleCreateInvoice}
+              disabled={!isPosted || creatingInvoice}
+            >
+              Create Purchase Invoice
             </Button>
             <Button variant="contained" color="secondary" onClick={handleSave} disabled={!isDraft || saving}>
               Save
