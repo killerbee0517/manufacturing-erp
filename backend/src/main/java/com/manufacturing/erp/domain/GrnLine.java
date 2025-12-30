@@ -46,6 +46,9 @@ public class GrnLine extends BaseEntity {
 
   private BigDecimal weight;
 
+  @Column(name = "batch_id")
+  private Long batchId;
+
   private BigDecimal rate;
 
   private BigDecimal amount;
@@ -136,6 +139,14 @@ public class GrnLine extends BaseEntity {
 
   public void setWeight(BigDecimal weight) {
     this.weight = weight;
+  }
+
+  public Long getBatchId() {
+    return batchId;
+  }
+
+  public void setBatchId(Long batchId) {
+    this.batchId = batchId;
   }
 
   public BigDecimal getRate() {

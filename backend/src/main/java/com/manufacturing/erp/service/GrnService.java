@@ -100,6 +100,7 @@ public class GrnService {
       line.setPurchaseOrderLine(poLine);
       line.setItem(item);
       line.setUom(uom);
+      line.setBatchId(lineRequest.batchId());
       line.setBagType("N/A");
       line.setBagCount(0);
       line.setQuantity(lineRequest.quantity());
@@ -215,7 +216,7 @@ public class GrnService {
       BigDecimal qty = resolveAcceptedQty(line);
       BigDecimal weight = line.getWeight() != null ? line.getWeight() : qty;
       stockLedgerService.postEntry("GRN", grn.getId(), line.getId(), LedgerTxnType.IN,
-          line.getItem(), line.getUom(), null, null, null, grn.getGodown(),
+          line.getItem(), line.getUom(), null, null, null, grn.getGodown(), grn.getGodown(), line.getBatchId(),
           qty, weight, StockStatus.UNRESTRICTED, line.getRate(), line.getAmount());
     }
     grn.setStatus(DocumentStatus.POSTED);

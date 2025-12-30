@@ -12,11 +12,13 @@ public class GrnDtos {
       @NotNull BigDecimal quantity,
       BigDecimal weight,
       Long poLineId,
+      Long batchId,
       BigDecimal rate,
       BigDecimal amount) {}
 
   public record GrnLineResponse(
       Long id,
+      Long batchId,
       Long itemId,
       String itemName,
       Long uomId,

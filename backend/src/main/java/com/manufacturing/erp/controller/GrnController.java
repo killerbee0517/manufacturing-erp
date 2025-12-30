@@ -88,6 +88,7 @@ public class GrnController {
     List<GrnDtos.GrnLineResponse> lines = grn.getLines().stream()
         .map(line -> new GrnDtos.GrnLineResponse(
             line.getId(),
+            line.getBatchId(),
             line.getItem() != null ? line.getItem().getId() : null,
             line.getItem() != null ? line.getItem().getName() : null,
             line.getUom() != null ? line.getUom().getId() : null,
