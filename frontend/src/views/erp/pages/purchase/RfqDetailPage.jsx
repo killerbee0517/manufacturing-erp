@@ -618,9 +618,7 @@ export default function RfqDetailPage() {
         hasQuotedLine = true;
         const quotedQty = Number(qLine.quotedQty || 0);
         const alreadyAwarded = awardedByLine[line.id]?.bySupplier?.[supplierId] || 0;
-        const allocation = awardAllocations[line.id]?.[supplierId]?.awardQty;
-        const pendingAward = Number(allocation || 0);
-        return quotedQty > 0 ? (alreadyAwarded + pendingAward) >= quotedQty : true;
+        return quotedQty > 0 ? alreadyAwarded >= quotedQty : true;
       }) && hasQuotedLine;
     };
     return (
