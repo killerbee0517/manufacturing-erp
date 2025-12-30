@@ -3,6 +3,7 @@ package com.manufacturing.erp.service;
 import com.manufacturing.erp.domain.Enums.DocumentStatus;
 import com.manufacturing.erp.domain.Enums.LedgerTxnType;
 import com.manufacturing.erp.domain.Enums.StockStatus;
+import com.manufacturing.erp.domain.Enums.QcStatus;
 import com.manufacturing.erp.domain.Godown;
 import com.manufacturing.erp.domain.Grn;
 import com.manufacturing.erp.domain.GrnLine;
@@ -19,9 +20,12 @@ import com.manufacturing.erp.repository.GodownRepository;
 import com.manufacturing.erp.repository.ItemRepository;
 import com.manufacturing.erp.repository.PurchaseOrderRepository;
 import com.manufacturing.erp.repository.PurchaseOrderLineRepository;
+import com.manufacturing.erp.repository.QcInspectionRepository;
 import com.manufacturing.erp.repository.UomRepository;
 import com.manufacturing.erp.repository.WeighbridgeTicketRepository;
 import java.math.BigDecimal;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,6 +41,7 @@ public class GrnService {
   private final PurchaseOrderRepository purchaseOrderRepository;
   private final GodownRepository godownRepository;
   private final PurchaseOrderLineRepository purchaseOrderLineRepository;
+  private final QcInspectionRepository qcInspectionRepository;
 
   public GrnService(GrnRepository grnRepository,
                     GrnLineRepository grnLineRepository,
@@ -46,7 +51,8 @@ public class GrnService {
                     StockLedgerService stockLedgerService,
                     PurchaseOrderRepository purchaseOrderRepository,
                     GodownRepository godownRepository,
-                    PurchaseOrderLineRepository purchaseOrderLineRepository) {
+                    PurchaseOrderLineRepository purchaseOrderLineRepository,
+                    QcInspectionRepository qcInspectionRepository) {
     this.grnRepository = grnRepository;
     this.grnLineRepository = grnLineRepository;
     this.weighbridgeTicketRepository = weighbridgeTicketRepository;
@@ -56,6 +62,7 @@ public class GrnService {
     this.purchaseOrderRepository = purchaseOrderRepository;
     this.godownRepository = godownRepository;
     this.purchaseOrderLineRepository = purchaseOrderLineRepository;
+    this.qcInspectionRepository = qcInspectionRepository;
   }
 
   @Transactional
@@ -190,6 +197,25 @@ public class GrnService {
       grn.setGodown(godown);
     }
     grn.setNarration(request.narration());
+    if (request.lines() != null && !request.lines().isEmpty()) {
+      Map<Long, GrnLine> lineMap = new HashMap<>();
+      grn.getLines().forEach(line -> lineMap.put(line.getId(), line));
+      for (GrnDtos.UpdateGrnLineRequest lineRequest : request.lines()) {
+        GrnLine line = lineMap.get(lineRequest.id());
+        if (line == null) {
+          continue;
+        }
+        BigDecimal accepted = lineRequest.acceptedQty() != null ? lineRequest.acceptedQty() : line.getAcceptedQty();
+        BigDecimal rejected = lineRequest.rejectedQty() != null ? lineRequest.rejectedQty() : line.getRejectedQty();
+        BigDecimal received = line.getReceivedQty() != null ? line.getReceivedQty() : line.getQuantity();
+        if (accepted != null && rejected != null && accepted.add(rejected).compareTo(received) > 0) {
+          throw new IllegalArgumentException("Accepted + rejected cannot exceed received for line " + line.getId());
+        }
+        line.setAcceptedQty(accepted);
+        line.setRejectedQty(rejected);
+        grnLineRepository.save(line);
+      }
+    }
     return grnRepository.save(grn);
   }
 
@@ -199,6 +225,10 @@ public class GrnService {
         .orElseThrow(() -> new IllegalArgumentException("GRN not found"));
     if (grn.getStatus() == DocumentStatus.POSTED) {
       return grn;
+    }
+    boolean qcApproved = qcInspectionRepository.existsByGrnIdAndStatus(grnId, QcStatus.APPROVED);
+    if (!qcApproved) {
+      throw new IllegalStateException("QC approval is required before posting GRN");
     }
     if (grn.getGodown() == null) {
       throw new IllegalStateException("Godown is required before posting GRN");
