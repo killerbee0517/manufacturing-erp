@@ -74,6 +74,7 @@ public class Enums {
   public enum LedgerType {
     SUPPLIER,
     CUSTOMER,
+    BROKER,
     EXPENSE,
     BANK,
     GENERAL
@@ -101,5 +102,45 @@ public class Enums {
   public enum InventoryLocationType {
     GODOWN,
     WIP
+  }
+
+  public enum PartyStatus {
+    ACTIVE,
+    INACTIVE
+  }
+
+  public enum PartyRoleType {
+    SUPPLIER,
+    CUSTOMER,
+    BROKER
+  }
+
+  public enum SupplierType {
+    DIRECT,
+    BROKER
+  }
+
+  public enum BrokerCommissionType {
+    PERCENT,
+    PER_QTY,
+    FIXED
+  }
+
+  public enum BrokeragePaidBy {
+    COMPANY,
+    SUPPLIER
+  }
+
+  public enum PaymentDirection {
+    PAYABLE,
+    RECEIVABLE
+  }
+
+  public enum PdcStatus {
+    ISSUED,
+    DEPOSITED,
+    CLEARED,
+    BOUNCED,
+    CANCELLED
   }
 }

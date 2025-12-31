@@ -1,6 +1,9 @@
 package com.manufacturing.erp.domain;
 
 import com.manufacturing.erp.common.BaseEntity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
@@ -8,6 +11,10 @@ import jakarta.persistence.Table;
 @Entity
 @Table(name = "banks")
 public class Bank extends BaseEntity {
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "company_id")
+  private Company company;
+
   @Column(nullable = false)
   private String name;
 
@@ -25,6 +32,17 @@ public class Bank extends BaseEntity {
 
   @Column
   private String type;
+
+  @Column(nullable = false)
+  private boolean active = true;
+
+  public Company getCompany() {
+    return company;
+  }
+
+  public void setCompany(Company company) {
+    this.company = company;
+  }
 
   public String getName() {
     return name;
@@ -72,5 +90,13 @@ public class Bank extends BaseEntity {
 
   public void setType(String type) {
     this.type = type;
+  }
+
+  public boolean isActive() {
+    return active;
+  }
+
+  public void setActive(boolean active) {
+    this.active = active;
   }
 }

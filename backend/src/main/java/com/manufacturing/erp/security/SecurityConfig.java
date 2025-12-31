@@ -24,10 +24,13 @@ import java.util.List;
 public class SecurityConfig {
   private final JwtAuthenticationFilter jwtAuthenticationFilter;
   private final CustomUserDetailsService userDetailsService;
+  private final CompanyContextFilter companyContextFilter;
 
-  public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter, CustomUserDetailsService userDetailsService) {
+  public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter, CustomUserDetailsService userDetailsService,
+                        CompanyContextFilter companyContextFilter) {
     this.jwtAuthenticationFilter = jwtAuthenticationFilter;
     this.userDetailsService = userDetailsService;
+    this.companyContextFilter = companyContextFilter;
   }
 
   @Bean
@@ -40,7 +43,8 @@ public class SecurityConfig {
             .permitAll()
             .anyRequest().authenticated())
         .authenticationProvider(authenticationProvider())
-        .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+        .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+        .addFilterAfter(companyContextFilter, JwtAuthenticationFilter.class);
     return http.build();
   }
 
@@ -62,7 +66,7 @@ public class SecurityConfig {
         "http://192.168.*.*:*"
     ));
     config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-    config.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept"));
+    config.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept", "X-Company-Id"));
     config.setAllowCredentials(true);
 
     UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

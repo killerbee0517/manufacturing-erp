@@ -51,11 +51,31 @@ export default function AuthLogin() {
       setError('');
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('refreshToken', response.data.refreshToken);
-      navigate('/dashboard', { replace: true });
-    } catch {
+      localStorage.removeItem('companyId');
+      localStorage.removeItem('companyName');
+      const companiesResponse = await apiClient.get('/api/companies/my');
+      const companies = companiesResponse.data || [];
+      if (!Array.isArray(companies) || companies.length === 0) {
+        throw new Error('No company access configured for this user.');
+      }
+      if (companies.length === 1) {
+        localStorage.setItem('companyId', companies[0].id);
+        localStorage.setItem('companyName', companies[0].name);
+        navigate('/dashboard', { replace: true });
+      } else {
+        sessionStorage.setItem('pendingCompanies', JSON.stringify(companies));
+        navigate('/select-company', { replace: true });
+      }
+    } catch (err) {
       localStorage.removeItem('token');
       localStorage.removeItem('refreshToken');
-      setError('Invalid username or password.');
+      localStorage.removeItem('companyId');
+      localStorage.removeItem('companyName');
+      if (err?.response?.status === 401) {
+        setError('Invalid username or password.');
+      } else {
+        setError(err?.message || 'Unable to login. Please try again.');
+      }
     }
   };
 
