@@ -29,3 +29,7 @@ dist/
 
 # Maven
 target/
+
+.idea
+.env
+.vite/
