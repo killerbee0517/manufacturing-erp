@@ -6,6 +6,7 @@ import MinimalLayout from 'layout/MinimalLayout';
 
 // maintenance routing
 const LoginPage = Loadable(lazy(() => import('views/pages/authentication/Login')));
+const CompanySelectorPage = Loadable(lazy(() => import('views/pages/auth-forms/CompanySelector')));
 
 // ==============================|| AUTHENTICATION ROUTING ||============================== //
 
@@ -16,6 +17,10 @@ const AuthenticationRoutes = {
     {
       path: '/login',
       element: <LoginPage />
+    },
+    {
+      path: '/select-company',
+      element: <CompanySelectorPage />
     }
   ]
 };
