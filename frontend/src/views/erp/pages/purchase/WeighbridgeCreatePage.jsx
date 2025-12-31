@@ -12,6 +12,7 @@ import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
+import Alert from '@mui/material/Alert';
 
 import MainCard from 'ui-component/cards/MainCard';
 import PageHeader from 'components/common/PageHeader';
@@ -33,6 +34,7 @@ export default function WeighbridgeCreatePage() {
     secondTime: ''
   });
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
   const [poInfo, setPoInfo] = useState(null);
   const [itemMap, setItemMap] = useState({});
   const [uomMap, setUomMap] = useState({});
@@ -42,6 +44,17 @@ export default function WeighbridgeCreatePage() {
     const unloaded = Number(header.unloadedWeight || 0);
     return gross - unloaded;
   }, [header.grossWeight, header.unloadedWeight]);
+
+  const canSave = useMemo(() => {
+    const poId = Number(header.poId);
+    const vehicleId = Number(header.vehicleId);
+    const grossWeight = Number(header.grossWeight);
+    return Number.isFinite(poId) && poId > 0
+      && Number.isFinite(vehicleId) && vehicleId > 0
+      && header.dateIn
+      && header.timeIn
+      && Number.isFinite(grossWeight) && grossWeight > 0;
+  }, [header.poId, header.vehicleId, header.dateIn, header.timeIn, header.grossWeight]);
 
   useEffect(() => {
     apiClient
@@ -95,26 +108,48 @@ export default function WeighbridgeCreatePage() {
   const handleSave = async () => {
     setSaving(true);
     try {
+      const poId = Number(header.poId);
+      const vehicleId = Number(header.vehicleId);
+      const grossWeight = Number(header.grossWeight);
+      if (!Number.isFinite(poId) || poId <= 0) {
+        setError('Select a purchase order.');
+        return;
+      }
+      if (!Number.isFinite(vehicleId) || vehicleId <= 0) {
+        setError('Select a vehicle.');
+        return;
+      }
+      if (!header.dateIn || !header.timeIn) {
+        setError('Date and time in are required.');
+        return;
+      }
+      if (!Number.isFinite(grossWeight) || grossWeight <= 0) {
+        setError('Gross weight must be a positive number.');
+        return;
+      }
+      setError('');
       const payload = {
         serialNo: header.serialNo || undefined,
-        poId: Number(header.poId),
-        vehicleId: Number(header.vehicleId),
+        poId,
+        vehicleId,
         dateIn: header.dateIn,
         timeIn: header.timeIn,
-        grossWeight: Number(header.grossWeight)
+        grossWeight
       };
       const response = await apiClient.post('/api/weighbridge/tickets', payload);
       const shouldUnload = header.unloadedWeight !== '' && header.unloadedWeight !== null && !Number.isNaN(Number(header.unloadedWeight));
       if (shouldUnload && response.data?.id) {
         await apiClient.put(`/api/weighbridge/tickets/${response.data.id}/unload`, {
-          poId: Number(header.poId),
-          vehicleId: Number(header.vehicleId),
+          poId,
+          vehicleId,
           secondDate: header.secondDate || null,
           secondTime: header.secondTime || null,
           unloadedWeight: Number(header.unloadedWeight)
         });
       }
       navigate('/purchase/weighbridge-in');
+    } catch (err) {
+      setError(err?.message || 'Failed to save weighbridge ticket.');
     } finally {
       setSaving(false);
     }
@@ -126,12 +161,13 @@ export default function WeighbridgeCreatePage() {
         title="Weighbridge In"
         breadcrumbs={[{ label: 'Purchase', to: '/purchase/weighbridge-in' }, { label: 'New Entry' }]}
         actions={
-          <Button variant="contained" color="secondary" onClick={handleSave} disabled={saving}>
+          <Button variant="contained" color="secondary" onClick={handleSave} disabled={saving || !canSave}>
             Save Entry
           </Button>
         }
       />
       <Stack spacing={3}>
+        {error && <Alert severity="error">{error}</Alert>}
         <Grid container spacing={2}>
           <Grid size={{ xs: 12, md: 4 }}>
             <MasterAutocomplete
@@ -159,7 +195,10 @@ export default function WeighbridgeCreatePage() {
               label="Vehicle"
               endpoint="/api/vehicles"
               value={header.vehicleId}
-              onChange={(nextValue) => setHeader((prev) => ({ ...prev, vehicleId: nextValue }))}
+              onChange={(nextValue) => {
+                setHeader((prev) => ({ ...prev, vehicleId: nextValue }));
+                setError('');
+              }}
               optionLabelKey="vehicleNo"
               optionValueKey="id"
               placeholder="Search vehicles"
@@ -213,7 +252,10 @@ export default function WeighbridgeCreatePage() {
               type="number"
               label="Gross Weight"
               value={header.grossWeight}
-              onChange={(event) => setHeader((prev) => ({ ...prev, grossWeight: event.target.value }))}
+              onChange={(event) => {
+                setHeader((prev) => ({ ...prev, grossWeight: event.target.value }));
+                setError('');
+              }}
             />
           </Grid>
           <Grid size={{ xs: 12, md: 4 }}>

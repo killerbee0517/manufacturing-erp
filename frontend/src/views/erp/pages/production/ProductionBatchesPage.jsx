@@ -56,6 +56,17 @@ export default function ProductionBatchesPage() {
     { field: 'batchNo', headerName: 'Batch No' },
     { field: 'templateName', headerName: 'Template' },
     {
+      field: 'currentStep',
+      headerName: 'Current Step',
+      render: (row) => {
+        const pending = row.steps?.find((step) => step.status === 'PENDING');
+        if (pending) {
+          return `${pending.stepNo}. ${pending.stepName}`;
+        }
+        return row.status === 'COMPLETED' ? 'Completed' : 'No pending steps';
+      }
+    },
+    {
       field: 'status',
       headerName: 'Status',
       render: (row) => <Chip label={row.status} color={row.status === 'COMPLETED' ? 'success' : 'default'} size="small" />
@@ -76,15 +87,18 @@ export default function ProductionBatchesPage() {
       .catch(() => setTemplates([]));
   };
 
-  const loadBatches = () => {
+  const loadBatches = (preferredId) => {
     setLoading(true);
     productionApi
       .listBatches()
       .then((response) => {
         const rows = response.data || [];
         setBatches(rows);
-        if (rows.length > 0) {
-          loadBatchDetail(rows[0].id);
+        const nextId = preferredId || selectedBatch?.id || rows[0]?.id;
+        if (nextId) {
+          loadBatchDetail(nextId);
+        } else {
+          setSelectedBatch(null);
         }
       })
       .catch(() => setBatches([]))
@@ -146,12 +160,12 @@ export default function ProductionBatchesPage() {
 
   const startBatch = async () => {
     await productionApi.startBatch(selectedBatch.id);
-    loadBatchDetail(selectedBatch.id);
+    loadBatches(selectedBatch.id);
   };
 
   const completeBatch = async () => {
     await productionApi.completeBatch(selectedBatch.id);
-    loadBatchDetail(selectedBatch.id);
+    loadBatches(selectedBatch.id);
   };
 
   const handleIssueMaterials = async (event) => {
@@ -172,8 +186,7 @@ export default function ProductionBatchesPage() {
     };
     await productionApi.issueBatch(selectedBatch.id, payload);
     setIssueInputs([createInputLine()]);
-    loadBatchDetail(selectedBatch.id);
-    loadBatchWip(selectedBatch.id);
+    loadBatches(selectedBatch.id);
   };
 
   const handleProduceOutput = async (event) => {
@@ -193,8 +206,7 @@ export default function ProductionBatchesPage() {
     };
     await productionApi.produceOutput(selectedBatch.id, payload);
     setOutputLines([createOutputLine()]);
-    loadBatchDetail(selectedBatch.id);
-    loadBatchWip(selectedBatch.id);
+    loadBatches(selectedBatch.id);
   };
 
   const selectedTemplate = useMemo(

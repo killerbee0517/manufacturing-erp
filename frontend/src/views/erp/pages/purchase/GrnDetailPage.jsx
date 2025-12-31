@@ -12,6 +12,7 @@ import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
+import Alert from '@mui/material/Alert';
 
 import MainCard from 'ui-component/cards/MainCard';
 import PageHeader from 'components/common/PageHeader';
@@ -28,6 +29,7 @@ export default function GrnDetailPage() {
   const [saving, setSaving] = useState(false);
   const [posting, setPosting] = useState(false);
   const [creatingInvoice, setCreatingInvoice] = useState(false);
+  const [error, setError] = useState('');
 
   const fetchGrn = async () => {
     setLoading(true);
@@ -59,6 +61,7 @@ export default function GrnDetailPage() {
         narration
       });
       await fetchGrn();
+      setError('');
     } finally {
       setSaving(false);
     }
@@ -67,8 +70,18 @@ export default function GrnDetailPage() {
   const handlePost = async () => {
     setPosting(true);
     try {
+      const parsedGodownId = Number(godownId);
+      if (!Number.isFinite(parsedGodownId) || parsedGodownId <= 0) {
+        setError('Select a godown before posting.');
+        return;
+      }
+      await apiClient.put(`/api/grn/${id}`, {
+        godownId: parsedGodownId,
+        narration
+      });
       await apiClient.post(`/api/grn/${id}/post`);
       await fetchGrn();
+      setError('');
     } finally {
       setPosting(false);
     }
@@ -121,6 +134,7 @@ export default function GrnDetailPage() {
         }
       />
       <Stack spacing={3}>
+        {error && <Alert severity="error">{error}</Alert>}
         <Grid container spacing={2}>
           <Grid size={{ xs: 12, md: 4 }}>
             <Typography variant="subtitle2">Supplier</Typography>
@@ -160,7 +174,10 @@ export default function GrnDetailPage() {
               label="Godown"
               endpoint="/api/godowns"
               value={godownId}
-              onChange={setGodownId}
+              onChange={(nextValue) => {
+                setGodownId(nextValue);
+                setError('');
+              }}
               disabled={!isDraft}
               placeholder="Select godown"
               optionLabelKey="name"

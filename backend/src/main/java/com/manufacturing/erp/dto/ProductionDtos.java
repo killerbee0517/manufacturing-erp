@@ -255,6 +255,7 @@ public class ProductionDtos {
   public record WipOutputResponse(
       Long id,
       Long batchId,
+      String batchNo,
       Long itemId,
       String itemName,
       Long uomId,

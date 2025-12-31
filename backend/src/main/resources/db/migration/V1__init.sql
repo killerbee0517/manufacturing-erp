@@ -513,29 +513,9 @@ VALUES ('Main Branch', 'MAIN', CURRENT_TIMESTAMP, 'seed', CURRENT_TIMESTAMP, 'se
 INSERT INTO uoms (code, description, created_at, created_by, updated_at, updated_by)
 VALUES ('KG', 'Kilogram', CURRENT_TIMESTAMP, 'seed', CURRENT_TIMESTAMP, 'seed');
 
-INSERT INTO locations (name, code, location_type, parent_id, branch_id, created_at, created_by, updated_at, updated_by)
-SELECT 'QC Hold', 'QC_HOLD', 'GODOWN', NULL, b.id, CURRENT_TIMESTAMP, 'seed', CURRENT_TIMESTAMP, 'seed' FROM branches b WHERE b.code = 'MAIN';
-
-INSERT INTO locations (name, code, location_type, parent_id, branch_id, created_at, created_by, updated_at, updated_by)
-SELECT 'Unrestricted', 'UNRESTRICTED', 'GODOWN', NULL, b.id, CURRENT_TIMESTAMP, 'seed', CURRENT_TIMESTAMP, 'seed' FROM branches b WHERE b.code = 'MAIN';
-
-INSERT INTO suppliers (name, code, pan, created_at, created_by, updated_at, updated_by)
-VALUES ('Sample Supplier', 'SUP-001', 'ABCDE1234F', CURRENT_TIMESTAMP, 'seed', CURRENT_TIMESTAMP, 'seed');
-
-INSERT INTO supplier_tax_profiles (supplier_id, default_section, tds_applicable, created_at, created_by, updated_at, updated_by)
-SELECT id, '194Q', TRUE, CURRENT_TIMESTAMP, 'seed', CURRENT_TIMESTAMP, 'seed' FROM suppliers WHERE code = 'SUP-001';
-
 INSERT INTO tds_rules (section_code, rate_percent, threshold_amount, effective_from, effective_to, created_at, created_by, updated_at, updated_by)
 VALUES ('194Q', 0.1, 5000000, DATE '2023-04-01', DATE '2099-12-31', CURRENT_TIMESTAMP, 'seed', CURRENT_TIMESTAMP, 'seed');
 
 INSERT INTO items (name, sku, uom_id, created_at, created_by, updated_at, updated_by)
 SELECT 'Raw Paddy', 'ITEM-001', u.id, CURRENT_TIMESTAMP, 'seed', CURRENT_TIMESTAMP, 'seed' FROM uoms u WHERE u.code = 'KG';
 
-INSERT INTO customers (name, code, created_at, created_by, updated_at, updated_by)
-VALUES ('Sample Customer', 'CUST-001', CURRENT_TIMESTAMP, 'seed', CURRENT_TIMESTAMP, 'seed');
-
-INSERT INTO brokers (name, code, created_at, created_by, updated_at, updated_by)
-VALUES ('Default Broker', 'BR-001', CURRENT_TIMESTAMP, 'seed', CURRENT_TIMESTAMP, 'seed');
-
-INSERT INTO broker_commission_rules (broker_id, rate_percent, created_at, created_by, updated_at, updated_by)
-SELECT id, 1.5, CURRENT_TIMESTAMP, 'seed', CURRENT_TIMESTAMP, 'seed' FROM brokers WHERE code = 'BR-001';

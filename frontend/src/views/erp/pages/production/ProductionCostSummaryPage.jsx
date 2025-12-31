@@ -25,15 +25,20 @@ export default function ProductionCostSummaryPage() {
   }, []);
 
   useEffect(() => {
-    if (!selection.orderId) {
-      setBatches([]);
-      return;
-    }
-    productionApi
-      .listBatches(selection.orderId)
-      .then((response) => setBatches(response.data || []))
-      .catch(() => setBatches([]));
-  }, [selection.orderId]);
+    const load = async () => {
+      const order = orders.find((candidate) => candidate.id === Number(selection.orderId));
+      const templateId = order?.templateId;
+      try {
+        const response = templateId
+          ? await productionApi.listBatches(null, templateId)
+          : await productionApi.listBatches();
+        setBatches(response.data || []);
+      } catch {
+        setBatches([]);
+      }
+    };
+    load();
+  }, [orders, selection.orderId]);
 
   useEffect(() => {
     if (!selection.batchId) {

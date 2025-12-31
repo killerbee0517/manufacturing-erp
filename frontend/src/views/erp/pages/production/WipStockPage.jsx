@@ -18,7 +18,7 @@ export default function WipStockPage() {
     { field: 'availableQuantity', headerName: 'Available' },
     { field: 'quantity', headerName: 'Produced' },
     { field: 'consumedQuantity', headerName: 'Consumed' },
-    { field: 'batchId', headerName: 'Batch' }
+    { field: 'batchNo', headerName: 'Batch' }
   ];
 
   useEffect(() => {

@@ -1,15 +1,12 @@
 package com.manufacturing.erp.service;
 
-import com.manufacturing.erp.domain.Enums.LedgerTxnType;
 import com.manufacturing.erp.domain.Enums.LedgerType;
 import com.manufacturing.erp.domain.Enums.PayablePartyType;
-import com.manufacturing.erp.domain.Enums.StockStatus;
 import com.manufacturing.erp.domain.Godown;
 import com.manufacturing.erp.domain.Ledger;
 import com.manufacturing.erp.domain.PurchaseArrival;
 import com.manufacturing.erp.domain.PurchaseArrivalCharge;
 import com.manufacturing.erp.domain.PurchaseOrder;
-import com.manufacturing.erp.domain.PurchaseOrderLine;
 import com.manufacturing.erp.domain.WeighbridgeTicket;
 import com.manufacturing.erp.dto.PurchaseArrivalDtos;
 import com.manufacturing.erp.repository.BrokerRepository;
@@ -35,7 +32,6 @@ public class PurchaseArrivalService {
   private final PurchaseOrderRepository purchaseOrderRepository;
   private final WeighbridgeTicketRepository weighbridgeTicketRepository;
   private final GodownRepository godownRepository;
-  private final StockLedgerService stockLedgerService;
   private final LedgerService ledgerService;
   private final VoucherService voucherService;
   private final SupplierRepository supplierRepository;
@@ -49,7 +45,6 @@ public class PurchaseArrivalService {
                                 PurchaseOrderRepository purchaseOrderRepository,
                                 WeighbridgeTicketRepository weighbridgeTicketRepository,
                                 GodownRepository godownRepository,
-                                StockLedgerService stockLedgerService,
                                 LedgerService ledgerService,
                                 VoucherService voucherService,
                                 SupplierRepository supplierRepository,
@@ -62,7 +57,6 @@ public class PurchaseArrivalService {
     this.purchaseOrderRepository = purchaseOrderRepository;
     this.weighbridgeTicketRepository = weighbridgeTicketRepository;
     this.godownRepository = godownRepository;
-    this.stockLedgerService = stockLedgerService;
     this.ledgerService = ledgerService;
     this.voucherService = voucherService;
     this.supplierRepository = supplierRepository;
@@ -111,16 +105,6 @@ public class PurchaseArrivalService {
 
     PurchaseArrival saved = purchaseArrivalRepository.save(arrival);
     persistCharges(saved, chargeResult.charges());
-
-    for (PurchaseOrderLine line : purchaseOrder.getLines()) {
-      BigDecimal quantity = line.getQuantity();
-      BigDecimal weight = quantity != null ? quantity : BigDecimal.ZERO;
-      stockLedgerService.postEntry("PURCHASE_ARRIVAL", saved.getId(), line.getId(), LedgerTxnType.IN,
-          line.getItem(), line.getUom(), null, null, null, godown,
-          quantity != null ? quantity : BigDecimal.ZERO,
-          weight,
-          StockStatus.UNRESTRICTED);
-    }
 
     Ledger supplierLedger = purchaseOrder.getSupplier() != null ? purchaseOrder.getSupplier().getLedger() : null;
     if (supplierLedger == null && purchaseOrder.getSupplier() != null) {

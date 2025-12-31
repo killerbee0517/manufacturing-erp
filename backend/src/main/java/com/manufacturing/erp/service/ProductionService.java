@@ -309,6 +309,7 @@ public class ProductionService {
     }
     Integer currentStep = getCurrentStepNo(batchId);
     Integer lastStep = getLastStepNo(batchId);
+    Integer finalOutputStep = resolveFinalOutputStep(batch);
     List<ProductionBatchOutput> outputs = new ArrayList<>();
     for (ProductionDtos.BatchOutputRequest line : request.outputs()) {
       if (line.stepNo() == null) {
@@ -316,10 +317,10 @@ public class ProductionService {
       }
       enforceStepOrder(currentStep, line.stepNo());
       ProcessOutputType outputType = ProcessOutputType.valueOf(line.outputType());
-      if (outputType == ProcessOutputType.FG && lastStep != null && !lastStep.equals(line.stepNo())) {
+      if (outputType == ProcessOutputType.FG && finalOutputStep != null && !finalOutputStep.equals(line.stepNo())) {
         throw new IllegalArgumentException("Finished output is only allowed on the final step");
       }
-      if (outputType == ProcessOutputType.WIP && lastStep != null && lastStep.equals(line.stepNo())) {
+      if (outputType == ProcessOutputType.WIP && finalOutputStep != null && finalOutputStep.equals(line.stepNo())) {
         throw new IllegalArgumentException("WIP output is not allowed on the final step");
       }
       ProductionBatchOutput output = new ProductionBatchOutput();
@@ -372,6 +373,7 @@ public class ProductionService {
           return new ProductionDtos.WipOutputResponse(
               out.getId(),
               out.getBatch().getId(),
+              out.getBatch().getBatchNo(),
               out.getItem().getId(),
               out.getItem().getName(),
               out.getUom().getId(),
@@ -394,6 +396,7 @@ public class ProductionService {
           return new ProductionDtos.WipOutputResponse(
               out.getId(),
               out.getBatch().getId(),
+              out.getBatch().getBatchNo(),
               out.getItem().getId(),
               out.getItem().getName(),
               out.getUom().getId(),
@@ -411,8 +414,14 @@ public class ProductionService {
   public ProductionDtos.BatchCostSummaryResponse getCostSummary(Long batchId) {
     List<ProductionBatchInput> inputs = productionBatchInputRepository.findByBatchId(batchId);
     List<ProductionBatchOutput> outputs = productionBatchOutputRepository.findByBatchId(batchId);
-    BigDecimal totalConsumption = inputs.stream().map(ProductionBatchInput::getIssuedQty).reduce(BigDecimal.ZERO, BigDecimal::add);
-    BigDecimal totalOutput = outputs.stream().map(ProductionBatchOutput::getProducedQty).reduce(BigDecimal.ZERO, BigDecimal::add);
+    BigDecimal totalConsumption = inputs.stream()
+        .filter(input -> input.getSourceType() == ProcessInputSourceType.GODOWN)
+        .map(ProductionBatchInput::getIssuedQty)
+        .reduce(BigDecimal.ZERO, BigDecimal::add);
+    BigDecimal totalOutput = outputs.stream()
+        .filter(output -> output.getOutputType() == ProcessOutputType.FG)
+        .map(ProductionBatchOutput::getProducedQty)
+        .reduce(BigDecimal.ZERO, BigDecimal::add);
     BigDecimal unitCost = BigDecimal.ZERO;
     if (totalOutput.compareTo(BigDecimal.ZERO) > 0) {
       unitCost = totalConsumption.divide(totalOutput, 4, RoundingMode.HALF_UP);
@@ -628,6 +637,18 @@ public class ProductionService {
         .map(ProductionBatchStep::getStepNo)
         .max(Integer::compareTo)
         .orElse(null);
+  }
+
+  private Integer resolveFinalOutputStep(ProductionBatch batch) {
+    if (batch == null || batch.getTemplate() == null) {
+      return null;
+    }
+    Integer lastProduceStep = processTemplateStepRepository.findByTemplateIdOrderByStepNoAsc(batch.getTemplate().getId()).stream()
+        .filter(step -> step.getStepType() == StepType.PRODUCE)
+        .map(ProcessTemplateStep::getStepNo)
+        .max(Integer::compareTo)
+        .orElse(null);
+    return lastProduceStep != null ? lastProduceStep : getLastStepNo(batch.getId());
   }
 
   private void enforceStepOrder(Integer currentStep, Integer requestedStep) {

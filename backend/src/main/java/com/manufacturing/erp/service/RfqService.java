@@ -19,7 +19,6 @@ import com.manufacturing.erp.dto.TransactionDtos.RfqAwardLine;
 import com.manufacturing.erp.dto.TransactionDtos.RfqSupplierAward;
 import com.manufacturing.erp.repository.ItemRepository;
 import com.manufacturing.erp.repository.BrokerRepository;
-import com.manufacturing.erp.repository.PurchaseOrderLineRepository;
 import com.manufacturing.erp.repository.PurchaseOrderRepository;
 import com.manufacturing.erp.repository.RfqAwardRepository;
 import com.manufacturing.erp.repository.RfqRepository;
@@ -57,7 +56,6 @@ public class RfqService {
   private final UomRepository uomRepository;
   private final BrokerRepository brokerRepository;
   private final PurchaseOrderRepository purchaseOrderRepository;
-  private final PurchaseOrderLineRepository purchaseOrderLineRepository;
   private final RfqSupplierQuoteRepository rfqSupplierQuoteRepository;
   private final RfqAwardRepository rfqAwardRepository;
   private final RfqQuoteHeaderRepository rfqQuoteHeaderRepository;
@@ -69,7 +67,6 @@ public class RfqService {
                     UomRepository uomRepository,
                     BrokerRepository brokerRepository,
                     PurchaseOrderRepository purchaseOrderRepository,
-                    PurchaseOrderLineRepository purchaseOrderLineRepository,
                     RfqSupplierQuoteRepository rfqSupplierQuoteRepository,
                     RfqAwardRepository rfqAwardRepository,
                     RfqQuoteHeaderRepository rfqQuoteHeaderRepository,
@@ -80,7 +77,6 @@ public class RfqService {
     this.uomRepository = uomRepository;
     this.brokerRepository = brokerRepository;
     this.purchaseOrderRepository = purchaseOrderRepository;
-    this.purchaseOrderLineRepository = purchaseOrderLineRepository;
     this.rfqSupplierQuoteRepository = rfqSupplierQuoteRepository;
     this.rfqAwardRepository = rfqAwardRepository;
     this.rfqQuoteHeaderRepository = rfqQuoteHeaderRepository;
@@ -306,8 +302,7 @@ public class RfqService {
       Supplier supplier = supplierRepository.findById(entry.getKey())
           .orElseThrow(() -> new IllegalArgumentException("Supplier not found: " + entry.getKey()));
       PurchaseOrder po = buildOrUpdatePurchaseOrderFromAwards(rfq, supplier, entry.getValue());
-      purchaseOrderRepository.save(po);
-      purchaseOrderLineRepository.saveAll(po.getLines());
+      po = purchaseOrderRepository.save(po);
       createdPoIds.computeIfAbsent(supplier.getId(), k -> new ArrayList<>()).add(po.getId());
     }
 

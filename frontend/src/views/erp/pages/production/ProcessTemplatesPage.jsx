@@ -26,6 +26,7 @@ export default function ProcessTemplatesPage() {
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(false);
   const [activeTemplate, setActiveTemplate] = useState(null);
+  const [editingTemplateId, setEditingTemplateId] = useState(null);
   const [items, setItems] = useState([]);
   const [uoms, setUoms] = useState([]);
   const [formValues, setFormValues] = useState({
@@ -62,6 +63,50 @@ export default function ProcessTemplatesPage() {
     apiClient.get('/api/uoms').then((response) => setUoms(response.data || []));
   }, []);
 
+  const resetForm = () => {
+    setFormValues({
+      code: '',
+      name: '',
+      description: '',
+      outputItemId: '',
+      outputUomId: '',
+      inputs: [createInput()],
+      steps: [createStep()]
+    });
+    setEditingTemplateId(null);
+  };
+
+  const loadTemplateForEdit = async (templateId) => {
+    if (!templateId) return;
+    const response = await productionApi.getTemplate(templateId);
+    const template = response.data;
+    setFormValues({
+      code: template.code || '',
+      name: template.name || '',
+      description: template.description || '',
+      outputItemId: template.outputItemId || '',
+      outputUomId: template.outputUomId || '',
+      inputs: (template.inputs || []).length
+        ? template.inputs.map((input) => ({
+            itemId: input.itemId || '',
+            uomId: input.uomId || '',
+            defaultQty: input.defaultQty ?? '',
+            optional: input.optional ?? false,
+            notes: input.notes || ''
+          }))
+        : [createInput()],
+      steps: (template.steps || []).length
+        ? template.steps.map((step) => ({
+            stepNo: step.stepNo || 1,
+            stepName: step.stepName || '',
+            stepType: step.stepType || 'PROCESS',
+            notes: step.notes || ''
+          }))
+        : [createStep()]
+    });
+    setEditingTemplateId(template.id);
+  };
+
   const handleStepChange = (index, field, value) => {
     setFormValues((prev) => {
       const updated = [...prev.steps];
@@ -80,13 +125,13 @@ export default function ProcessTemplatesPage() {
   const handleRemoveStep = (index) => {
     setFormValues((prev) => ({
       ...prev,
-      steps: prev.steps.filter((_, idx) => idx !== index).map((step, idx) => ({ ...step, sequenceNo: idx + 1 }))
+      steps: prev.steps.filter((_, idx) => idx !== index).map((step, idx) => ({ ...step, stepNo: idx + 1 }))
     }));
   };
 
-  const handleCreate = async (event) => {
+  const handleCreateOrUpdate = async (event) => {
     event.preventDefault();
-    await productionApi.createTemplate({
+    const payload = {
       code: formValues.code || null,
       name: formValues.name,
       description: formValues.description,
@@ -107,16 +152,13 @@ export default function ProcessTemplatesPage() {
         stepType: step.stepType || 'PROCESS',
         notes: step.notes || null
       }))
-    });
-    setFormValues({
-      code: '',
-      name: '',
-      description: '',
-      outputItemId: '',
-      outputUomId: '',
-      inputs: [createInput()],
-      steps: [createStep()]
-    });
+    };
+    if (editingTemplateId) {
+      await productionApi.updateTemplate(editingTemplateId, payload);
+    } else {
+      await productionApi.createTemplate(payload);
+    }
+    resetForm();
     loadTemplates();
   };
 
@@ -130,15 +172,18 @@ export default function ProcessTemplatesPage() {
               columns={columns}
               rows={templates}
               loading={loading}
-              onRowClick={(row) => setActiveTemplate(row)}
+              onRowClick={(row) => {
+                setActiveTemplate(row);
+                loadTemplateForEdit(row.id);
+              }}
               emptyMessage="No templates configured."
             />
             <Card variant="outlined">
               <CardContent>
                 <Typography variant="h6" gutterBottom>
-                  New Template
+                  {editingTemplateId ? 'Edit Template' : 'New Template'}
                 </Typography>
-                <Stack spacing={2} component="form" onSubmit={handleCreate}>
+                <Stack spacing={2} component="form" onSubmit={handleCreateOrUpdate}>
                   <TextField
                     label="Code"
                     value={formValues.code}
@@ -354,9 +399,16 @@ export default function ProcessTemplatesPage() {
                   <Button variant="outlined" onClick={handleAddStep}>
                     Add Step
                   </Button>
-                  <Button variant="contained" color="secondary" type="submit">
-                    Create Template
-                  </Button>
+                  <Stack direction="row" spacing={1}>
+                    <Button variant="contained" color="secondary" type="submit">
+                      {editingTemplateId ? 'Update Template' : 'Create Template'}
+                    </Button>
+                    {editingTemplateId && (
+                      <Button variant="outlined" onClick={resetForm}>
+                        Cancel
+                      </Button>
+                    )}
+                  </Stack>
                 </Stack>
               </CardContent>
             </Card>
