@@ -141,7 +141,7 @@ CREATE TABLE pdc_register (
 );
 
 INSERT INTO companies (parent_company_id, code, name, gst_no, pan, address, active, created_at, created_by, updated_at, updated_by)
-VALUES (NULL, 'PARENT', 'Parent Company', NULL, NULL, NULL, TRUE, CURRENT_TIMESTAMP, 'seed', CURRENT_TIMESTAMP, 'seed');
+VALUES (NULL, 'MOTHERS_FOOD', 'MOTHERS FOOD', NULL, NULL, NULL, TRUE, CURRENT_TIMESTAMP, 'seed', CURRENT_TIMESTAMP, 'seed');
 
 INSERT INTO user_companies (user_id, company_id, primary_company, role_scope, created_at, created_by, updated_at, updated_by)
 SELECT u.id, c.id, TRUE, NULL, CURRENT_TIMESTAMP, 'seed', CURRENT_TIMESTAMP, 'seed'
