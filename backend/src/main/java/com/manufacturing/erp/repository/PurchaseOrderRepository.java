@@ -7,4 +7,8 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
 public interface PurchaseOrderRepository extends JpaRepository<PurchaseOrder, Long>, JpaSpecificationExecutor<PurchaseOrder> {
   List<PurchaseOrder> findByRfqId(Long rfqId);
+
+  List<PurchaseOrder> findByRfqIdAndCompanyId(Long rfqId, Long companyId);
+
+  java.util.Optional<PurchaseOrder> findByIdAndCompanyId(Long id, Long companyId);
 }

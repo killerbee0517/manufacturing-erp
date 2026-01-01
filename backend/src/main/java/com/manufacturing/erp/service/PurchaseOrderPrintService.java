@@ -13,23 +13,35 @@ import com.lowagie.text.pdf.PdfWriter;
 import com.manufacturing.erp.domain.PurchaseOrder;
 import com.manufacturing.erp.domain.PurchaseOrderLine;
 import com.manufacturing.erp.domain.Supplier;
+import com.manufacturing.erp.domain.Company;
 import com.manufacturing.erp.repository.PurchaseOrderRepository;
+import com.manufacturing.erp.repository.CompanyRepository;
+import com.manufacturing.erp.security.CompanyContext;
 import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
 import java.time.format.DateTimeFormatter;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class PurchaseOrderPrintService {
   private final PurchaseOrderRepository purchaseOrderRepository;
+  private final CompanyRepository companyRepository;
+  private final CompanyContext companyContext;
 
-  public PurchaseOrderPrintService(PurchaseOrderRepository purchaseOrderRepository) {
+  public PurchaseOrderPrintService(PurchaseOrderRepository purchaseOrderRepository,
+                                   CompanyRepository companyRepository,
+                                   CompanyContext companyContext) {
     this.purchaseOrderRepository = purchaseOrderRepository;
+    this.companyRepository = companyRepository;
+    this.companyContext = companyContext;
   }
 
   public byte[] renderPurchaseOrder(Long id) {
-    PurchaseOrder po = purchaseOrderRepository.findById(id)
-        .orElseThrow(() -> new IllegalArgumentException("Purchase order not found"));
+    Company company = requireCompany();
+    PurchaseOrder po = purchaseOrderRepository.findByIdAndCompanyId(id, company.getId())
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Purchase order not found"));
     ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
     Document document = new Document(PageSize.A4, 36, 36, 36, 36);
     try {
@@ -143,5 +155,14 @@ public class PurchaseOrderPrintService {
 
   private String defaultString(String text) {
     return text != null ? text : "";
+  }
+
+  private Company requireCompany() {
+    Long companyId = companyContext.getCompanyId();
+    if (companyId == null) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Missing company context");
+    }
+    return companyRepository.findById(companyId)
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Company not found"));
   }
 }

@@ -1,19 +1,22 @@
 package com.manufacturing.erp.service;
 
 import com.manufacturing.erp.domain.Enums.DocumentStatus;
+import com.manufacturing.erp.domain.Company;
 import com.manufacturing.erp.domain.Item;
 import com.manufacturing.erp.domain.PurchaseOrder;
 import com.manufacturing.erp.domain.PurchaseOrderLine;
 import com.manufacturing.erp.domain.Rfq;
 import com.manufacturing.erp.domain.Supplier;
 import com.manufacturing.erp.domain.Uom;
-import com.manufacturing.erp.service.LedgerService;
 import com.manufacturing.erp.dto.TransactionDtos;
+import com.manufacturing.erp.repository.CompanyRepository;
 import com.manufacturing.erp.repository.ItemRepository;
 import com.manufacturing.erp.repository.PurchaseOrderRepository;
 import com.manufacturing.erp.repository.RfqRepository;
 import com.manufacturing.erp.repository.SupplierRepository;
 import com.manufacturing.erp.repository.UomRepository;
+import com.manufacturing.erp.security.CompanyContext;
+import com.manufacturing.erp.service.LedgerService;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -36,6 +39,8 @@ public class PurchaseOrderService {
   private final ItemRepository itemRepository;
   private final UomRepository uomRepository;
   private final RfqRepository rfqRepository;
+  private final CompanyRepository companyRepository;
+  private final CompanyContext companyContext;
   private final LedgerService ledgerService;
 
   public PurchaseOrderService(PurchaseOrderRepository purchaseOrderRepository,
@@ -43,17 +48,23 @@ public class PurchaseOrderService {
                               ItemRepository itemRepository,
                               UomRepository uomRepository,
                               RfqRepository rfqRepository,
+                              CompanyRepository companyRepository,
+                              CompanyContext companyContext,
                               LedgerService ledgerService) {
     this.purchaseOrderRepository = purchaseOrderRepository;
     this.supplierRepository = supplierRepository;
     this.itemRepository = itemRepository;
     this.uomRepository = uomRepository;
     this.rfqRepository = rfqRepository;
+    this.companyRepository = companyRepository;
+    this.companyContext = companyContext;
     this.ledgerService = ledgerService;
   }
 
   public Page<TransactionDtos.PurchaseOrderResponse> list(String q, String status, Pageable pageable) {
+    Company company = requireCompany();
     Specification<PurchaseOrder> spec = Specification.where(null);
+    spec = spec.and((root, query, cb) -> cb.equal(root.get("company").get("id"), company.getId()));
     if (q != null && !q.isBlank()) {
       spec = spec.and((root, query, cb) -> cb.like(cb.lower(root.get("poNo")), "%" + q.toLowerCase() + "%"));
     }
@@ -70,10 +81,12 @@ public class PurchaseOrderService {
 
   @Transactional
   public TransactionDtos.PurchaseOrderResponse create(TransactionDtos.PurchaseOrderRequest request) {
+    Company company = requireCompany();
     Supplier supplier = supplierRepository.findById(request.supplierId())
         .orElseThrow(() -> new IllegalArgumentException("Supplier not found"));
     PurchaseOrder po = new PurchaseOrder();
-    po.setPoNo(resolvePoNo(request.poNo()));
+    po.setCompany(company);
+    po.setPoNo(resolvePoNo(null));
     po.setSupplier(supplier);
     po.setPoDate(request.poDate());
     po.setDeliveryDate(request.deliveryDate());
@@ -93,10 +106,12 @@ public class PurchaseOrderService {
   @Transactional
   public TransactionDtos.PurchaseOrderResponse update(Long id, TransactionDtos.PurchaseOrderRequest request) {
     PurchaseOrder po = getPurchaseOrderOrThrow(id);
+    Company company = requireCompany();
     Supplier supplier = supplierRepository.findById(request.supplierId())
         .orElseThrow(() -> new IllegalArgumentException("Supplier not found"));
 
-    po.setPoNo(resolvePoNo(request.poNo(), po.getPoNo()));
+    po.setCompany(company);
+    po.setPoNo(resolvePoNo(null, po.getPoNo()));
     po.setSupplier(supplier);
     po.setPoDate(request.poDate());
     po.setDeliveryDate(request.deliveryDate());
@@ -192,7 +207,7 @@ public class PurchaseOrderService {
         po.getDeliveryDate(),
         po.getSupplierInvoiceNo(),
         po.getPurchaseLedger(),
-        po.getCurrentLedgerBalance() != null ? po.getCurrentLedgerBalance() : BigDecimal.ZERO,
+        resolveSupplierBalance(po.getSupplier()),
         po.getRemarks(),
         po.getTotalAmount(),
         po.getStatus().name(),
@@ -207,7 +222,8 @@ public class PurchaseOrderService {
   }
 
   private PurchaseOrder getPurchaseOrderOrThrow(Long id) {
-    return purchaseOrderRepository.findById(id)
+    Company company = requireCompany();
+    return purchaseOrderRepository.findByIdAndCompanyId(id, company.getId())
         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Purchase order not found"));
   }
 
@@ -232,5 +248,14 @@ public class PurchaseOrderService {
     }
     return rfqRepository.findById(rfqId)
         .orElseThrow(() -> new IllegalArgumentException("RFQ not found"));
+  }
+
+  private Company requireCompany() {
+    Long companyId = companyContext.getCompanyId();
+    if (companyId == null) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Missing company context");
+    }
+    return companyRepository.findById(companyId)
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Company not found"));
   }
 }

@@ -756,11 +756,12 @@ public class RfqService {
   }
 
   private PurchaseOrder buildOrUpdatePurchaseOrderFromAwards(Rfq rfq, Supplier supplier, List<RfqAward> awards) {
-    PurchaseOrder po = purchaseOrderRepository.findByRfqId(rfq.getId()).stream()
+    PurchaseOrder po = purchaseOrderRepository.findByRfqIdAndCompanyId(rfq.getId(), rfq.getCompany().getId()).stream()
         .filter(existing -> existing.getSupplier() != null && existing.getSupplier().getId().equals(supplier.getId()))
         .findFirst()
         .orElseGet(() -> {
           PurchaseOrder fresh = new PurchaseOrder();
+          fresh.setCompany(rfq.getCompany());
           fresh.setPoNo("PO-" + LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd", Locale.ENGLISH)) + "-" + System.nanoTime());
           fresh.setSupplier(supplier);
           fresh.setPoDate(LocalDate.now());
@@ -773,6 +774,9 @@ public class RfqService {
         });
 
     po.setRfq(rfq);
+    if (po.getCompany() == null) {
+      po.setCompany(rfq.getCompany());
+    }
     LocalDate earliestAwardDate = awards.stream()
         .map(RfqAward::getAwardedDeliveryDate)
         .filter(Objects::nonNull)
@@ -803,7 +807,7 @@ public class RfqService {
     if (rfq.getId() == null) {
       return Map.of();
     }
-    return purchaseOrderRepository.findByRfqId(rfq.getId()).stream()
+    return purchaseOrderRepository.findByRfqIdAndCompanyId(rfq.getId(), rfq.getCompany().getId()).stream()
         .filter(po -> po.getSupplier() != null)
         .collect(Collectors.groupingBy(po -> po.getSupplier().getId(),
             Collectors.mapping(PurchaseOrder::getId, Collectors.toList())));
@@ -813,7 +817,7 @@ public class RfqService {
     if (rfq.getId() == null) {
       return List.of();
     }
-    return purchaseOrderRepository.findByRfqId(rfq.getId()).stream()
+    return purchaseOrderRepository.findByRfqIdAndCompanyId(rfq.getId(), rfq.getCompany().getId()).stream()
         .filter(po -> po.getSupplier() != null)
         .map(po -> new TransactionDtos.RfqPoSummary(
             po.getSupplier().getId(),

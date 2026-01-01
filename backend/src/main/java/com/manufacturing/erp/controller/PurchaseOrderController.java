@@ -64,7 +64,7 @@ public class PurchaseOrderController {
     return purchaseOrderService.approve(id);
   }
 
-  @GetMapping(value = "/{id}/print", produces = MediaType.APPLICATION_PDF_VALUE)
+  @PostMapping(value = "/{id}/print", produces = MediaType.APPLICATION_PDF_VALUE)
   public ResponseEntity<byte[]> print(@PathVariable Long id) {
     byte[] pdf = purchaseOrderPrintService.renderPurchaseOrder(id);
     HttpHeaders headers = new HttpHeaders();

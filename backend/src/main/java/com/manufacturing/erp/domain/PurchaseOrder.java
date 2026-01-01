@@ -7,6 +7,7 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
@@ -18,6 +19,10 @@ import java.util.List;
 @Entity
 @Table(name = "purchase_orders")
 public class PurchaseOrder extends BaseEntity {
+  @ManyToOne
+  @JoinColumn(name = "company_id")
+  private Company company;
+
   @Column(name = "po_no", nullable = false)
   private String poNo;
 
@@ -47,6 +52,14 @@ public class PurchaseOrder extends BaseEntity {
 
   @OneToMany(mappedBy = "purchaseOrder", cascade = CascadeType.ALL, orphanRemoval = true)
   private List<PurchaseOrderLine> lines = new ArrayList<>();
+
+  public Company getCompany() {
+    return company;
+  }
+
+  public void setCompany(Company company) {
+    this.company = company;
+  }
 
   public String getPoNo() {
     return poNo;

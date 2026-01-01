@@ -73,8 +73,21 @@ export default function PoDetailPage() {
     loadPo();
   };
 
-  const handlePrint = () => {
-    window.open(`/api/purchase-orders/${id}/print`, '_blank', 'noopener,noreferrer');
+  const handlePrint = async () => {
+    const response = await apiClient.post(`/api/purchase-orders/${id}/print`, null, {
+      responseType: 'blob'
+    });
+    const blob = new Blob([response.data], { type: 'application/pdf' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const disposition = response.headers?.['content-disposition'] || '';
+    const match = disposition.match(/filename="?([^"]+)"?/i);
+    link.href = url;
+    link.download = match?.[1] || `purchase-order-${id}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
   };
 
   if (!po) {
