@@ -84,6 +84,8 @@ public class TransactionDtos {
       @NotEmpty List<Long> supplierIds,
       @NotEmpty @Valid List<RfqLineRequest> lines) {}
 
+  public record RfqPoSummary(Long supplierId, Long poId, String poNo) {}
+
   public record RfqResponse(
       Long id,
       String rfqNo,
@@ -96,12 +98,17 @@ public class TransactionDtos {
       List<RfqLineResponse> lines,
       List<RfqAwardLine> awards,
       List<RfqQuoteSupplierSummary> quoteSummaries,
-      java.util.Map<Long, java.util.List<Long>> poIdsBySupplier) {}
+      java.util.Map<Long, java.util.List<Long>> poIdsBySupplier,
+      java.util.List<RfqPoSummary> purchaseOrders) {}
 
   public record RfqCloseRequest(@NotBlank String closureReason) {}
 
   public record RfqCloseResponse(Long id, String status, String closureReason, Long purchaseOrderId) {}
-  public record RfqAwardRequest(@Valid List<RfqSupplierAward> supplierAwards, @Valid List<RfqAwardLine> awards, String remarks) {}
+  public record RfqAwardRequest(@Valid List<RfqSupplierAward> supplierAwards,
+                                @Valid List<RfqAwardLine> awards,
+                                String remarks,
+                                Boolean closeRemaining,
+                                String closureReason) {}
 
   public record PurchaseOrderLineRequest(
       Long id,
