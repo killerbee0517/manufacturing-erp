@@ -1,5 +1,5 @@
 import PropTypes from 'prop-types';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import Box from '@mui/material/Box';
 import IconButton from '@mui/material/IconButton';
@@ -26,13 +26,25 @@ export default function DataTable({
   onEdit,
   onDelete,
   onRowClick,
-  searchPlaceholder
+  searchPlaceholder,
+  serverPagination,
+  totalCount,
+  page: controlledPage,
+  rowsPerPage: controlledRowsPerPage,
+  onPageChange,
+  onRowsPerPageChange,
+  onSearch
 }) {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [search, setSearch] = useState('');
 
+  const isServerPagination = Boolean(serverPagination);
+  const currentPage = isServerPagination && controlledPage !== undefined ? controlledPage : page;
+  const currentRowsPerPage = isServerPagination && controlledRowsPerPage !== undefined ? controlledRowsPerPage : rowsPerPage;
+
   const filteredRows = useMemo(() => {
+    if (onSearch) return rows;
     if (!search) return rows;
     const lowered = search.toLowerCase();
     return rows.filter((row) =>
@@ -45,14 +57,20 @@ export default function DataTable({
         return String(value).toLowerCase().includes(lowered);
       })
     );
-  }, [rows, columns, search]);
+  }, [rows, columns, search, onSearch]);
 
-  const pagedRows = useMemo(
-    () => filteredRows.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage),
-    [filteredRows, page, rowsPerPage]
-  );
+  const pagedRows = useMemo(() => {
+    if (isServerPagination) return filteredRows;
+    return filteredRows.slice(currentPage * currentRowsPerPage, currentPage * currentRowsPerPage + currentRowsPerPage);
+  }, [filteredRows, isServerPagination, currentPage, currentRowsPerPage]);
 
   const hasActions = Boolean(onEdit || onDelete);
+
+  useEffect(() => {
+    if (!onSearch) return undefined;
+    const handle = setTimeout(() => onSearch(search), 300);
+    return () => clearTimeout(handle);
+  }, [search, onSearch]);
 
   return (
     <Stack spacing={2}>
@@ -137,13 +155,24 @@ export default function DataTable({
       <Box>
         <TablePagination
           component="div"
-          count={filteredRows.length}
-          page={page}
-          onPageChange={(_, newPage) => setPage(newPage)}
-          rowsPerPage={rowsPerPage}
+          count={isServerPagination ? totalCount ?? filteredRows.length : filteredRows.length}
+          page={currentPage}
+          onPageChange={(_, newPage) => {
+            if (isServerPagination && onPageChange) {
+              onPageChange(newPage);
+            } else {
+              setPage(newPage);
+            }
+          }}
+          rowsPerPage={currentRowsPerPage}
           onRowsPerPageChange={(event) => {
-            setRowsPerPage(parseInt(event.target.value, 10));
-            setPage(0);
+            const next = parseInt(event.target.value, 10);
+            if (isServerPagination && onRowsPerPageChange) {
+              onRowsPerPageChange(next);
+            } else {
+              setRowsPerPage(next);
+              setPage(0);
+            }
           }}
           rowsPerPageOptions={[5, 10, 25]}
         />
@@ -166,7 +195,14 @@ DataTable.propTypes = {
   onEdit: PropTypes.func,
   onDelete: PropTypes.func,
   onRowClick: PropTypes.func,
-  searchPlaceholder: PropTypes.string
+  searchPlaceholder: PropTypes.string,
+  serverPagination: PropTypes.bool,
+  totalCount: PropTypes.number,
+  page: PropTypes.number,
+  rowsPerPage: PropTypes.number,
+  onPageChange: PropTypes.func,
+  onRowsPerPageChange: PropTypes.func,
+  onSearch: PropTypes.func
 };
 
 DataTable.defaultProps = {
@@ -175,5 +211,12 @@ DataTable.defaultProps = {
   onEdit: undefined,
   onDelete: undefined,
   onRowClick: undefined,
-  searchPlaceholder: 'Search records'
+  searchPlaceholder: 'Search records',
+  serverPagination: false,
+  totalCount: undefined,
+  page: undefined,
+  rowsPerPage: undefined,
+  onPageChange: undefined,
+  onRowsPerPageChange: undefined,
+  onSearch: undefined
 };

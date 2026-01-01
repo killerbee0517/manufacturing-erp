@@ -33,7 +33,7 @@ export default function RfqCloseDialog({ open, onClose, onConfirm, loading }) {
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>Close RFQ</DialogTitle>
+      <DialogTitle>Cancel RFQ</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
           <TextField
@@ -56,7 +56,7 @@ export default function RfqCloseDialog({ open, onClose, onConfirm, loading }) {
           Cancel
         </Button>
         <Button variant="contained" color="secondary" onClick={handleConfirm} disabled={!reason || loading}>
-          Confirm Close
+          Confirm Cancel
         </Button>
       </DialogActions>
     </Dialog>

@@ -70,9 +70,10 @@ export default function RfqAwardPage() {
         awards: awards.map((award) => ({
           rfqLineId: award.rfqLineId,
           supplierId: Number(award.supplierId),
-          quantity: Number(award.qty || 0),
-          rate: Number(award.rate || 0)
-        }))
+          awardQty: Number(award.qty || 0),
+          awardRate: Number(award.rate || 0)
+        })),
+        closeRemaining: false
       };
       await apiClient.post(`/api/rfq/${id}/award`, payload);
       navigate(`/purchase/rfq/${id}`);

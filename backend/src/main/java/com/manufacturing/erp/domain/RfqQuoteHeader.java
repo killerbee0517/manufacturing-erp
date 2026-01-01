@@ -19,6 +19,10 @@ import java.util.List;
 @Table(name = "rfq_quote_header")
 public class RfqQuoteHeader extends BaseEntity {
   @ManyToOne
+  @JoinColumn(name = "company_id")
+  private Company company;
+
+  @ManyToOne
   @JoinColumn(name = "rfq_id")
   private Rfq rfq;
 
@@ -47,6 +51,14 @@ public class RfqQuoteHeader extends BaseEntity {
 
   public void setRfq(Rfq rfq) {
     this.rfq = rfq;
+  }
+
+  public Company getCompany() {
+    return company;
+  }
+
+  public void setCompany(Company company) {
+    this.company = company;
   }
 
   public Supplier getSupplier() {

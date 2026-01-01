@@ -5,6 +5,7 @@ public class Enums {
 
   public enum DocumentStatus {
     DRAFT,
+    QUOTING,
     SUBMITTED,
     APPROVED,
     RELEASED,
@@ -13,6 +14,8 @@ public class Enums {
     CANCELLED,
     PARTIALLY_AWARDED,
     AWARDED,
+    AWARDED_PARTIAL,
+    AWARDED_FULL,
     CLOSED_NOT_AWARDED,
     REVISED,
     REJECTED,

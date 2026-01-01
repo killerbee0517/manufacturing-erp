@@ -54,25 +54,15 @@ public class RfqController {
     return rfqService.submit(id);
   }
 
-  @PostMapping("/{id}/approve")
-  public TransactionDtos.RfqResponse approve(@PathVariable Long id) {
-    return rfqService.approve(id);
-  }
-
   @PostMapping("/{id}/award")
   public TransactionDtos.RfqResponse award(@PathVariable Long id, @Valid @RequestBody TransactionDtos.RfqAwardRequest request) {
     return rfqService.award(id, request);
   }
 
-  @PostMapping("/{id}/reject")
-  public TransactionDtos.RfqResponse reject(@PathVariable Long id, @RequestBody(required = false) String remarks) {
-    return rfqService.reject(id, remarks);
-  }
-
-  @PostMapping("/{id}/close")
-  public TransactionDtos.RfqCloseResponse close(@PathVariable Long id,
-                                                @Valid @RequestBody TransactionDtos.RfqCloseRequest request) {
-    return rfqService.close(id, request);
+  @PostMapping("/{id}/cancel")
+  public TransactionDtos.RfqResponse cancel(@PathVariable Long id,
+                                            @Valid @RequestBody TransactionDtos.RfqCloseRequest request) {
+    return rfqService.cancel(id, request);
   }
 
   @GetMapping("/{rfqId}/quotes")
