@@ -143,7 +143,8 @@ const erp = {
         { id: 'reports-ledger', title: 'Ledger', type: 'item', url: '/reports/ledger' },
         { id: 'reports-outstanding', title: 'Outstanding', type: 'item', url: '/reports/outstanding' },
         { id: 'reports-ageing', title: 'Ageing', type: 'item', url: '/reports/ageing' },
-        { id: 'reports-payments', title: 'Payment Reports', type: 'item', url: '/reports/payments' }
+        { id: 'reports-payments', title: 'Payment Reports', type: 'item', url: '/reports/payments' },
+        { id: 'reports-module', title: 'Reports Module', type: 'item', url: '/reports/module' }
       ]
     },
     ...(devToolsItem ? [devToolsItem] : []),

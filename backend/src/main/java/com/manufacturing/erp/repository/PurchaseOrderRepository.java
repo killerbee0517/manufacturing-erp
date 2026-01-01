@@ -10,5 +10,7 @@ public interface PurchaseOrderRepository extends JpaRepository<PurchaseOrder, Lo
 
   List<PurchaseOrder> findByRfqIdAndCompanyId(Long rfqId, Long companyId);
 
+  List<PurchaseOrder> findByCompanyId(Long companyId);
+
   java.util.Optional<PurchaseOrder> findByIdAndCompanyId(Long id, Long companyId);
 }

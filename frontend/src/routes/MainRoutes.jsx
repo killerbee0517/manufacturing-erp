@@ -53,6 +53,7 @@ const WipStockPage = Loadable(lazy(() => import('views/erp/pages/production/WipS
 const LedgerReportPage = Loadable(lazy(() => import('views/erp/pages/reports/LedgerReportPage')));
 const OutstandingReportPage = Loadable(lazy(() => import('views/erp/pages/reports/OutstandingReportPage')));
 const AgeingReportPage = Loadable(lazy(() => import('views/erp/pages/reports/AgeingReportPage')));
+const ReportsModulePage = Loadable(lazy(() => import('views/erp/pages/reports/ReportsModulePage')));
 const LedgerListPage = Loadable(lazy(() => import('views/erp/pages/accounts/LedgerListPage')));
 const LedgerStatementPage = Loadable(lazy(() => import('views/erp/pages/accounts/LedgerStatementPage')));
 const PaymentVoucherPage = Loadable(lazy(() => import('views/erp/pages/accounts/PaymentVoucherPage')));
@@ -175,7 +176,8 @@ const MainRoutes = {
         { path: 'ledger', element: <LedgerReportPage /> },
         { path: 'outstanding', element: <OutstandingReportPage /> },
         { path: 'ageing', element: <AgeingReportPage /> },
-        { path: 'payments', element: <PaymentsReportsPage /> }
+        { path: 'payments', element: <PaymentsReportsPage /> },
+        { path: 'module', element: <ReportsModulePage /> }
       ]
     },
     {

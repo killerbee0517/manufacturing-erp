@@ -1,5 +1,6 @@
 package com.manufacturing.erp.controller;
 
+import com.manufacturing.erp.dto.ReportDtos;
 import com.manufacturing.erp.security.CompanyContext;
 import com.manufacturing.erp.service.ReportExportService;
 import java.io.IOException;
@@ -9,6 +10,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -42,6 +44,37 @@ public class ReportExportController {
     Long companyId = requireCompanyId();
     byte[] payload = reportExportService.exportTdsReport(companyId, fromDate, toDate);
     return buildResponse(payload, "tds-report.xlsx");
+  }
+
+  @GetMapping("/templates/{reportId}")
+  public ReportDtos.ReportTableResponse getReport(
+      @PathVariable String reportId,
+      @RequestParam(required = false) LocalDate fromDate,
+      @RequestParam(required = false) LocalDate toDate,
+      @RequestParam(required = false) LocalDate asOnDate,
+      @RequestParam(required = false) Long partyId,
+      @RequestParam(required = false) Long itemId,
+      @RequestParam(required = false) Long godownId,
+      @RequestParam(required = false) Long bankId) {
+    requireCompanyId();
+    ReportDtos.ReportFilter filter = new ReportDtos.ReportFilter(fromDate, toDate, asOnDate, partyId, itemId, godownId, bankId);
+    return reportExportService.getReport(reportId, filter);
+  }
+
+  @GetMapping("/templates/{reportId}/export")
+  public ResponseEntity<byte[]> exportReport(
+      @PathVariable String reportId,
+      @RequestParam(required = false) LocalDate fromDate,
+      @RequestParam(required = false) LocalDate toDate,
+      @RequestParam(required = false) LocalDate asOnDate,
+      @RequestParam(required = false) Long partyId,
+      @RequestParam(required = false) Long itemId,
+      @RequestParam(required = false) Long godownId,
+      @RequestParam(required = false) Long bankId) {
+    requireCompanyId();
+    ReportDtos.ReportFilter filter = new ReportDtos.ReportFilter(fromDate, toDate, asOnDate, partyId, itemId, godownId, bankId);
+    byte[] payload = reportExportService.exportReport(reportId, filter);
+    return buildResponse(payload, reportId + ".xlsx");
   }
 
   private ResponseEntity<byte[]> buildResponse(byte[] payload, String filename) {
