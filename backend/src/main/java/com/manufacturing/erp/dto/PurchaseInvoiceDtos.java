@@ -15,10 +15,22 @@ public class PurchaseInvoiceDtos {
       @NotNull BigDecimal rate,
       BigDecimal amount) {}
 
+  public record InvoiceChargeRequest(
+      @NotNull Long chargeTypeId,
+      String calcType,
+      BigDecimal rate,
+      BigDecimal amount,
+      Boolean isDeduction,
+      @NotNull String payablePartyType,
+      Long payablePartyId,
+      String remarks) {}
+
   public record UpdateInvoiceRequest(
       String supplierInvoiceNo,
       @NotNull LocalDate invoiceDate,
-      String narration) {}
+      String narration,
+      Long brokerId,
+      List<InvoiceChargeRequest> charges) {}
 
   public record InvoiceLineResponse(
       Long id,
@@ -30,11 +42,25 @@ public class PurchaseInvoiceDtos {
       BigDecimal rate,
       BigDecimal amount) {}
 
+  public record InvoiceChargeResponse(
+      Long id,
+      Long chargeTypeId,
+      String chargeTypeName,
+      String calcType,
+      BigDecimal rate,
+      BigDecimal amount,
+      Boolean isDeduction,
+      String payablePartyType,
+      Long payablePartyId,
+      String remarks) {}
+
   public record InvoiceResponse(
       Long id,
       String invoiceNo,
       Long supplierId,
       String supplierName,
+      Long brokerId,
+      String brokerName,
       Long purchaseOrderId,
       String purchaseOrderNo,
       Long grnId,
@@ -43,9 +69,14 @@ public class PurchaseInvoiceDtos {
       LocalDate invoiceDate,
       String narration,
       String status,
+      BigDecimal totalAmount,
       BigDecimal subtotal,
       BigDecimal taxTotal,
       BigDecimal roundOff,
       BigDecimal grandTotal,
-      List<InvoiceLineResponse> lines) {}
+      BigDecimal tdsAmount,
+      BigDecimal netPayable,
+      BigDecimal brokerageAmount,
+      List<InvoiceLineResponse> lines,
+      List<InvoiceChargeResponse> charges) {}
 }

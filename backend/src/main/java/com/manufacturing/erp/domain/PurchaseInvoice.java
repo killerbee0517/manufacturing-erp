@@ -29,6 +29,10 @@ public class PurchaseInvoice extends BaseEntity {
   private PurchaseOrder purchaseOrder;
 
   @ManyToOne
+  @JoinColumn(name = "broker_id")
+  private Broker broker;
+
+  @ManyToOne
   private Grn grn;
 
   @Column(name = "supplier_invoice_no")
@@ -48,6 +52,9 @@ public class PurchaseInvoice extends BaseEntity {
   @Column(nullable = false)
   private BigDecimal netPayable;
 
+  @Column(name = "brokerage_amount")
+  private BigDecimal brokerageAmount;
+
   @Column(nullable = false)
   private BigDecimal subtotal;
 
@@ -66,6 +73,9 @@ public class PurchaseInvoice extends BaseEntity {
 
   @OneToMany(mappedBy = "purchaseInvoice", orphanRemoval = true)
   private List<PurchaseInvoiceLine> lines = new ArrayList<>();
+
+  @OneToMany(mappedBy = "purchaseInvoice", orphanRemoval = true)
+  private List<PurchaseInvoiceCharge> charges = new ArrayList<>();
 
   public String getInvoiceNo() {
     return invoiceNo;
@@ -89,6 +99,14 @@ public class PurchaseInvoice extends BaseEntity {
 
   public void setPurchaseOrder(PurchaseOrder purchaseOrder) {
     this.purchaseOrder = purchaseOrder;
+  }
+
+  public Broker getBroker() {
+    return broker;
+  }
+
+  public void setBroker(Broker broker) {
+    this.broker = broker;
   }
 
   public Grn getGrn() {
@@ -147,6 +165,14 @@ public class PurchaseInvoice extends BaseEntity {
     this.netPayable = netPayable;
   }
 
+  public BigDecimal getBrokerageAmount() {
+    return brokerageAmount;
+  }
+
+  public void setBrokerageAmount(BigDecimal brokerageAmount) {
+    this.brokerageAmount = brokerageAmount;
+  }
+
   public BigDecimal getSubtotal() {
     return subtotal;
   }
@@ -193,5 +219,13 @@ public class PurchaseInvoice extends BaseEntity {
 
   public void setLines(List<PurchaseInvoiceLine> lines) {
     this.lines = lines;
+  }
+
+  public List<PurchaseInvoiceCharge> getCharges() {
+    return charges;
+  }
+
+  public void setCharges(List<PurchaseInvoiceCharge> charges) {
+    this.charges = charges;
   }
 }

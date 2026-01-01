@@ -16,7 +16,9 @@ export default function PurchaseInvoicePage() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selectedGrn, setSelectedGrn] = useState('');
+  const [selectedPo, setSelectedPo] = useState('');
   const [creating, setCreating] = useState(false);
+  const [creatingPo, setCreatingPo] = useState(false);
 
   const fetchInvoices = () => {
     setLoading(true);
@@ -42,15 +44,31 @@ export default function PurchaseInvoicePage() {
     }
   };
 
+  const handleCreateFromPo = async () => {
+    if (!selectedPo) return;
+    setCreatingPo(true);
+    try {
+      const response = await apiClient.post(`/api/purchase-invoices/from-po/${selectedPo}`);
+      navigate(`/purchase/purchase-invoice/${response.data.id}`);
+    } finally {
+      setCreatingPo(false);
+    }
+  };
+
   return (
     <MainCard>
       <PageHeader
         title="Purchase Invoices"
         breadcrumbs={[{ label: 'Purchase' }, { label: 'Purchase Invoice' }]}
         actions={
-          <Button variant="contained" color="secondary" onClick={handleCreate} disabled={!selectedGrn || creating}>
-            Create from GRN
-          </Button>
+          <Stack direction="row" spacing={1}>
+            <Button variant="contained" color="secondary" onClick={handleCreate} disabled={!selectedGrn || creating}>
+              Create from GRN
+            </Button>
+            <Button variant="contained" color="primary" onClick={handleCreateFromPo} disabled={!selectedPo || creatingPo}>
+              Create from PO
+            </Button>
+          </Stack>
         }
       />
       <Stack spacing={2}>
@@ -64,6 +82,16 @@ export default function PurchaseInvoicePage() {
           optionLabelKey="grnNo"
           optionValueKey="id"
           placeholder="Search posted GRNs"
+        />
+        <Typography>Select a purchase order to create or open its purchase invoice.</Typography>
+        <MasterAutocomplete
+          label="Purchase Order"
+          endpoint="/api/purchase-orders"
+          value={selectedPo}
+          onChange={setSelectedPo}
+          optionLabelKey="poNo"
+          optionValueKey="id"
+          placeholder="Search purchase orders"
         />
         <DataTable
           columns={[

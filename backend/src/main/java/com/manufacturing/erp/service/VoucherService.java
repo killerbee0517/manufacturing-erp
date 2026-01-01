@@ -25,6 +25,12 @@ public class VoucherService {
   @Transactional
   public Voucher createVoucher(String referenceType, Long referenceId, LocalDate voucherDate, String narration,
                                List<VoucherLineRequest> lines) {
+    if (referenceType != null && referenceId != null) {
+      var existing = voucherRepository.findFirstByReferenceTypeAndReferenceId(referenceType, referenceId);
+      if (existing.isPresent()) {
+        return existing.get();
+      }
+    }
     BigDecimal drTotal = lines.stream().map(VoucherLineRequest::drAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
     BigDecimal crTotal = lines.stream().map(VoucherLineRequest::crAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
     if (drTotal.compareTo(crTotal) != 0) {

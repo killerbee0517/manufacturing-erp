@@ -1,39 +1,67 @@
 package com.manufacturing.erp.service;
 
+import com.manufacturing.erp.domain.Company;
 import com.manufacturing.erp.domain.DebitNote;
 import com.manufacturing.erp.domain.DebitNoteLine;
 import com.manufacturing.erp.domain.Enums.DebitNoteReason;
 import com.manufacturing.erp.domain.Enums.DocumentStatus;
+import com.manufacturing.erp.domain.Enums.LedgerType;
+import com.manufacturing.erp.domain.Ledger;
 import com.manufacturing.erp.domain.PurchaseInvoice;
+import com.manufacturing.erp.domain.PurchaseInvoiceLine;
+import com.manufacturing.erp.domain.Supplier;
 import com.manufacturing.erp.dto.DebitNoteDtos;
+import com.manufacturing.erp.repository.CompanyRepository;
 import com.manufacturing.erp.repository.DebitNoteLineRepository;
 import com.manufacturing.erp.repository.DebitNoteRepository;
+import com.manufacturing.erp.repository.PurchaseInvoiceLineRepository;
 import com.manufacturing.erp.repository.PurchaseInvoiceRepository;
+import com.manufacturing.erp.repository.SupplierRepository;
+import com.manufacturing.erp.security.CompanyContext;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class DebitNoteService {
   private final DebitNoteRepository debitNoteRepository;
   private final DebitNoteLineRepository debitNoteLineRepository;
   private final PurchaseInvoiceRepository purchaseInvoiceRepository;
+  private final PurchaseInvoiceLineRepository purchaseInvoiceLineRepository;
+  private final LedgerService ledgerService;
+  private final VoucherService voucherService;
+  private final SupplierRepository supplierRepository;
+  private final CompanyRepository companyRepository;
+  private final CompanyContext companyContext;
 
   public DebitNoteService(DebitNoteRepository debitNoteRepository,
                           DebitNoteLineRepository debitNoteLineRepository,
-                          PurchaseInvoiceRepository purchaseInvoiceRepository) {
+                          PurchaseInvoiceRepository purchaseInvoiceRepository,
+                          PurchaseInvoiceLineRepository purchaseInvoiceLineRepository,
+                          LedgerService ledgerService,
+                          VoucherService voucherService,
+                          SupplierRepository supplierRepository,
+                          CompanyRepository companyRepository,
+                          CompanyContext companyContext) {
     this.debitNoteRepository = debitNoteRepository;
     this.debitNoteLineRepository = debitNoteLineRepository;
     this.purchaseInvoiceRepository = purchaseInvoiceRepository;
+    this.purchaseInvoiceLineRepository = purchaseInvoiceLineRepository;
+    this.ledgerService = ledgerService;
+    this.voucherService = voucherService;
+    this.supplierRepository = supplierRepository;
+    this.companyRepository = companyRepository;
+    this.companyContext = companyContext;
   }
 
   @Transactional
   public DebitNote createFromInvoice(Long invoiceId) {
-    PurchaseInvoice invoice = purchaseInvoiceRepository.findById(invoiceId)
-        .orElseThrow(() -> new IllegalArgumentException("Purchase invoice not found"));
+    PurchaseInvoice invoice = getInvoice(invoiceId);
     var existing = debitNoteRepository.findFirstByPurchaseInvoiceId(invoiceId);
     if (existing.isPresent()) {
       return existing.get();
@@ -47,16 +75,34 @@ public class DebitNoteService {
     note.setDnDate(LocalDate.now());
     note.setNarration(null);
     note.setStatus(DocumentStatus.DRAFT);
-    note.setTotalDeduction(BigDecimal.ZERO);
     note.setReason(DebitNoteReason.WEIGHT_DIFF);
     note.setLines(new ArrayList<>());
-    return debitNoteRepository.save(note);
+
+    DebitNote saved = debitNoteRepository.save(note);
+    List<DebitNoteLine> lines = new ArrayList<>();
+    BigDecimal total = BigDecimal.ZERO;
+    for (PurchaseInvoiceLine invoiceLine : purchaseInvoiceLineRepository.findByPurchaseInvoiceId(invoice.getId())) {
+      DebitNoteLine line = new DebitNoteLine();
+      line.setDebitNote(saved);
+      line.setDescription(invoiceLine.getItem() != null ? invoiceLine.getItem().getName() : "Invoice line");
+      line.setBaseValue(invoiceLine.getAmount());
+      line.setRate(null);
+      line.setAmount(invoiceLine.getAmount());
+      line.setRemarks(null);
+      lines.add(line);
+      total = total.add(invoiceLine.getAmount() != null ? invoiceLine.getAmount() : BigDecimal.ZERO);
+    }
+    if (!lines.isEmpty()) {
+      debitNoteLineRepository.saveAll(lines);
+      saved.setLines(lines);
+    }
+    saved.setTotalDeduction(total);
+    return debitNoteRepository.save(saved);
   }
 
   @Transactional
   public DebitNote updateDraft(Long id, DebitNoteDtos.UpdateDebitNoteRequest request) {
-    DebitNote note = debitNoteRepository.findById(id)
-        .orElseThrow(() -> new IllegalArgumentException("Debit note not found"));
+    DebitNote note = getNote(id);
     if (note.getStatus() != DocumentStatus.DRAFT) {
       throw new IllegalStateException("Only draft debit notes can be edited");
     }
@@ -69,6 +115,7 @@ public class DebitNoteService {
     }
 
     BigDecimal total = BigDecimal.ZERO;
+    List<DebitNoteLine> lines = new ArrayList<>();
     if (request.lines() != null) {
       for (DebitNoteDtos.LineRequest lineRequest : request.lines()) {
         DebitNoteLine line = new DebitNoteLine();
@@ -86,22 +133,70 @@ public class DebitNoteService {
         line.setAmount(amount);
         line.setRemarks(lineRequest.remarks());
         total = total.add(amount != null ? amount : BigDecimal.ZERO);
-        debitNoteLineRepository.save(line);
+        lines.add(line);
       }
+      debitNoteLineRepository.saveAll(lines);
     }
     note.setTotalDeduction(total);
+    note.setLines(lines);
     return debitNoteRepository.save(note);
   }
 
   @Transactional
   public DebitNote post(Long id) {
-    DebitNote note = debitNoteRepository.findById(id)
-        .orElseThrow(() -> new IllegalArgumentException("Debit note not found"));
+    DebitNote note = getNote(id);
     if (note.getStatus() == DocumentStatus.POSTED) {
       return note;
     }
+    BigDecimal total = note.getTotalDeduction() != null ? note.getTotalDeduction() : BigDecimal.ZERO;
+    if (total.compareTo(BigDecimal.ZERO) > 0) {
+      Ledger supplierLedger = ensureSupplierLedger(note.getSupplier());
+      Ledger deductionLedger = ledgerService.findOrCreateLedger("Purchase Deductions", LedgerType.GENERAL);
+      if (supplierLedger != null) {
+        List<VoucherService.VoucherLineRequest> lines = new ArrayList<>();
+        lines.add(new VoucherService.VoucherLineRequest(supplierLedger, total, BigDecimal.ZERO));
+        lines.add(new VoucherService.VoucherLineRequest(deductionLedger, BigDecimal.ZERO, total));
+        voucherService.createVoucher("DEBIT_NOTE", note.getId(),
+            note.getDnDate() != null ? note.getDnDate() : LocalDate.now(),
+            "Debit note posting", lines);
+      }
+    }
     note.setStatus(DocumentStatus.POSTED);
     return debitNoteRepository.save(note);
+  }
+
+  private Ledger ensureSupplierLedger(Supplier supplier) {
+    if (supplier == null) {
+      return null;
+    }
+    Ledger ledger = supplier.getLedger();
+    if (ledger == null) {
+      ledger = ledgerService.createLedger(supplier.getName(), LedgerType.SUPPLIER, "SUPPLIER", supplier.getId());
+      supplier.setLedger(ledger);
+      supplierRepository.save(supplier);
+    }
+    return ledger;
+  }
+
+  private PurchaseInvoice getInvoice(Long invoiceId) {
+    Company company = requireCompany();
+    return purchaseInvoiceRepository.findByIdAndPurchaseOrderCompanyId(invoiceId, company.getId())
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Purchase invoice not found"));
+  }
+
+  private DebitNote getNote(Long noteId) {
+    Company company = requireCompany();
+    return debitNoteRepository.findByIdAndPurchaseOrderCompanyId(noteId, company.getId())
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Debit note not found"));
+  }
+
+  private Company requireCompany() {
+    Long companyId = companyContext.getCompanyId();
+    if (companyId == null) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Missing company context");
+    }
+    return companyRepository.findById(companyId)
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Company not found"));
   }
 
   private String resolveDnNo(String provided) {
