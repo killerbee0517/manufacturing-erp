@@ -141,7 +141,12 @@ CREATE TABLE pdc_register (
 );
 
 INSERT INTO companies (parent_company_id, code, name, gst_no, pan, address, active, created_at, created_by, updated_at, updated_by)
-VALUES (NULL, 'MOTHERS_FOOD', 'MOTHERS FOOD', NULL, NULL, NULL, TRUE, CURRENT_TIMESTAMP, 'seed', CURRENT_TIMESTAMP, 'seed');
+SELECT NULL, 'PARENT', 'Parent Company', NULL, NULL, NULL, TRUE, CURRENT_TIMESTAMP, 'seed', CURRENT_TIMESTAMP, 'seed'
+WHERE NOT EXISTS (SELECT 1 FROM companies WHERE code = 'PARENT');
+
+INSERT INTO companies (parent_company_id, code, name, gst_no, pan, address, active, created_at, created_by, updated_at, updated_by)
+SELECT (SELECT id FROM companies WHERE code = 'PARENT'), 'MOTHERS_FOOD', 'MOTHERS FOOD', NULL, NULL, NULL, TRUE, CURRENT_TIMESTAMP, 'seed', CURRENT_TIMESTAMP, 'seed'
+WHERE NOT EXISTS (SELECT 1 FROM companies WHERE code = 'MOTHERS_FOOD');
 
 INSERT INTO user_companies (user_id, company_id, primary_company, role_scope, created_at, created_by, updated_at, updated_by)
 SELECT u.id, c.id, TRUE, NULL, CURRENT_TIMESTAMP, 'seed', CURRENT_TIMESTAMP, 'seed'
@@ -150,6 +155,13 @@ WHERE u.username = 'admin' AND c.code = 'PARENT' AND NOT EXISTS (
   SELECT 1 FROM user_companies uc WHERE uc.user_id = u.id AND uc.company_id = c.id
 );
 
+INSERT INTO user_companies (user_id, company_id, primary_company, role_scope, created_at, created_by, updated_at, updated_by)
+SELECT u.id, c.id, FALSE, NULL, CURRENT_TIMESTAMP, 'seed', CURRENT_TIMESTAMP, 'seed'
+FROM users u CROSS JOIN companies c
+WHERE u.username = 'admin' AND c.code = 'MOTHERS_FOOD' AND NOT EXISTS (
+  SELECT 1 FROM user_companies uc WHERE uc.user_id = u.id AND uc.company_id = c.id
+);
+
 UPDATE banks
 SET company_id = (SELECT id FROM companies WHERE code = 'PARENT')
-WHERE company_id IS NULL;
+WHERE company_id IS NULL AND EXISTS (SELECT 1 FROM companies WHERE code = 'PARENT');
