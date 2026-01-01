@@ -18,7 +18,9 @@ public class WipController {
   }
 
   @GetMapping("/wip")
-  public List<ProductionDtos.WipSelectionResponse> search(@RequestParam(required = false) String search) {
-    return productionRunService.searchWip(search);
+  public List<ProductionDtos.WipSelectionResponse> search(@RequestParam(required = false) String search,
+                                                          @RequestParam(required = false) String q) {
+    String resolved = (search != null && !search.isBlank()) ? search : q;
+    return productionRunService.searchWip(resolved);
   }
 }

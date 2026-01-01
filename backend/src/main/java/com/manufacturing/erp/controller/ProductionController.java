@@ -86,9 +86,10 @@ public class ProductionController {
 
   @GetMapping("/batches")
   public List<ProductionDtos.ProductionBatchResponse> listBatches(
+      @RequestParam(required = false) String q,
       @RequestParam(required = false) String status,
       @RequestParam(required = false) Long templateId) {
-    return productionService.listBatches(status, templateId);
+    return productionService.listBatches(q, status, templateId);
   }
 
   @PostMapping("/batches")
@@ -140,7 +141,7 @@ public class ProductionController {
 
   @GetMapping("/wip/balances")
   public List<ProductionDtos.WipOutputResponse> wipBalances() {
-    return productionService.listWipBalances();
+    return productionRunService.listWipBalances();
   }
 
   // Runs
@@ -158,6 +159,11 @@ public class ProductionController {
   @GetMapping("/runs/{id}")
   public ProductionDtos.ProductionRunResponse getRun(@PathVariable Long id) {
     return productionRunService.getRun(id);
+  }
+
+  @GetMapping("/runs/{id}/cost-summary")
+  public ProductionDtos.RunCostSummaryResponse getRunCostSummary(@PathVariable Long id) {
+    return productionRunService.getRunCostSummary(id);
   }
 
   @PutMapping("/runs/{id}")

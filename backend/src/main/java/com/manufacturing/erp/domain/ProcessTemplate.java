@@ -15,6 +15,10 @@ import java.util.List;
 @Entity
 @Table(name = "process_templates")
 public class ProcessTemplate extends BaseEntity {
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "company_id", nullable = false)
+  private Company company;
+
   @Column(unique = true)
   private String code;
 
@@ -39,6 +43,17 @@ public class ProcessTemplate extends BaseEntity {
 
   @OneToMany(mappedBy = "template", cascade = CascadeType.ALL, orphanRemoval = true)
   private List<ProcessTemplateInput> inputs = new ArrayList<>();
+
+  @OneToMany(mappedBy = "template", cascade = CascadeType.ALL, orphanRemoval = true)
+  private List<ProcessTemplateOutput> outputs = new ArrayList<>();
+
+  public Company getCompany() {
+    return company;
+  }
+
+  public void setCompany(Company company) {
+    this.company = company;
+  }
 
   public String getCode() {
     return code;
@@ -102,5 +117,13 @@ public class ProcessTemplate extends BaseEntity {
 
   public void setInputs(List<ProcessTemplateInput> inputs) {
     this.inputs = inputs;
+  }
+
+  public List<ProcessTemplateOutput> getOutputs() {
+    return outputs;
+  }
+
+  public void setOutputs(List<ProcessTemplateOutput> outputs) {
+    this.outputs = outputs;
   }
 }

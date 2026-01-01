@@ -15,6 +15,13 @@ public class ProductionDtos {
       Boolean optional,
       String notes) {}
 
+  public record ProcessTemplateOutputRequest(
+      @NotNull Long itemId,
+      @NotNull Long uomId,
+      @NotNull BigDecimal defaultRatio,
+      @NotNull String outputType,
+      String notes) {}
+
   public record ProcessTemplateStepRequest(
       @NotNull Integer stepNo,
       @NotBlank String stepName,
@@ -29,6 +36,7 @@ public class ProductionDtos {
       Long outputUomId,
       Boolean enabled,
       List<ProcessTemplateInputRequest> inputs,
+      List<ProcessTemplateOutputRequest> outputs,
       List<ProcessTemplateStepRequest> steps) {}
 
   public record ProcessTemplateInputResponse(
@@ -39,6 +47,16 @@ public class ProductionDtos {
       String uomCode,
       BigDecimal defaultQty,
       Boolean optional,
+      String notes) {}
+
+  public record ProcessTemplateOutputResponse(
+      Long id,
+      Long itemId,
+      String itemName,
+      Long uomId,
+      String uomCode,
+      BigDecimal defaultRatio,
+      String outputType,
       String notes) {}
 
   public record ProcessTemplateStepResponse(
@@ -59,6 +77,7 @@ public class ProductionDtos {
       String outputUomCode,
       Boolean enabled,
       List<ProcessTemplateInputResponse> inputs,
+      List<ProcessTemplateOutputResponse> outputs,
       List<ProcessTemplateStepResponse> steps) {}
 
   public record ProductionOrderRequest(
@@ -185,18 +204,23 @@ public class ProductionDtos {
       @NotNull BigDecimal qty,
       @NotNull String sourceType,
       Long sourceRefId,
-      Long godownId) {}
+      Long godownId,
+      BigDecimal rate,
+      BigDecimal amount) {}
 
   public record RunOutputRequest(
       @NotNull Long itemId,
       @NotNull Long uomId,
       @NotNull BigDecimal qty,
       @NotNull String outputType,
-      Long destGodownId) {}
+      Long destGodownId,
+      BigDecimal rate,
+      BigDecimal amount) {}
 
   public record ProductionRunRequest(
       Integer stepNo,
       String stepName,
+      BigDecimal moisturePercent,
       String notes,
       LocalDate runDate,
       List<RunInputRequest> inputs,
@@ -212,7 +236,9 @@ public class ProductionDtos {
       String sourceType,
       Long sourceRefId,
       Long sourceGodownId,
-      String sourceGodownName) {}
+      String sourceGodownName,
+      BigDecimal rate,
+      BigDecimal amount) {}
 
   public record RunOutputResponse(
       Long id,
@@ -224,7 +250,9 @@ public class ProductionDtos {
       BigDecimal consumedQty,
       String outputType,
       Long destGodownId,
-      String destGodownName) {}
+      String destGodownName,
+      BigDecimal rate,
+      BigDecimal amount) {}
 
   public record ProductionRunResponse(
       Long id,
@@ -237,8 +265,30 @@ public class ProductionDtos {
       Instant startedAt,
       Instant endedAt,
       String notes,
+      BigDecimal moisturePercent,
       List<RunInputResponse> inputs,
       List<RunOutputResponse> outputs) {}
+
+  public record RunCostSummaryLine(
+      Long outputId,
+      Long itemId,
+      String itemName,
+      String outputType,
+      BigDecimal quantity,
+      BigDecimal unitCost,
+      BigDecimal amount) {}
+
+  public record RunCostSummaryResponse(
+      Long runId,
+      BigDecimal totalInputQty,
+      BigDecimal totalInputAmount,
+      BigDecimal totalOutputQty,
+      BigDecimal totalOutputAmount,
+      BigDecimal yieldPercent,
+      BigDecimal moisturePercent,
+      BigDecimal shrinkPercent,
+      BigDecimal unitCost,
+      List<RunCostSummaryLine> outputLines) {}
 
   public record WipSelectionResponse(
       Long id,

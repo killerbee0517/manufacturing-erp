@@ -1,5 +1,6 @@
 package com.manufacturing.erp.service;
 
+import com.manufacturing.erp.domain.Company;
 import com.manufacturing.erp.domain.Enums.InventoryLocationType;
 import com.manufacturing.erp.domain.Enums.LedgerTxnType;
 import com.manufacturing.erp.domain.Enums.ProcessInputSourceType;
@@ -11,6 +12,7 @@ import com.manufacturing.erp.domain.InventoryMovement;
 import com.manufacturing.erp.domain.Item;
 import com.manufacturing.erp.domain.ProcessTemplate;
 import com.manufacturing.erp.domain.ProcessTemplateInput;
+import com.manufacturing.erp.domain.ProcessTemplateOutput;
 import com.manufacturing.erp.domain.ProcessTemplateStep;
 import com.manufacturing.erp.domain.ProcessTemplateStep.StepType;
 import com.manufacturing.erp.domain.ProductionBatch;
@@ -20,10 +22,12 @@ import com.manufacturing.erp.domain.ProductionBatchStep;
 import com.manufacturing.erp.domain.ProductionOrder;
 import com.manufacturing.erp.domain.Uom;
 import com.manufacturing.erp.dto.ProductionDtos;
+import com.manufacturing.erp.repository.CompanyRepository;
 import com.manufacturing.erp.repository.GodownRepository;
 import com.manufacturing.erp.repository.InventoryMovementRepository;
 import com.manufacturing.erp.repository.ItemRepository;
 import com.manufacturing.erp.repository.ProcessTemplateInputRepository;
+import com.manufacturing.erp.repository.ProcessTemplateOutputRepository;
 import com.manufacturing.erp.repository.ProcessTemplateRepository;
 import com.manufacturing.erp.repository.ProcessTemplateStepRepository;
 import com.manufacturing.erp.repository.ProductionBatchInputRepository;
@@ -32,6 +36,7 @@ import com.manufacturing.erp.repository.ProductionBatchRepository;
 import com.manufacturing.erp.repository.ProductionBatchStepRepository;
 import com.manufacturing.erp.repository.ProductionOrderRepository;
 import com.manufacturing.erp.repository.UomRepository;
+import com.manufacturing.erp.security.CompanyContext;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
@@ -46,6 +51,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class ProductionService {
   private final ProcessTemplateRepository processTemplateRepository;
   private final ProcessTemplateInputRepository processTemplateInputRepository;
+  private final ProcessTemplateOutputRepository processTemplateOutputRepository;
   private final ProcessTemplateStepRepository processTemplateStepRepository;
   private final ProductionOrderRepository productionOrderRepository;
   private final ProductionBatchRepository productionBatchRepository;
@@ -57,9 +63,12 @@ public class ProductionService {
   private final UomRepository uomRepository;
   private final InventoryMovementRepository inventoryMovementRepository;
   private final StockLedgerService stockLedgerService;
+  private final CompanyRepository companyRepository;
+  private final CompanyContext companyContext;
 
   public ProductionService(ProcessTemplateRepository processTemplateRepository,
                            ProcessTemplateInputRepository processTemplateInputRepository,
+                           ProcessTemplateOutputRepository processTemplateOutputRepository,
                            ProcessTemplateStepRepository processTemplateStepRepository,
                            ProductionOrderRepository productionOrderRepository,
                            ProductionBatchRepository productionBatchRepository,
@@ -70,9 +79,12 @@ public class ProductionService {
                            ItemRepository itemRepository,
                            UomRepository uomRepository,
                            InventoryMovementRepository inventoryMovementRepository,
-                           StockLedgerService stockLedgerService) {
+                           StockLedgerService stockLedgerService,
+                           CompanyRepository companyRepository,
+                           CompanyContext companyContext) {
     this.processTemplateRepository = processTemplateRepository;
     this.processTemplateInputRepository = processTemplateInputRepository;
+    this.processTemplateOutputRepository = processTemplateOutputRepository;
     this.processTemplateStepRepository = processTemplateStepRepository;
     this.productionOrderRepository = productionOrderRepository;
     this.productionBatchRepository = productionBatchRepository;
@@ -84,21 +96,24 @@ public class ProductionService {
     this.uomRepository = uomRepository;
     this.inventoryMovementRepository = inventoryMovementRepository;
     this.stockLedgerService = stockLedgerService;
+    this.companyRepository = companyRepository;
+    this.companyContext = companyContext;
   }
 
   public List<ProductionDtos.ProcessTemplateResponse> listTemplates() {
-    return processTemplateRepository.findAll().stream().map(this::toTemplateResponse).toList();
+    Company company = requireCompany();
+    return processTemplateRepository.findByCompanyId(company.getId()).stream().map(this::toTemplateResponse).toList();
   }
 
   public ProductionDtos.ProcessTemplateResponse getTemplate(Long id) {
-    ProcessTemplate template = processTemplateRepository.findById(id)
-        .orElseThrow(() -> new IllegalArgumentException("Process template not found"));
-    return toTemplateResponse(template);
+    return toTemplateResponse(getTemplateOrThrow(id));
   }
 
   @Transactional
   public ProductionDtos.ProcessTemplateResponse createTemplate(ProductionDtos.ProcessTemplateRequest request) {
+    Company company = requireCompany();
     ProcessTemplate template = new ProcessTemplate();
+    template.setCompany(company);
     template.setCode(request.code() != null ? request.code() : "PT-" + System.currentTimeMillis());
     template.setName(request.name());
     template.setDescription(request.description());
@@ -108,17 +123,19 @@ public class ProductionService {
     ProcessTemplate saved = processTemplateRepository.save(template);
     List<ProcessTemplateStep> steps = buildSteps(request.steps(), saved);
     List<ProcessTemplateInput> inputs = buildInputs(request.inputs(), saved);
+    List<ProcessTemplateOutput> outputs = buildOutputs(request.outputs(), saved);
     saved.getSteps().clear();
     saved.getSteps().addAll(steps);
     saved.getInputs().clear();
     saved.getInputs().addAll(inputs);
+    saved.getOutputs().clear();
+    saved.getOutputs().addAll(outputs);
     return toTemplateResponse(processTemplateRepository.save(saved));
   }
 
   @Transactional
   public ProductionDtos.ProcessTemplateResponse updateTemplate(Long id, ProductionDtos.ProcessTemplateRequest request) {
-    ProcessTemplate template = processTemplateRepository.findById(id)
-        .orElseThrow(() -> new IllegalArgumentException("Process template not found"));
+    ProcessTemplate template = getTemplateOrThrow(id);
     template.setCode(request.code());
     template.setName(request.name());
     template.setDescription(request.description());
@@ -129,27 +146,31 @@ public class ProductionService {
     template.getSteps().addAll(buildSteps(request.steps(), template));
     template.getInputs().clear();
     template.getInputs().addAll(buildInputs(request.inputs(), template));
+    template.getOutputs().clear();
+    template.getOutputs().addAll(buildOutputs(request.outputs(), template));
     return toTemplateResponse(processTemplateRepository.save(template));
   }
 
   @Transactional
   public void deleteTemplate(Long id) {
-    processTemplateRepository.deleteById(id);
+    ProcessTemplate template = getTemplateOrThrow(id);
+    processTemplateRepository.delete(template);
   }
 
   public List<ProductionDtos.ProductionOrderResponse> listOrders() {
-    return productionOrderRepository.findAll().stream().map(this::toOrderResponse).toList();
+    Company company = requireCompany();
+    return productionOrderRepository.findByCompanyId(company.getId()).stream().map(this::toOrderResponse).toList();
   }
 
   public ProductionDtos.ProductionOrderResponse getOrder(Long id) {
-    ProductionOrder order = productionOrderRepository.findById(id)
-        .orElseThrow(() -> new IllegalArgumentException("Production order not found"));
-    return toOrderResponse(order);
+    return toOrderResponse(getOrderOrThrow(id));
   }
 
   @Transactional
   public ProductionDtos.ProductionOrderResponse createOrder(ProductionDtos.ProductionOrderRequest request) {
+    Company company = requireCompany();
     ProductionOrder order = new ProductionOrder();
+    order.setCompany(company);
     order.setOrderNo(request.orderNo() != null ? request.orderNo() : "ORD-" + System.currentTimeMillis());
     order.setTemplate(fetchTemplate(request.templateId()));
     order.setFinishedItem(fetchItem(request.finishedItemId()));
@@ -162,8 +183,9 @@ public class ProductionService {
 
   @Transactional
   public ProductionDtos.ProductionOrderResponse updateOrder(Long id, ProductionDtos.ProductionOrderRequest request) {
-    ProductionOrder order = productionOrderRepository.findById(id)
-        .orElseThrow(() -> new IllegalArgumentException("Production order not found"));
+    ProductionOrder order = getOrderOrThrow(id);
+    Company company = requireCompany();
+    order.setCompany(company);
     order.setOrderNo(request.orderNo());
     order.setTemplate(fetchTemplate(request.templateId()));
     order.setFinishedItem(fetchItem(request.finishedItemId()));
@@ -175,14 +197,17 @@ public class ProductionService {
 
   @Transactional
   public void deleteOrder(Long id) {
-    productionOrderRepository.deleteById(id);
+    ProductionOrder order = getOrderOrThrow(id);
+    productionOrderRepository.delete(order);
   }
 
   // region batches
   @Transactional
   public ProductionDtos.ProductionBatchResponse createBatch(ProductionDtos.ProductionBatchRequest request) {
+    Company company = requireCompany();
     ProcessTemplate template = fetchTemplate(request.templateId());
     ProductionBatch batch = new ProductionBatch();
+    batch.setCompany(company);
     batch.setBatchNo("BATCH-" + System.currentTimeMillis());
     batch.setTemplate(template);
     batch.setStatus(ProductionStatus.DRAFT);
@@ -194,8 +219,11 @@ public class ProductionService {
   }
 
   @Transactional(readOnly = true)
-  public List<ProductionDtos.ProductionBatchResponse> listBatches(String status, Long templateId) {
-    return productionBatchRepository.findAll().stream()
+  public List<ProductionDtos.ProductionBatchResponse> listBatches(String q, String status, Long templateId) {
+    Company company = requireCompany();
+    return productionBatchRepository.findByCompanyId(company.getId()).stream()
+        .filter(batch -> q == null || (batch.getBatchNo() != null
+            && batch.getBatchNo().toLowerCase().contains(q.toLowerCase())))
         .filter(batch -> status == null || batch.getStatus().name().equalsIgnoreCase(status))
         .filter(batch -> templateId == null || (batch.getTemplate() != null && batch.getTemplate().getId().equals(templateId)))
         .map(this::toBatchResponse)
@@ -204,8 +232,7 @@ public class ProductionService {
 
   @Transactional
   public ProductionDtos.ProductionBatchResponse startBatch(Long batchId) {
-    ProductionBatch batch = productionBatchRepository.findById(batchId)
-        .orElseThrow(() -> new IllegalArgumentException("Batch not found"));
+    ProductionBatch batch = getBatchOrThrow(batchId);
     batch.setStatus(ProductionStatus.RUNNING);
     batch.setStartedAt(Instant.now());
     if (batch.getStartDate() == null) {
@@ -214,6 +241,9 @@ public class ProductionService {
     productionBatchStepRepository.deleteAll(productionBatchStepRepository.findByBatchIdOrderByStepNoAsc(batchId));
     List<ProductionBatchStep> steps = new ArrayList<>();
     List<ProcessTemplateStep> templateSteps = processTemplateStepRepository.findByTemplateIdOrderByStepNoAsc(batch.getTemplate().getId());
+    if (templateSteps.isEmpty()) {
+      throw new IllegalStateException("Template steps are required before starting a batch");
+    }
     for (ProcessTemplateStep step : templateSteps) {
       ProductionBatchStep s = new ProductionBatchStep();
       s.setBatch(batch);
@@ -228,14 +258,12 @@ public class ProductionService {
 
   @Transactional(readOnly = true)
   public ProductionDtos.ProductionBatchResponse getBatch(Long id) {
-    return toBatchResponse(productionBatchRepository.findById(id)
-        .orElseThrow(() -> new IllegalArgumentException("Batch not found")));
+    return toBatchResponse(getBatchOrThrow(id));
   }
 
   @Transactional
   public void issueMaterials(Long batchId, ProductionDtos.BatchIssueRequest request) {
-    ProductionBatch batch = productionBatchRepository.findById(batchId)
-        .orElseThrow(() -> new IllegalArgumentException("Batch not found"));
+    ProductionBatch batch = getBatchOrThrow(batchId);
     if (batch.getStatus() != ProductionStatus.RUNNING) {
       throw new IllegalStateException("Batch must be running to issue materials");
     }
@@ -302,8 +330,7 @@ public class ProductionService {
 
   @Transactional
   public void produce(Long batchId, ProductionDtos.BatchProduceRequest request) {
-    ProductionBatch batch = productionBatchRepository.findById(batchId)
-        .orElseThrow(() -> new IllegalArgumentException("Batch not found"));
+    ProductionBatch batch = getBatchOrThrow(batchId);
     if (batch.getStatus() != ProductionStatus.RUNNING) {
       throw new IllegalStateException("Batch must be running to record output");
     }
@@ -323,6 +350,10 @@ public class ProductionService {
       if (outputType == ProcessOutputType.WIP && finalOutputStep != null && finalOutputStep.equals(line.stepNo())) {
         throw new IllegalArgumentException("WIP output is not allowed on the final step");
       }
+      if ((outputType == ProcessOutputType.BYPRODUCT || outputType == ProcessOutputType.EMPTY_BAG)
+          && line.destinationGodownId() == null) {
+        throw new IllegalArgumentException("Destination godown is required for byproduct/empty bag outputs");
+      }
       ProductionBatchOutput output = new ProductionBatchOutput();
       output.setBatch(batch);
       output.setItem(fetchItem(line.itemId()));
@@ -334,12 +365,13 @@ public class ProductionService {
       output.setStepNo(line.stepNo());
       outputs.add(output);
 
-      InventoryLocationType locationType = output.getOutputType() == ProcessOutputType.FG
-          ? InventoryLocationType.GODOWN
-          : InventoryLocationType.WIP;
+      boolean toGodown = output.getOutputType() == ProcessOutputType.FG
+          || output.getOutputType() == ProcessOutputType.BYPRODUCT
+          || output.getOutputType() == ProcessOutputType.EMPTY_BAG;
+      InventoryLocationType locationType = toGodown ? InventoryLocationType.GODOWN : InventoryLocationType.WIP;
       Long locationId = output.getDestinationGodown() != null ? output.getDestinationGodown().getId() : output.getBatch().getId();
       recordMovement("PROD_OUTPUT", batch, output.getItem(), output.getUom(), line.qty(), BigDecimal.ZERO, locationType, locationId);
-      if (output.getOutputType() == ProcessOutputType.FG && output.getDestinationGodown() != null) {
+      if (toGodown && output.getDestinationGodown() != null) {
         stockLedgerService.postEntry("PROD_OUTPUT", batch.getId(), null, LedgerTxnType.IN,
             output.getItem(), output.getUom(), null, null, null, output.getDestinationGodown(), null, null,
             line.qty(), line.qty(), StockStatus.UNRESTRICTED, null, null);
@@ -351,8 +383,7 @@ public class ProductionService {
 
   @Transactional
   public ProductionDtos.ProductionBatchResponse completeBatch(Long batchId) {
-    ProductionBatch batch = productionBatchRepository.findById(batchId)
-        .orElseThrow(() -> new IllegalArgumentException("Batch not found"));
+    ProductionBatch batch = getBatchOrThrow(batchId);
     List<ProductionBatchOutput> outputs = productionBatchOutputRepository.findByBatchId(batchId);
     BigDecimal totalProduced = outputs.stream().map(ProductionBatchOutput::getProducedQty).reduce(BigDecimal.ZERO, BigDecimal::add);
     if (totalProduced.compareTo(BigDecimal.ZERO) <= 0) {
@@ -366,6 +397,7 @@ public class ProductionService {
 
   @Transactional(readOnly = true)
   public List<ProductionDtos.WipOutputResponse> listAvailableWipOutputs(Long batchId) {
+    getBatchOrThrow(batchId);
     return productionBatchOutputRepository.findByBatchId(batchId).stream()
         .filter(out -> out.getOutputType() == ProcessOutputType.WIP)
         .map(out -> {
@@ -389,7 +421,10 @@ public class ProductionService {
 
   @Transactional(readOnly = true)
   public List<ProductionDtos.WipOutputResponse> listWipBalances() {
+    Company company = requireCompany();
     return productionBatchOutputRepository.findAll().stream()
+        .filter(out -> out.getBatch() != null && out.getBatch().getCompany() != null
+            && out.getBatch().getCompany().getId().equals(company.getId()))
         .filter(out -> out.getOutputType() == ProcessOutputType.WIP)
         .map(out -> {
           BigDecimal available = out.getProducedQty().subtract(out.getConsumedQty());
@@ -412,6 +447,7 @@ public class ProductionService {
 
   @Transactional(readOnly = true)
   public ProductionDtos.BatchCostSummaryResponse getCostSummary(Long batchId) {
+    getBatchOrThrow(batchId);
     List<ProductionBatchInput> inputs = productionBatchInputRepository.findByBatchId(batchId);
     List<ProductionBatchOutput> outputs = productionBatchOutputRepository.findByBatchId(batchId);
     BigDecimal totalConsumption = inputs.stream()
@@ -434,8 +470,7 @@ public class ProductionService {
     if (id == null) {
       return null;
     }
-    return processTemplateRepository.findById(id)
-        .orElseThrow(() -> new IllegalArgumentException("Process template not found"));
+    return getTemplateOrThrow(id);
   }
 
   private Item fetchItem(Long id) {
@@ -494,6 +529,24 @@ public class ProductionService {
     return inputs;
   }
 
+  private List<ProcessTemplateOutput> buildOutputs(List<ProductionDtos.ProcessTemplateOutputRequest> requests, ProcessTemplate template) {
+    if (requests == null) {
+      return List.of();
+    }
+    List<ProcessTemplateOutput> outputs = new ArrayList<>();
+    for (ProductionDtos.ProcessTemplateOutputRequest request : requests) {
+      ProcessTemplateOutput output = new ProcessTemplateOutput();
+      output.setTemplate(template);
+      output.setItem(fetchItem(request.itemId()));
+      output.setUom(fetchUom(request.uomId()));
+      output.setDefaultRatio(request.defaultRatio());
+      output.setOutputType(ProcessOutputType.valueOf(request.outputType()));
+      output.setNotes(request.notes());
+      outputs.add(output);
+    }
+    return outputs;
+  }
+
   private ProductionDtos.ProcessTemplateResponse toTemplateResponse(ProcessTemplate template) {
     List<ProductionDtos.ProcessTemplateStepResponse> steps = processTemplateStepRepository
         .findByTemplateIdOrderByStepNoAsc(template.getId()).stream()
@@ -501,7 +554,7 @@ public class ProductionService {
             step.getId(),
             step.getStepNo(),
             step.getStepName(),
-            step.getStepType().name(),
+            step.getStepType() != null ? step.getStepType().name() : null,
             step.getNotes()
         )).toList();
     List<ProductionDtos.ProcessTemplateInputResponse> inputs = processTemplateInputRepository.findByTemplateId(template.getId()).stream()
@@ -515,6 +568,17 @@ public class ProductionService {
             input.getOptional(),
             input.getNotes()
         )).toList();
+    List<ProductionDtos.ProcessTemplateOutputResponse> outputs = processTemplateOutputRepository.findByTemplateId(template.getId()).stream()
+        .map(output -> new ProductionDtos.ProcessTemplateOutputResponse(
+            output.getId(),
+            output.getItem().getId(),
+            output.getItem().getName(),
+            output.getUom().getId(),
+            output.getUom().getCode(),
+            output.getDefaultRatio(),
+            output.getOutputType().name(),
+            output.getNotes()
+        )).toList();
     return new ProductionDtos.ProcessTemplateResponse(
         template.getId(),
         template.getCode(),
@@ -526,6 +590,7 @@ public class ProductionService {
         template.getOutputUom() != null ? template.getOutputUom().getCode() : null,
         template.getEnabled(),
         inputs,
+        outputs,
         steps
     );
   }
@@ -674,5 +739,32 @@ public class ProductionService {
       step.setCompletedAt(Instant.now());
       productionBatchStepRepository.save(step);
     }
+  }
+
+  private ProcessTemplate getTemplateOrThrow(Long id) {
+    Company company = requireCompany();
+    return processTemplateRepository.findByIdAndCompanyId(id, company.getId())
+        .orElseThrow(() -> new IllegalArgumentException("Process template not found"));
+  }
+
+  private ProductionOrder getOrderOrThrow(Long id) {
+    Company company = requireCompany();
+    return productionOrderRepository.findByIdAndCompanyId(id, company.getId())
+        .orElseThrow(() -> new IllegalArgumentException("Production order not found"));
+  }
+
+  private ProductionBatch getBatchOrThrow(Long id) {
+    Company company = requireCompany();
+    return productionBatchRepository.findByIdAndCompanyId(id, company.getId())
+        .orElseThrow(() -> new IllegalArgumentException("Batch not found"));
+  }
+
+  private Company requireCompany() {
+    Long companyId = companyContext.getCompanyId();
+    if (companyId == null) {
+      throw new IllegalArgumentException("Missing company context");
+    }
+    return companyRepository.findById(companyId)
+        .orElseThrow(() -> new IllegalArgumentException("Company not found"));
   }
 }

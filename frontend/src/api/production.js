@@ -9,7 +9,7 @@ export const productionApi = {
   createOrder: (payload) => apiClient.post('/api/production/orders', payload),
   updateOrder: (id, payload) => apiClient.put(`/api/production/orders/${id}`, payload),
   createBatch: (payload) => apiClient.post('/api/production/batches', payload),
-  listBatches: (status, templateId) => apiClient.get('/api/production/batches', { params: { status, templateId } }),
+  listBatches: (status, templateId, q) => apiClient.get('/api/production/batches', { params: { status, templateId, q } }),
   getBatch: (id) => apiClient.get(`/api/production/batches/${id}`),
   startBatch: (id) => apiClient.post(`/api/production/batches/${id}/start`),
   issueBatch: (id, payload) => apiClient.post(`/api/production/batches/${id}/issue`, payload),
@@ -24,6 +24,7 @@ export const productionApi = {
   updateRun: (runId, payload) => apiClient.put(`/api/production/runs/${runId}`, payload),
   getRun: (runId) => apiClient.get(`/api/production/runs/${runId}`),
   postRun: (runId) => apiClient.post(`/api/production/runs/${runId}/post`),
+  getRunCostSummary: (runId) => apiClient.get(`/api/production/runs/${runId}/cost-summary`),
   listBatchWip: (batchId) => apiClient.get(`/api/production/batches/${batchId}/wip`),
   searchWip: (search) => apiClient.get('/api/wip', { params: { search } })
 };

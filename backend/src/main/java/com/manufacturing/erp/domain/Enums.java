@@ -99,7 +99,8 @@ public class Enums {
   public enum ProcessOutputType {
     WIP,
     FG,
-    BYPRODUCT
+    BYPRODUCT,
+    EMPTY_BAG
   }
 
   public enum InventoryLocationType {

@@ -8,4 +8,6 @@ public interface ProcessRunOutputRepository extends JpaRepository<ProcessRunOutp
   List<ProcessRunOutput> findByProcessRunId(Long processRunId);
 
   List<ProcessRunOutput> findByProcessRunProductionBatchId(Long batchId);
+
+  List<ProcessRunOutput> findByProcessRunCompanyId(Long companyId);
 }

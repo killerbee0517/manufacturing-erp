@@ -119,6 +119,7 @@ const erp = {
       children: [
         { id: 'production-templates', title: 'Process Templates', type: 'item', url: '/production/templates' },
         { id: 'production-batches', title: 'Batches', type: 'item', url: '/production/batches' },
+        { id: 'production-runs', title: 'Production Runs', type: 'item', url: '/production/runs' },
         { id: 'production-wip', title: 'WIP Stock', type: 'item', url: '/production/wip-stock' },
         { id: 'production-cost-summary', title: 'Cost Summary', type: 'item', url: '/production/cost-summary' }
       ]

@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 
+import Autocomplete from '@mui/material/Autocomplete';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import Grid from '@mui/material/Grid';
-import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 
@@ -56,34 +56,24 @@ export default function ProductionCostSummaryPage() {
       <PageHeader title="Cost Summary" breadcrumbs={[{ label: 'Production' }, { label: 'Cost Summary' }]} />
       <Grid container spacing={2} sx={{ mb: 2 }}>
         <Grid size={{ xs: 12, md: 6 }}>
-          <TextField
-            fullWidth
-            select
-            label="Production Order"
-            value={selection.orderId}
-            onChange={(event) => setSelection({ orderId: event.target.value, batchId: '' })}
-          >
-            {orders.map((order) => (
-              <MenuItem key={order.id} value={order.id}>
-                {order.orderNo}
-              </MenuItem>
-            ))}
-          </TextField>
+          <Autocomplete
+            options={orders}
+            value={orders.find((order) => order.id === Number(selection.orderId)) || null}
+            onChange={(_, newValue) => setSelection({ orderId: newValue?.id || '', batchId: '' })}
+            getOptionLabel={(option) => option.orderNo || ''}
+            isOptionEqualToValue={(option, selected) => option.id === selected?.id}
+            renderInput={(params) => <TextField {...params} label="Production Order" />}
+          />
         </Grid>
         <Grid size={{ xs: 12, md: 6 }}>
-          <TextField
-            fullWidth
-            select
-            label="Batch"
-            value={selection.batchId}
-            onChange={(event) => setSelection((prev) => ({ ...prev, batchId: event.target.value }))}
-          >
-            {batches.map((batch) => (
-              <MenuItem key={batch.id} value={batch.id}>
-                {batch.batchNo}
-              </MenuItem>
-            ))}
-          </TextField>
+          <Autocomplete
+            options={batches}
+            value={batches.find((batch) => batch.id === Number(selection.batchId)) || null}
+            onChange={(_, newValue) => setSelection((prev) => ({ ...prev, batchId: newValue?.id || '' }))}
+            getOptionLabel={(option) => option.batchNo || ''}
+            isOptionEqualToValue={(option, selected) => option.id === selected?.id}
+            renderInput={(params) => <TextField {...params} label="Batch" />}
+          />
         </Grid>
       </Grid>
       <Card variant="outlined">

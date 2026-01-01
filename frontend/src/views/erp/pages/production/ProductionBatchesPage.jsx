@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 
+import Autocomplete from '@mui/material/Autocomplete';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
@@ -16,7 +17,7 @@ import Typography from '@mui/material/Typography';
 import MainCard from 'ui-component/cards/MainCard';
 import PageHeader from 'components/common/PageHeader';
 import DataTable from 'components/common/DataTable';
-import apiClient from 'api/client';
+import MasterAutocomplete from 'components/common/MasterAutocomplete';
 import { productionApi } from 'api/production';
 
 const createInputLine = () => ({
@@ -40,9 +41,6 @@ export default function ProductionBatchesPage() {
   const [templates, setTemplates] = useState([]);
   const [batches, setBatches] = useState([]);
   const [selectedBatch, setSelectedBatch] = useState(null);
-  const [items, setItems] = useState([]);
-  const [uoms, setUoms] = useState([]);
-  const [godowns, setGodowns] = useState([]);
   const [costSummary, setCostSummary] = useState(null);
   const [tab, setTab] = useState('issue');
   const [loading, setLoading] = useState(false);
@@ -74,12 +72,6 @@ export default function ProductionBatchesPage() {
     { field: 'plannedOutputQty', headerName: 'Planned Qty' }
   ];
 
-  const loadMasters = () => {
-    apiClient.get('/api/items').then((response) => setItems(response.data || []));
-    apiClient.get('/api/uoms').then((response) => setUoms(response.data || []));
-    apiClient.get('/api/godowns').then((response) => setGodowns(response.data || []));
-  };
-
   const loadTemplates = () => {
     productionApi
       .listTemplates()
@@ -106,7 +98,6 @@ export default function ProductionBatchesPage() {
   };
 
   useEffect(() => {
-    loadMasters();
     loadTemplates();
     loadBatches();
   }, []);
@@ -238,40 +229,27 @@ export default function ProductionBatchesPage() {
                   New Batch
                 </Typography>
                 <Stack spacing={2} component="form" onSubmit={handleCreateBatch}>
-                  <TextField
-                    select
-                    fullWidth
+                  <MasterAutocomplete
                     label="Template"
+                    endpoint="/api/production/templates"
                     value={formValues.templateId}
-                    onChange={(event) => setFormValues((prev) => ({ ...prev, templateId: event.target.value }))}
+                    onChange={(value) => setFormValues((prev) => ({ ...prev, templateId: value }))}
+                    placeholder="Select template"
                     required
-                  >
-                    {templates.map((template) => (
-                      <MenuItem key={template.id} value={template.id}>
-                        {template.name}
-                      </MenuItem>
-                    ))}
-                  </TextField>
+                  />
                   <TextField
                     label="Planned Output Qty"
                     type="number"
                     value={formValues.plannedOutputQty}
                     onChange={(event) => setFormValues((prev) => ({ ...prev, plannedOutputQty: event.target.value }))}
                   />
-                  <TextField
-                    select
-                    fullWidth
+                  <MasterAutocomplete
                     label="Output UOM"
+                    endpoint="/api/uoms"
                     value={formValues.uomId}
-                    onChange={(event) => setFormValues((prev) => ({ ...prev, uomId: event.target.value }))}
-                  >
-                    <MenuItem value="">From Template</MenuItem>
-                    {uoms.map((uom) => (
-                      <MenuItem key={uom.id} value={uom.id}>
-                        {uom.code}
-                      </MenuItem>
-                    ))}
-                  </TextField>
+                    onChange={(value) => setFormValues((prev) => ({ ...prev, uomId: value }))}
+                    placeholder="From template"
+                  />
                   <Button variant="contained" color="secondary" type="submit" disabled={creatingBatch}>
                     {creatingBatch ? 'Creating...' : 'Create Batch'}
                   </Button>
@@ -335,34 +313,22 @@ export default function ProductionBatchesPage() {
                           <Stack spacing={2}>
                             {issueInputs.map((line, index) => (
                               <Stack key={`input-${index}`} spacing={1}>
-                                <TextField
-                                  select
-                                  fullWidth
+                                <MasterAutocomplete
                                   label="Item"
+                                  endpoint="/api/items"
                                   value={line.itemId}
-                                  onChange={(event) => handleLineChange(setIssueInputs, index, 'itemId', event.target.value)}
-                                >
-                                  {items.map((item) => (
-                                    <MenuItem key={item.id} value={item.id}>
-                                      {item.name}
-                                    </MenuItem>
-                                  ))}
-                                </TextField>
+                                  onChange={(value) => handleLineChange(setIssueInputs, index, 'itemId', value)}
+                                  placeholder="Select item"
+                                />
                                 <Grid container spacing={1}>
                                   <Grid size={{ xs: 12, md: 4 }}>
-                                    <TextField
-                                      select
-                                      fullWidth
+                                    <MasterAutocomplete
                                       label="UOM"
+                                      endpoint="/api/uoms"
                                       value={line.uomId}
-                                      onChange={(event) => handleLineChange(setIssueInputs, index, 'uomId', event.target.value)}
-                                    >
-                                      {uoms.map((uom) => (
-                                        <MenuItem key={uom.id} value={uom.id}>
-                                          {uom.code}
-                                        </MenuItem>
-                                      ))}
-                                    </TextField>
+                                      onChange={(value) => handleLineChange(setIssueInputs, index, 'uomId', value)}
+                                      placeholder="Select UOM"
+                                    />
                                   </Grid>
                                   <Grid size={{ xs: 12, md: 4 }}>
                                     <TextField
@@ -389,37 +355,28 @@ export default function ProductionBatchesPage() {
                                 <Grid container spacing={1}>
                                   {line.sourceType === 'GODOWN' ? (
                                     <Grid size={{ xs: 12, md: 6 }}>
-                                      <TextField
-                                        select
-                                        fullWidth
+                                      <MasterAutocomplete
                                         label="Godown"
+                                        endpoint="/api/godowns"
                                         value={line.godownId}
-                                        onChange={(event) => handleLineChange(setIssueInputs, index, 'godownId', event.target.value)}
-                                      >
-                                        <MenuItem value="">Select</MenuItem>
-                                        {godowns.map((godown) => (
-                                          <MenuItem key={godown.id} value={godown.id}>
-                                            {godown.name}
-                                          </MenuItem>
-                                        ))}
-                                      </TextField>
+                                        onChange={(value) => handleLineChange(setIssueInputs, index, 'godownId', value)}
+                                        placeholder="Select godown"
+                                      />
                                     </Grid>
                                   ) : (
                                     <Grid size={{ xs: 12, md: 6 }}>
-                                      <TextField
-                                        select
-                                        fullWidth
-                                        label="WIP Source"
-                                        value={line.sourceRefId}
-                                        onChange={(event) => handleLineChange(setIssueInputs, index, 'sourceRefId', event.target.value)}
-                                      >
-                                        <MenuItem value="">Select</MenuItem>
-                                        {batchWip.map((wip) => (
-                                          <MenuItem key={wip.id} value={wip.id}>
-                                            {wip.itemName} (Avail: {wip.availableQuantity})
-                                          </MenuItem>
-                                        ))}
-                                      </TextField>
+                                      <Autocomplete
+                                        options={batchWip}
+                                        value={batchWip.find((wip) => wip.id === line.sourceRefId) || null}
+                                        onChange={(_, newValue) =>
+                                          handleLineChange(setIssueInputs, index, 'sourceRefId', newValue?.id || '')
+                                        }
+                                        getOptionLabel={(option) =>
+                                          `${option.itemName} (Avail: ${option.availableQuantity})`
+                                        }
+                                        isOptionEqualToValue={(option, selected) => option.id === selected?.id}
+                                        renderInput={(params) => <TextField {...params} label="WIP Source" />}
+                                      />
                                     </Grid>
                                   )}
                                 </Grid>
@@ -457,34 +414,22 @@ export default function ProductionBatchesPage() {
                           <Stack spacing={2}>
                             {outputLines.map((line, index) => (
                               <Stack key={`output-${index}`} spacing={1}>
-                                <TextField
-                                  select
-                                  fullWidth
+                                <MasterAutocomplete
                                   label="Item"
+                                  endpoint="/api/items"
                                   value={line.itemId}
-                                  onChange={(event) => handleLineChange(setOutputLines, index, 'itemId', event.target.value)}
-                                >
-                                  {items.map((item) => (
-                                    <MenuItem key={item.id} value={item.id}>
-                                      {item.name}
-                                    </MenuItem>
-                                  ))}
-                                </TextField>
+                                  onChange={(value) => handleLineChange(setOutputLines, index, 'itemId', value)}
+                                  placeholder="Select item"
+                                />
                                 <Grid container spacing={1}>
                                   <Grid size={{ xs: 12, md: 4 }}>
-                                    <TextField
-                                      select
-                                      fullWidth
+                                    <MasterAutocomplete
                                       label="UOM"
+                                      endpoint="/api/uoms"
                                       value={line.uomId}
-                                      onChange={(event) => handleLineChange(setOutputLines, index, 'uomId', event.target.value)}
-                                    >
-                                      {uoms.map((uom) => (
-                                        <MenuItem key={uom.id} value={uom.id}>
-                                          {uom.code}
-                                        </MenuItem>
-                                      ))}
-                                    </TextField>
+                                      onChange={(value) => handleLineChange(setOutputLines, index, 'uomId', value)}
+                                      placeholder="Select UOM"
+                                    />
                                   </Grid>
                                   <Grid size={{ xs: 12, md: 4 }}>
                                     <TextField
@@ -506,26 +451,20 @@ export default function ProductionBatchesPage() {
                                       <MenuItem value="WIP">WIP</MenuItem>
                                       <MenuItem value="FG">Finished</MenuItem>
                                       <MenuItem value="BYPRODUCT">Byproduct</MenuItem>
+                                      <MenuItem value="EMPTY_BAG">Empty Bag</MenuItem>
                                     </TextField>
                                   </Grid>
                                 </Grid>
                                 <Grid container spacing={1}>
                                   <Grid size={{ xs: 12, md: 6 }}>
-                                    <TextField
-                                      select
-                                      fullWidth
+                                    <MasterAutocomplete
                                       label="Destination Godown"
+                                      endpoint="/api/godowns"
                                       value={line.destGodownId}
-                                      onChange={(event) => handleLineChange(setOutputLines, index, 'destGodownId', event.target.value)}
+                                      onChange={(value) => handleLineChange(setOutputLines, index, 'destGodownId', value)}
+                                      placeholder="Select godown"
                                       disabled={line.outputType === 'WIP'}
-                                    >
-                                      <MenuItem value="">None</MenuItem>
-                                      {godowns.map((godown) => (
-                                        <MenuItem key={godown.id} value={godown.id}>
-                                          {godown.name}
-                                        </MenuItem>
-                                      ))}
-                                    </TextField>
+                                    />
                                   </Grid>
                                 </Grid>
                                 {outputLines.length > 1 && (

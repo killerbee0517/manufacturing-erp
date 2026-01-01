@@ -47,6 +47,7 @@ const StockLedgerPage = Loadable(lazy(() => import('views/erp/pages/inventory/St
 const ItemBalancesPage = Loadable(lazy(() => import('views/erp/pages/inventory/ItemBalancesPage')));
 const ProcessTemplatesPage = Loadable(lazy(() => import('views/erp/pages/production/ProcessTemplatesPage')));
 const ProductionBatchesPage = Loadable(lazy(() => import('views/erp/pages/production/ProductionBatchesPage')));
+const ProductionRunsPage = Loadable(lazy(() => import('views/erp/pages/production/ProductionRunsPage')));
 const ProductionCostSummaryPage = Loadable(lazy(() => import('views/erp/pages/production/ProductionCostSummaryPage')));
 const WipStockPage = Loadable(lazy(() => import('views/erp/pages/production/WipStockPage')));
 const LedgerReportPage = Loadable(lazy(() => import('views/erp/pages/reports/LedgerReportPage')));
@@ -153,6 +154,7 @@ const MainRoutes = {
       children: [
         { path: 'templates', element: <ProcessTemplatesPage /> },
         { path: 'batches', element: <ProductionBatchesPage /> },
+        { path: 'runs', element: <ProductionRunsPage /> },
         { path: 'wip-stock', element: <WipStockPage /> },
         { path: 'cost-summary', element: <ProductionCostSummaryPage /> }
       ]

@@ -17,6 +17,10 @@ import java.time.LocalDate;
 @Entity
 @Table(name = "production_orders")
 public class ProductionOrder extends BaseEntity {
+  @ManyToOne
+  @JoinColumn(name = "company_id", nullable = false)
+  private Company company;
+
   @Column(name = "order_no", nullable = false)
   private String orderNo;
 
@@ -48,6 +52,14 @@ public class ProductionOrder extends BaseEntity {
 
   public void setOrderNo(String orderNo) {
     this.orderNo = orderNo;
+  }
+
+  public Company getCompany() {
+    return company;
+  }
+
+  public void setCompany(Company company) {
+    this.company = company;
   }
 
   public ProcessTemplate getTemplate() {

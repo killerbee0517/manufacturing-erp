@@ -16,6 +16,10 @@ import java.time.LocalDate;
 @Table(name = "process_runs")
 public class ProcessRun extends BaseEntity {
   @ManyToOne
+  @JoinColumn(name = "company_id", nullable = false)
+  private Company company;
+
+  @ManyToOne
   @JoinColumn(name = "production_batch_id", nullable = false)
   private ProductionBatch productionBatch;
 
@@ -34,6 +38,9 @@ public class ProcessRun extends BaseEntity {
 
   @Column(name = "notes")
   private String notes;
+
+  @Column(name = "moisture_percent")
+  private java.math.BigDecimal moisturePercent;
 
   @Column(name = "step_name")
   private String stepName;
@@ -54,6 +61,14 @@ public class ProcessRun extends BaseEntity {
 
   public void setProductionBatch(ProductionBatch productionBatch) {
     this.productionBatch = productionBatch;
+  }
+
+  public Company getCompany() {
+    return company;
+  }
+
+  public void setCompany(Company company) {
+    this.company = company;
   }
 
   public ProcessStep getProcessStep() {
@@ -94,6 +109,14 @@ public class ProcessRun extends BaseEntity {
 
   public void setNotes(String notes) {
     this.notes = notes;
+  }
+
+  public java.math.BigDecimal getMoisturePercent() {
+    return moisturePercent;
+  }
+
+  public void setMoisturePercent(java.math.BigDecimal moisturePercent) {
+    this.moisturePercent = moisturePercent;
   }
 
   public Instant getStartedAt() {

@@ -16,19 +16,18 @@ import Typography from '@mui/material/Typography';
 import MainCard from 'ui-component/cards/MainCard';
 import PageHeader from 'components/common/PageHeader';
 import DataTable from 'components/common/DataTable';
-import apiClient from 'api/client';
+import MasterAutocomplete from 'components/common/MasterAutocomplete';
 import { productionApi } from 'api/production';
 
 const createStep = (stepNo = 1) => ({ stepNo, stepName: '', stepType: 'PROCESS', notes: '' });
 const createInput = () => ({ itemId: '', uomId: '', defaultQty: '', optional: false, notes: '' });
+const createOutput = () => ({ itemId: '', uomId: '', defaultRatio: '', outputType: 'FG', notes: '' });
 
 export default function ProcessTemplatesPage() {
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(false);
   const [activeTemplate, setActiveTemplate] = useState(null);
   const [editingTemplateId, setEditingTemplateId] = useState(null);
-  const [items, setItems] = useState([]);
-  const [uoms, setUoms] = useState([]);
   const [formValues, setFormValues] = useState({
     code: '',
     name: '',
@@ -36,6 +35,7 @@ export default function ProcessTemplatesPage() {
     outputItemId: '',
     outputUomId: '',
     inputs: [createInput()],
+    outputs: [createOutput()],
     steps: [createStep()]
   });
 
@@ -59,8 +59,6 @@ export default function ProcessTemplatesPage() {
 
   useEffect(() => {
     loadTemplates();
-    apiClient.get('/api/items').then((response) => setItems(response.data || []));
-    apiClient.get('/api/uoms').then((response) => setUoms(response.data || []));
   }, []);
 
   const resetForm = () => {
@@ -71,6 +69,7 @@ export default function ProcessTemplatesPage() {
       outputItemId: '',
       outputUomId: '',
       inputs: [createInput()],
+      outputs: [createOutput()],
       steps: [createStep()]
     });
     setEditingTemplateId(null);
@@ -95,6 +94,15 @@ export default function ProcessTemplatesPage() {
             notes: input.notes || ''
           }))
         : [createInput()],
+      outputs: (template.outputs || []).length
+        ? template.outputs.map((output) => ({
+            itemId: output.itemId || '',
+            uomId: output.uomId || '',
+            defaultRatio: output.defaultRatio ?? '',
+            outputType: output.outputType || 'FG',
+            notes: output.notes || ''
+          }))
+        : [createOutput()],
       steps: (template.steps || []).length
         ? template.steps.map((step) => ({
             stepNo: step.stepNo || 1,
@@ -145,6 +153,15 @@ export default function ProcessTemplatesPage() {
           defaultQty: Number(input.defaultQty),
           optional: input.optional,
           notes: input.notes || null
+        })),
+      outputs: formValues.outputs
+        .filter((output) => output.itemId && output.uomId && output.defaultRatio)
+        .map((output) => ({
+          itemId: Number(output.itemId),
+          uomId: Number(output.uomId),
+          defaultRatio: Number(output.defaultRatio),
+          outputType: output.outputType || 'FG',
+          notes: output.notes || null
         })),
       steps: formValues.steps.map((step) => ({
         stepNo: Number(step.stepNo || 1),
@@ -202,36 +219,22 @@ export default function ProcessTemplatesPage() {
                   />
                   <Grid container spacing={1}>
                     <Grid size={{ xs: 12, md: 6 }}>
-                      <TextField
-                        select
-                        fullWidth
+                      <MasterAutocomplete
                         label="Output Item"
+                        endpoint="/api/items"
                         value={formValues.outputItemId}
-                        onChange={(event) => setFormValues((prev) => ({ ...prev, outputItemId: event.target.value }))}
-                      >
-                        <MenuItem value="">None</MenuItem>
-                        {items.map((item) => (
-                          <MenuItem key={item.id} value={item.id}>
-                            {item.name}
-                          </MenuItem>
-                        ))}
-                      </TextField>
+                        onChange={(value) => setFormValues((prev) => ({ ...prev, outputItemId: value }))}
+                        placeholder="Select item"
+                      />
                     </Grid>
                     <Grid size={{ xs: 12, md: 6 }}>
-                      <TextField
-                        select
-                        fullWidth
+                      <MasterAutocomplete
                         label="Output UOM"
+                        endpoint="/api/uoms"
                         value={formValues.outputUomId}
-                        onChange={(event) => setFormValues((prev) => ({ ...prev, outputUomId: event.target.value }))}
-                      >
-                        <MenuItem value="">None</MenuItem>
-                        {uoms.map((uom) => (
-                          <MenuItem key={uom.id} value={uom.id}>
-                            {uom.code}
-                          </MenuItem>
-                        ))}
-                      </TextField>
+                        onChange={(value) => setFormValues((prev) => ({ ...prev, outputUomId: value }))}
+                        placeholder="Select UOM"
+                      />
                     </Grid>
                   </Grid>
                   <Divider />
@@ -240,42 +243,30 @@ export default function ProcessTemplatesPage() {
                     <Stack key={`input-${index}`} spacing={1}>
                       <Grid container spacing={1}>
                         <Grid size={{ xs: 12, md: 6 }}>
-                          <TextField
-                            select
-                            fullWidth
+                          <MasterAutocomplete
                             label="Item"
+                            endpoint="/api/items"
                             value={input.itemId}
-                            onChange={(event) => {
+                            onChange={(value) => {
                               const updated = [...formValues.inputs];
-                              updated[index] = { ...updated[index], itemId: event.target.value };
+                              updated[index] = { ...updated[index], itemId: value };
                               setFormValues((prev) => ({ ...prev, inputs: updated }));
                             }}
-                          >
-                            {items.map((item) => (
-                              <MenuItem key={item.id} value={item.id}>
-                                {item.name}
-                              </MenuItem>
-                            ))}
-                          </TextField>
+                            placeholder="Select item"
+                          />
                         </Grid>
                         <Grid size={{ xs: 12, md: 3 }}>
-                          <TextField
-                            select
-                            fullWidth
+                          <MasterAutocomplete
                             label="UOM"
+                            endpoint="/api/uoms"
                             value={input.uomId}
-                            onChange={(event) => {
+                            onChange={(value) => {
                               const updated = [...formValues.inputs];
-                              updated[index] = { ...updated[index], uomId: event.target.value };
+                              updated[index] = { ...updated[index], uomId: value };
                               setFormValues((prev) => ({ ...prev, inputs: updated }));
                             }}
-                          >
-                            {uoms.map((uom) => (
-                              <MenuItem key={uom.id} value={uom.id}>
-                                {uom.code}
-                              </MenuItem>
-                            ))}
-                          </TextField>
+                            placeholder="Select UOM"
+                          />
                         </Grid>
                         <Grid size={{ xs: 12, md: 3 }}>
                           <TextField
@@ -348,6 +339,111 @@ export default function ProcessTemplatesPage() {
                     }
                   >
                     Add Input
+                  </Button>
+                  <Divider />
+                  <Typography variant="subtitle1">Default Outputs</Typography>
+                  {formValues.outputs.map((output, index) => (
+                    <Stack key={`output-${index}`} spacing={1}>
+                      <Grid container spacing={1}>
+                        <Grid size={{ xs: 12, md: 6 }}>
+                          <MasterAutocomplete
+                            label="Item"
+                            endpoint="/api/items"
+                            value={output.itemId}
+                            onChange={(value) => {
+                              const updated = [...formValues.outputs];
+                              updated[index] = { ...updated[index], itemId: value };
+                              setFormValues((prev) => ({ ...prev, outputs: updated }));
+                            }}
+                            placeholder="Select item"
+                          />
+                        </Grid>
+                        <Grid size={{ xs: 12, md: 3 }}>
+                          <MasterAutocomplete
+                            label="UOM"
+                            endpoint="/api/uoms"
+                            value={output.uomId}
+                            onChange={(value) => {
+                              const updated = [...formValues.outputs];
+                              updated[index] = { ...updated[index], uomId: value };
+                              setFormValues((prev) => ({ ...prev, outputs: updated }));
+                            }}
+                            placeholder="Select UOM"
+                          />
+                        </Grid>
+                        <Grid size={{ xs: 12, md: 3 }}>
+                          <TextField
+                            fullWidth
+                            label="Default Ratio"
+                            type="number"
+                            value={output.defaultRatio}
+                            onChange={(event) => {
+                              const updated = [...formValues.outputs];
+                              updated[index] = { ...updated[index], defaultRatio: event.target.value };
+                              setFormValues((prev) => ({ ...prev, outputs: updated }));
+                            }}
+                          />
+                        </Grid>
+                      </Grid>
+                      <Grid container spacing={1}>
+                        <Grid size={{ xs: 12, md: 6 }}>
+                          <TextField
+                            select
+                            fullWidth
+                            label="Output Type"
+                            value={output.outputType}
+                            onChange={(event) => {
+                              const updated = [...formValues.outputs];
+                              updated[index] = { ...updated[index], outputType: event.target.value };
+                              setFormValues((prev) => ({ ...prev, outputs: updated }));
+                            }}
+                          >
+                            <MenuItem value="FG">Finished Good</MenuItem>
+                            <MenuItem value="WIP">WIP</MenuItem>
+                            <MenuItem value="BYPRODUCT">By-product</MenuItem>
+                            <MenuItem value="EMPTY_BAG">Empty Bag</MenuItem>
+                          </TextField>
+                        </Grid>
+                        <Grid size={{ xs: 12, md: 6 }}>
+                          <TextField
+                            fullWidth
+                            label="Notes"
+                            value={output.notes}
+                            onChange={(event) => {
+                              const updated = [...formValues.outputs];
+                              updated[index] = { ...updated[index], notes: event.target.value };
+                              setFormValues((prev) => ({ ...prev, outputs: updated }));
+                            }}
+                          />
+                        </Grid>
+                      </Grid>
+                      {formValues.outputs.length > 1 && (
+                        <Button
+                          variant="text"
+                          color="error"
+                          onClick={() =>
+                            setFormValues((prev) => ({
+                              ...prev,
+                              outputs: prev.outputs.filter((_, idx) => idx !== index)
+                            }))
+                          }
+                        >
+                          Remove Output
+                        </Button>
+                      )}
+                      <Divider />
+                    </Stack>
+                  ))}
+                  <Button
+                    variant="outlined"
+                    onClick={() =>
+                      setFormValues((prev) => ({
+                        ...prev,
+                        outputs: [...prev.outputs, createOutput()]
+                      }))
+                    }
+                  >
+                    Add Output
                   </Button>
                   <Divider />
                   <Typography variant="subtitle1">Steps</Typography>

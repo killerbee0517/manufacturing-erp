@@ -16,6 +16,10 @@ import java.time.LocalDate;
 @Entity
 @Table(name = "production_batches")
 public class ProductionBatch extends BaseEntity {
+  @ManyToOne
+  @JoinColumn(name = "company_id", nullable = false)
+  private Company company;
+
   @Column(name = "batch_no", nullable = false)
   private String batchNo;
 
@@ -56,6 +60,14 @@ public class ProductionBatch extends BaseEntity {
 
   public void setBatchNo(String batchNo) {
     this.batchNo = batchNo;
+  }
+
+  public Company getCompany() {
+    return company;
+  }
+
+  public void setCompany(Company company) {
+    this.company = company;
   }
 
   public ProductionOrder getProductionOrder() {

@@ -1,5 +1,6 @@
 package com.manufacturing.erp.service;
 
+import com.manufacturing.erp.domain.Company;
 import com.manufacturing.erp.domain.Enums.InventoryLocationType;
 import com.manufacturing.erp.domain.Enums.LedgerTxnType;
 import com.manufacturing.erp.domain.Enums.ProcessInputSourceType;
@@ -15,6 +16,7 @@ import com.manufacturing.erp.domain.ProcessTemplateStep;
 import com.manufacturing.erp.domain.ProductionBatch;
 import com.manufacturing.erp.domain.Uom;
 import com.manufacturing.erp.dto.ProductionDtos;
+import com.manufacturing.erp.repository.CompanyRepository;
 import com.manufacturing.erp.repository.GodownRepository;
 import com.manufacturing.erp.repository.InventoryMovementRepository;
 import com.manufacturing.erp.repository.ItemRepository;
@@ -24,6 +26,7 @@ import com.manufacturing.erp.repository.ProcessRunRepository;
 import com.manufacturing.erp.repository.ProcessTemplateStepRepository;
 import com.manufacturing.erp.repository.ProductionBatchRepository;
 import com.manufacturing.erp.repository.UomRepository;
+import com.manufacturing.erp.security.CompanyContext;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -45,6 +48,8 @@ public class ProductionRunService {
   private final GodownRepository godownRepository;
   private final InventoryMovementRepository inventoryMovementRepository;
   private final StockLedgerService stockLedgerService;
+  private final CompanyRepository companyRepository;
+  private final CompanyContext companyContext;
 
   public ProductionRunService(ProductionBatchRepository productionBatchRepository,
                               ProcessRunRepository processRunRepository,
@@ -55,7 +60,9 @@ public class ProductionRunService {
                               UomRepository uomRepository,
                               GodownRepository godownRepository,
                               InventoryMovementRepository inventoryMovementRepository,
-                              StockLedgerService stockLedgerService) {
+                              StockLedgerService stockLedgerService,
+                              CompanyRepository companyRepository,
+                              CompanyContext companyContext) {
     this.productionBatchRepository = productionBatchRepository;
     this.processRunRepository = processRunRepository;
     this.processRunConsumptionRepository = processRunConsumptionRepository;
@@ -66,18 +73,22 @@ public class ProductionRunService {
     this.godownRepository = godownRepository;
     this.inventoryMovementRepository = inventoryMovementRepository;
     this.stockLedgerService = stockLedgerService;
+    this.companyRepository = companyRepository;
+    this.companyContext = companyContext;
   }
 
   @Transactional
   public ProductionDtos.ProductionRunResponse createRun(Long batchId, ProductionDtos.ProductionRunRequest request) {
     ProductionBatch batch = fetchBatch(batchId);
     ProcessRun run = new ProcessRun();
+    run.setCompany(requireCompany());
     run.setProductionBatch(batch);
     run.setRunNo(nextRunNo(batchId));
     applyStepMetadata(run, request);
     run.setRunDate(request.runDate() != null ? request.runDate() : LocalDate.now());
     run.setStatus(ProductionStatus.DRAFT);
     run.setNotes(request.notes());
+    run.setMoisturePercent(request.moisturePercent());
     ProcessRun saved = processRunRepository.save(run);
 
     List<ProcessRunConsumption> inputs = buildConsumptions(saved, request.inputs());
@@ -93,6 +104,7 @@ public class ProductionRunService {
     applyStepMetadata(run, request);
     run.setRunDate(request.runDate() != null ? request.runDate() : run.getRunDate());
     run.setNotes(request.notes());
+    run.setMoisturePercent(request.moisturePercent());
     processRunConsumptionRepository.deleteAll(processRunConsumptionRepository.findByProcessRunId(runId));
     processRunOutputRepository.deleteAll(processRunOutputRepository.findByProcessRunId(runId));
     processRunConsumptionRepository.saveAll(buildConsumptions(run, request.inputs()));
@@ -106,8 +118,78 @@ public class ProductionRunService {
   }
 
   @Transactional(readOnly = true)
+  public ProductionDtos.RunCostSummaryResponse getRunCostSummary(Long runId) {
+    ProcessRun run = getRunOrThrow(runId);
+    List<ProcessRunConsumption> inputs = processRunConsumptionRepository.findByProcessRunId(runId);
+    List<ProcessRunOutput> outputs = processRunOutputRepository.findByProcessRunId(runId);
+
+    BigDecimal totalInputQty = inputs.stream()
+        .map(ProcessRunConsumption::getQuantity)
+        .reduce(BigDecimal.ZERO, BigDecimal::add);
+    BigDecimal totalInputAmount = inputs.stream()
+        .map(input -> resolveAmount(input.getAmount(), input.getRate(), input.getQuantity()))
+        .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+    BigDecimal allocatableOutputQty = outputs.stream()
+        .filter(out -> out.getOutputType() != ProcessOutputType.BYPRODUCT
+            && out.getOutputType() != ProcessOutputType.EMPTY_BAG)
+        .map(ProcessRunOutput::getQuantity)
+        .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+    BigDecimal unitCost = allocatableOutputQty.compareTo(BigDecimal.ZERO) > 0
+        ? totalInputAmount.divide(allocatableOutputQty, 4, java.math.RoundingMode.HALF_UP)
+        : BigDecimal.ZERO;
+
+    List<ProductionDtos.RunCostSummaryLine> lines = outputs.stream().map(output -> {
+      boolean allocatable = output.getOutputType() != ProcessOutputType.BYPRODUCT
+          && output.getOutputType() != ProcessOutputType.EMPTY_BAG;
+      BigDecimal lineUnitCost = allocatable ? unitCost : BigDecimal.ZERO;
+      BigDecimal lineAmount = lineUnitCost.multiply(defaultZero(output.getQuantity()));
+      return new ProductionDtos.RunCostSummaryLine(
+          output.getId(),
+          output.getItem().getId(),
+          output.getItem().getName(),
+          output.getOutputType().name(),
+          output.getQuantity(),
+          lineUnitCost,
+          lineAmount
+      );
+    }).toList();
+
+    BigDecimal totalOutputAmount = lines.stream()
+        .map(ProductionDtos.RunCostSummaryLine::amount)
+        .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+    BigDecimal yieldPercent = BigDecimal.ZERO;
+    BigDecimal shrinkPercent = BigDecimal.ZERO;
+    if (totalInputQty.compareTo(BigDecimal.ZERO) > 0) {
+      yieldPercent = allocatableOutputQty
+          .multiply(BigDecimal.valueOf(100))
+          .divide(totalInputQty, 4, java.math.RoundingMode.HALF_UP);
+      shrinkPercent = totalInputQty.subtract(allocatableOutputQty)
+          .multiply(BigDecimal.valueOf(100))
+          .divide(totalInputQty, 4, java.math.RoundingMode.HALF_UP);
+    }
+
+    return new ProductionDtos.RunCostSummaryResponse(
+        runId,
+        totalInputQty,
+        totalInputAmount,
+        allocatableOutputQty,
+        totalOutputAmount,
+        yieldPercent,
+        run.getMoisturePercent(),
+        shrinkPercent,
+        unitCost,
+        lines
+    );
+  }
+
+  @Transactional(readOnly = true)
   public List<ProductionDtos.ProductionRunResponse> listRunsForBatch(Long batchId) {
-    return processRunRepository.findByProductionBatchId(batchId).stream()
+    Company company = requireCompany();
+    fetchBatch(batchId);
+    return processRunRepository.findByProductionBatchIdAndCompanyId(batchId, company.getId()).stream()
         .sorted(Comparator.comparing(ProcessRun::getRunNo, Comparator.nullsLast(Integer::compareTo))
             .thenComparing(ProcessRun::getId))
         .map(this::toRunResponse)
@@ -170,9 +252,10 @@ public class ProductionRunService {
       InventoryLocationType locationType = InventoryLocationType.WIP;
       Long locationId = output.getProcessRun().getId();
       boolean postToGodown = output.getOutputType() == ProcessOutputType.FG
-          || (output.getOutputType() == ProcessOutputType.BYPRODUCT && output.getDestGodown() != null);
-      if (output.getOutputType() == ProcessOutputType.FG && output.getDestGodown() == null) {
-        throw new IllegalArgumentException("Destination godown is required for finished outputs");
+          || output.getOutputType() == ProcessOutputType.BYPRODUCT
+          || output.getOutputType() == ProcessOutputType.EMPTY_BAG;
+      if (postToGodown && output.getDestGodown() == null) {
+        throw new IllegalArgumentException("Destination godown is required for non-WIP outputs");
       }
       if (postToGodown) {
         locationType = InventoryLocationType.GODOWN;
@@ -211,6 +294,7 @@ public class ProductionRunService {
 
   @Transactional(readOnly = true)
   public List<ProductionDtos.WipSelectionResponse> listAvailableWipForBatch(Long batchId) {
+    fetchBatch(batchId);
     return processRunOutputRepository.findByProcessRunProductionBatchId(batchId).stream()
         .filter(out -> out.getOutputType() == ProcessOutputType.WIP)
         .filter(out -> out.getProcessRun().getStatus() == ProductionStatus.COMPLETED)
@@ -221,7 +305,8 @@ public class ProductionRunService {
 
   @Transactional(readOnly = true)
   public List<ProductionDtos.WipSelectionResponse> searchWip(String search) {
-    return processRunOutputRepository.findAll().stream()
+    Company company = requireCompany();
+    return processRunOutputRepository.findByProcessRunCompanyId(company.getId()).stream()
         .filter(out -> out.getOutputType() == ProcessOutputType.WIP)
         .filter(out -> out.getProcessRun().getStatus() == ProductionStatus.COMPLETED)
         .filter(out -> search == null
@@ -229,6 +314,32 @@ public class ProductionRunService {
             || (out.getItem().getSku() != null
             && out.getItem().getSku().toLowerCase().contains(search.toLowerCase())))
         .map(this::toWipSelection)
+        .filter(res -> res.availableQuantity().compareTo(BigDecimal.ZERO) > 0)
+        .toList();
+  }
+
+  @Transactional(readOnly = true)
+  public List<ProductionDtos.WipOutputResponse> listWipBalances() {
+    Company company = requireCompany();
+    return processRunOutputRepository.findByProcessRunCompanyId(company.getId()).stream()
+        .filter(out -> out.getOutputType() == ProcessOutputType.WIP)
+        .filter(out -> out.getProcessRun().getStatus() == ProductionStatus.COMPLETED)
+        .map(out -> {
+          BigDecimal available = defaultZero(out.getQuantity()).subtract(defaultZero(out.getConsumedQuantity()));
+          ProductionBatch batch = out.getProcessRun().getProductionBatch();
+          return new ProductionDtos.WipOutputResponse(
+              out.getId(),
+              batch != null ? batch.getId() : null,
+              batch != null ? batch.getBatchNo() : null,
+              out.getItem().getId(),
+              out.getItem().getName(),
+              out.getUom().getId(),
+              out.getUom().getCode(),
+              out.getQuantity(),
+              defaultZero(out.getConsumedQuantity()),
+              available
+          );
+        })
         .filter(res -> res.availableQuantity().compareTo(BigDecimal.ZERO) > 0)
         .toList();
   }
@@ -267,10 +378,15 @@ public class ProductionRunService {
       } else if (req.sourceRefId() != null) {
         ProcessRunOutput source = processRunOutputRepository.findById(req.sourceRefId())
             .orElseThrow(() -> new IllegalArgumentException("Referenced WIP output not found"));
+        Company company = requireCompany();
+        if (source.getProcessRun() == null || source.getProcessRun().getCompany() == null
+            || !source.getProcessRun().getCompany().getId().equals(company.getId())) {
+          throw new IllegalArgumentException("Referenced WIP output not found");
+        }
         consumption.setSourceRunOutput(source);
       }
-      consumption.setRate(BigDecimal.ZERO);
-      consumption.setAmount(BigDecimal.ZERO);
+      consumption.setRate(defaultZero(req.rate()));
+      consumption.setAmount(resolveAmount(req.amount(), req.rate(), req.qty()));
       return consumption;
     }).toList();
   }
@@ -286,13 +402,15 @@ public class ProductionRunService {
       output.setUom(fetchUom(req.uomId()));
       output.setQuantity(req.qty());
       output.setOutputType(ProcessOutputType.valueOf(req.outputType()));
-      if ((output.getOutputType() == ProcessOutputType.FG || output.getOutputType() == ProcessOutputType.BYPRODUCT)
+      if ((output.getOutputType() == ProcessOutputType.FG
+          || output.getOutputType() == ProcessOutputType.BYPRODUCT
+          || output.getOutputType() == ProcessOutputType.EMPTY_BAG)
           && req.destGodownId() != null) {
         output.setDestGodown(fetchGodown(req.destGodownId()));
       }
       output.setConsumedQuantity(BigDecimal.ZERO);
-      output.setRate(BigDecimal.ZERO);
-      output.setAmount(BigDecimal.ZERO);
+      output.setRate(defaultZero(req.rate()));
+      output.setAmount(resolveAmount(req.amount(), req.rate(), req.qty()));
       return output;
     }).toList();
   }
@@ -311,6 +429,7 @@ public class ProductionRunService {
         run.getStartedAt(),
         run.getEndedAt(),
         run.getNotes(),
+        run.getMoisturePercent(),
         inputs.stream().map(input -> new ProductionDtos.RunInputResponse(
             input.getId(),
             input.getItem().getId(),
@@ -321,7 +440,9 @@ public class ProductionRunService {
             input.getSourceType().name(),
             input.getSourceRunOutput() != null ? input.getSourceRunOutput().getId() : null,
             input.getSourceGodown() != null ? input.getSourceGodown().getId() : null,
-            input.getSourceGodown() != null ? input.getSourceGodown().getName() : null
+            input.getSourceGodown() != null ? input.getSourceGodown().getName() : null,
+            input.getRate(),
+            input.getAmount()
         )).toList(),
         outputs.stream().map(output -> new ProductionDtos.RunOutputResponse(
             output.getId(),
@@ -333,7 +454,9 @@ public class ProductionRunService {
             defaultZero(output.getConsumedQuantity()),
             output.getOutputType().name(),
             output.getDestGodown() != null ? output.getDestGodown().getId() : null,
-            output.getDestGodown() != null ? output.getDestGodown().getName() : null
+            output.getDestGodown() != null ? output.getDestGodown().getName() : null,
+            output.getRate(),
+            output.getAmount()
         )).toList()
     );
   }
@@ -371,7 +494,8 @@ public class ProductionRunService {
   }
 
   private int nextRunNo(Long batchId) {
-    return processRunRepository.findByProductionBatchId(batchId).stream()
+    Company company = requireCompany();
+    return processRunRepository.findByProductionBatchIdAndCompanyId(batchId, company.getId()).stream()
         .map(ProcessRun::getRunNo)
         .filter(Objects::nonNull)
         .max(Integer::compareTo)
@@ -386,12 +510,14 @@ public class ProductionRunService {
   }
 
   private ProductionBatch fetchBatch(Long id) {
-    return productionBatchRepository.findById(id)
+    Company company = requireCompany();
+    return productionBatchRepository.findByIdAndCompanyId(id, company.getId())
         .orElseThrow(() -> new IllegalArgumentException("Batch not found"));
   }
 
   private ProcessRun getRunOrThrow(Long id) {
-    return processRunRepository.findById(id)
+    Company company = requireCompany();
+    return processRunRepository.findByIdAndCompanyId(id, company.getId())
         .orElseThrow(() -> new IllegalArgumentException("Run not found"));
   }
 
@@ -415,5 +541,24 @@ public class ProductionRunService {
 
   private BigDecimal defaultZero(BigDecimal value) {
     return value != null ? value : BigDecimal.ZERO;
+  }
+
+  private BigDecimal resolveAmount(BigDecimal provided, BigDecimal rate, BigDecimal qty) {
+    if (provided != null) {
+      return provided;
+    }
+    if (rate == null || qty == null) {
+      return BigDecimal.ZERO;
+    }
+    return rate.multiply(qty);
+  }
+
+  private Company requireCompany() {
+    Long companyId = companyContext.getCompanyId();
+    if (companyId == null) {
+      throw new IllegalArgumentException("Missing company context");
+    }
+    return companyRepository.findById(companyId)
+        .orElseThrow(() -> new IllegalArgumentException("Company not found"));
   }
 }
