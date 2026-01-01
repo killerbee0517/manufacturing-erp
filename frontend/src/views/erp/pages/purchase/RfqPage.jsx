@@ -11,26 +11,32 @@ import MainCard from 'ui-component/cards/MainCard';
 import PageHeader from 'components/common/PageHeader';
 import DataTable from 'components/common/DataTable';
 import apiClient from 'api/client';
-import RfqCloseDialog from './components/RfqCloseDialog';
 
 export default function RfqPage() {
   const navigate = useNavigate();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState({ q: '', status: '' });
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(10);
+  const [total, setTotal] = useState(0);
   const [supplierMap, setSupplierMap] = useState({});
-  const [closeTarget, setCloseTarget] = useState(null);
-  const [closing, setClosing] = useState(false);
 
   const loadRows = (params = {}) => {
     setLoading(true);
     apiClient
       .get('/api/rfq', { params })
       .then((response) => {
-        const payload = response.data || [];
-        setRows(payload.content || payload);
+        const payload = response.data || {};
+        setRows(payload.content || []);
+        setTotal(payload.totalElements ?? (payload.content?.length || 0));
+        setPage(payload.number ?? 0);
+        setPageSize(payload.size ?? params.size ?? pageSize);
       })
-      .catch(() => setRows([]))
+      .catch(() => {
+        setRows([]);
+        setTotal(0);
+      })
       .finally(() => setLoading(false));
   };
 
@@ -49,34 +55,14 @@ export default function RfqPage() {
   }, []);
 
   useEffect(() => {
-    const handle = setTimeout(() => {
-      loadRows({
-        q: filters.q || undefined,
-        status: filters.status || undefined
-      });
-    }, 300);
-    return () => clearTimeout(handle);
-  }, [filters]);
-
-  const handleCloseRfq = async (reason) => {
-    if (!closeTarget) return;
-    setClosing(true);
-    try {
-      const response = await apiClient.post(`/api/rfq/${closeTarget.id}/close`, { closureReason: reason });
-      const poId = response.data?.purchaseOrderId;
-      if (poId) {
-        navigate(`/purchase/po/${poId}`);
-        return;
-      }
-      loadRows({
-        q: filters.q || undefined,
-        status: filters.status || undefined
-      });
-    } finally {
-      setClosing(false);
-      setCloseTarget(null);
-    }
-  };
+    loadRows({
+      q: filters.q || undefined,
+      status: filters.status || undefined,
+      page,
+      size: pageSize
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters.status, filters.q, page, pageSize]);
 
   return (
     <MainCard>
@@ -91,29 +77,24 @@ export default function RfqPage() {
       />
       <Stack spacing={2}>
         <Grid container spacing={2}>
-          <Grid size={{ xs: 12, md: 6 }}>
-            <TextField
-              fullWidth
-              label="Search"
-              value={filters.q}
-              onChange={(event) => setFilters((prev) => ({ ...prev, q: event.target.value }))}
-            />
-          </Grid>
           <Grid size={{ xs: 12, md: 3 }}>
             <TextField
               fullWidth
               select
               label="Status"
               value={filters.status}
-              onChange={(event) => setFilters((prev) => ({ ...prev, status: event.target.value }))}
+              onChange={(event) => {
+                setPage(0);
+                setFilters((prev) => ({ ...prev, status: event.target.value }));
+              }}
             >
               <MenuItem value="">All</MenuItem>
               <MenuItem value="DRAFT">Draft</MenuItem>
-              <MenuItem value="SUBMITTED">Submitted</MenuItem>
-              <MenuItem value="APPROVED">Approved</MenuItem>
-              <MenuItem value="PARTIALLY_AWARDED">Partially Awarded</MenuItem>
+              <MenuItem value="QUOTING">Quoting</MenuItem>
+              <MenuItem value="AWARDED_PARTIAL">Partially Awarded</MenuItem>
+              <MenuItem value="AWARDED_FULL">Fully Awarded</MenuItem>
               <MenuItem value="AWARDED">Awarded</MenuItem>
-              <MenuItem value="CLOSED">Closed</MenuItem>
+              <MenuItem value="CANCELLED">Cancelled</MenuItem>
             </TextField>
           </Grid>
         </Grid>
@@ -151,18 +132,6 @@ export default function RfqPage() {
                   }}>
                     Edit
                   </Button>
-                  <Button
-                    size="small"
-                    variant="text"
-                    color="secondary"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      setCloseTarget(row);
-                    }}
-                    disabled={['CLOSED', 'AWARDED'].includes(row.status)}
-                  >
-                    Close
-                  </Button>
                 </Stack>
               )
             }
@@ -170,15 +139,22 @@ export default function RfqPage() {
           rows={rows}
           loading={loading}
           emptyMessage="No RFQs found."
+          serverPagination
+          page={page}
+          rowsPerPage={pageSize}
+          totalCount={total}
+          onPageChange={(nextPage) => setPage(nextPage)}
+          onRowsPerPageChange={(nextSize) => {
+            setPageSize(nextSize);
+            setPage(0);
+          }}
+          onSearch={(value) => {
+            setPage(0);
+            setFilters((prev) => ({ ...prev, q: value }));
+          }}
           onRowClick={(row) => navigate(`/purchase/rfq/${row.id}`)}
         />
       </Stack>
-      <RfqCloseDialog
-        open={Boolean(closeTarget)}
-        onClose={() => setCloseTarget(null)}
-        onConfirm={handleCloseRfq}
-        loading={closing}
-      />
     </MainCard>
   );
 }

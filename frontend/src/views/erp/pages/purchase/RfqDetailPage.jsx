@@ -6,9 +6,13 @@ import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
 import Divider from '@mui/material/Divider';
 import FormControl from '@mui/material/FormControl';
+import FormControlLabel from '@mui/material/FormControlLabel';
+import FormLabel from '@mui/material/FormLabel';
 import Grid from '@mui/material/Grid';
 import InputLabel from '@mui/material/InputLabel';
 import MenuItem from '@mui/material/MenuItem';
+import Radio from '@mui/material/Radio';
+import RadioGroup from '@mui/material/RadioGroup';
 import Select from '@mui/material/Select';
 import Stack from '@mui/material/Stack';
 import Tab from '@mui/material/Tab';
@@ -27,7 +31,6 @@ import apiClient from 'api/client';
 import RfqCloseDialog from './components/RfqCloseDialog';
 
 export default function RfqDetailPage() {
-  const awardedStatuses = useMemo(() => new Set(['AWARDED', 'PARTIALLY_AWARDED']), []);
   const { id } = useParams();
   const navigate = useNavigate();
   const [rfq, setRfq] = useState(null);
@@ -47,10 +50,11 @@ export default function RfqDetailPage() {
   const [awardAllocations, setAwardAllocations] = useState({});
   const [awardErrors, setAwardErrors] = useState({});
   const [awarding, setAwarding] = useState(false);
+  const [closeRemaining, setCloseRemaining] = useState(false);
+  const [closureReason, setClosureReason] = useState('');
 
-  const isFullyAwarded = rfq?.status === 'AWARDED';
-  const isPartiallyAwarded = rfq?.status === 'PARTIALLY_AWARDED';
-  const isQuoteLocked = isFullyAwarded || isPartiallyAwarded;
+  const isFullyAwarded = rfq?.status === 'AWARDED_FULL';
+  const isQuoteLocked = isFullyAwarded || rfq?.status === 'CANCELLED';
   const hasSubmittedQuotes = useMemo(
     () => Object.values(compareQuotes || {}).some((quote) => quote.status === 'SUBMITTED'),
     [compareQuotes]
@@ -78,6 +82,13 @@ export default function RfqDetailPage() {
       return acc;
     }, {});
   }, [rfq?.lines, awardedByLine]);
+
+  const getStatusColor = (status) => {
+    if (['AWARDED_FULL', 'AWARDED_PARTIAL', 'AWARDED', 'PARTIALLY_AWARDED'].includes(status)) return 'success';
+    if (status === 'QUOTING') return 'info';
+    if (status === 'CANCELLED') return 'error';
+    return 'default';
+  };
 
   const formatAmount = (quantity, rate) => {
     const qty = Number(quantity);
@@ -141,6 +152,8 @@ export default function RfqDetailPage() {
         setRfq(data);
         setAwardAllocations({});
         setAwardErrors({});
+        setCloseRemaining(false);
+        setClosureReason('');
         if (!quoteSupplierId && data.suppliers?.length) {
           setQuoteSupplierId(data.suppliers[0].supplierId);
         }
@@ -338,6 +351,10 @@ export default function RfqDetailPage() {
       setAwardErrors({ form: 'Enter an award quantity for at least one supplier' });
       return;
     }
+    if (closeRemaining && !closureReason) {
+      setAwardErrors({ form: 'Provide a closure reason when cancelling remaining quantity' });
+      return;
+    }
     setAwardErrors(validationErrors);
     if (Object.keys(validationErrors).length) {
       return;
@@ -347,15 +364,18 @@ export default function RfqDetailPage() {
       supplierId: Number(supplierId),
       allocations
     }));
-    const payload = { supplierAwards, remarks: null };
+    const payload = { supplierAwards, remarks: null, closeRemaining, closureReason: closeRemaining ? closureReason : null };
     setAwarding(true);
     try {
       const response = await apiClient.post(`/api/rfq/${id}/award`, payload);
       setRfq(response.data);
       setAwardAllocations({});
+      setCloseRemaining(false);
+      setClosureReason('');
       setTab('request');
       const poIds = response.data?.poIdsBySupplier;
-      const firstPoId = poIds ? Object.values(poIds).flat()[0] : null;
+      const poRefs = response.data?.purchaseOrders || [];
+      const firstPoId = poRefs[0]?.poId || (poIds ? Object.values(poIds).flat()[0] : null);
       if (firstPoId) {
         navigate(`/purchase/po/${firstPoId}`);
       }
@@ -372,13 +392,8 @@ export default function RfqDetailPage() {
   const handleClose = async (reason) => {
     setClosing(true);
     try {
-      const response = await apiClient.post(`/api/rfq/${id}/close`, { closureReason: reason });
-      const poId = response.data?.purchaseOrderId;
-      if (poId) {
-        navigate(`/purchase/po/${poId}`);
-        return;
-      }
-      loadRfq();
+      const response = await apiClient.post(`/api/rfq/${id}/cancel`, { closureReason: reason });
+      setRfq(response.data);
     } finally {
       setClosing(false);
       setCloseOpen(false);
@@ -409,6 +424,8 @@ export default function RfqDetailPage() {
 
   const renderRequestTab = () => (
     <Stack spacing={3}>
+      {/** Purchase Orders generated after award */}
+      {/* Using purchase order references to show numbers and open detail quickly */}
       <Grid container spacing={2}>
         <Grid size={{ xs: 12, md: 3 }}>
           <Typography variant="subtitle2">Suppliers</Typography>
@@ -420,7 +437,7 @@ export default function RfqDetailPage() {
         </Grid>
         <Grid size={{ xs: 12, md: 3 }}>
           <Typography variant="subtitle2">Status</Typography>
-          <Chip label={rfq.status} color={awardedStatuses.has(rfq.status) ? 'success' : rfq.status === 'APPROVED' ? 'info' : 'default'} />
+          <Chip label={rfq.status} color={getStatusColor(rfq.status)} />
         </Grid>
         <Grid size={{ xs: 12, md: 3 }}>
           <Typography variant="subtitle2">Payment Terms</Typography>
@@ -437,18 +454,15 @@ export default function RfqDetailPage() {
           </Grid>
         )}
       </Grid>
-      {Object.keys(rfq.poIdsBySupplier || rfq.createdPoIds || {}).length > 0 && (
+      {(rfq.purchaseOrders?.length || 0) > 0 && (
         <Stack spacing={1}>
           <Typography variant="h6">Generated Purchase Orders</Typography>
           <Stack direction="row" spacing={1} flexWrap="wrap">
-            {Object.entries(rfq.poIdsBySupplier || rfq.createdPoIds || {}).flatMap(([supplierId, poIds]) => {
-              const list = Array.isArray(poIds) ? poIds : [poIds];
-              return list.map((poId) => (
-                <Button key={`${supplierId}-${poId}`} variant="outlined" onClick={() => navigate(`/purchase/po/${poId}`)}>
-                  {supplierMap[supplierId] || supplierId} - PO #{poId}
-                </Button>
-              ));
-            })}
+            {(rfq.purchaseOrders || []).map((po) => (
+              <Button key={`${po.supplierId}-${po.poId}`} variant="outlined" onClick={() => navigate(`/purchase/po/${po.poId}`)}>
+                {supplierMap[po.supplierId] || po.supplierId} - {po.poNo || `PO #${po.poId}`}
+              </Button>
+            ))}
           </Stack>
         </Stack>
       )}
@@ -608,6 +622,7 @@ export default function RfqDetailPage() {
   const renderCompareTab = () => {
     const submittedQuotes = Object.values(compareQuotes || {}).filter((quote) => quote.status === 'SUBMITTED');
     const isSupplierFullyAwarded = (supplierId) => {
+      if (isFullyAwarded) return true;
       if (!rfq?.lines?.length) return false;
       let hasQuotedLine = false;
       return rfq.lines.every((line) => {
@@ -635,7 +650,7 @@ export default function RfqDetailPage() {
           const lineAllocations = awardAllocations[line.id] || {};
           const alreadyAwarded = awardedByLine[line.id]?.total || 0;
           const remaining = remainingQtyByLine[line.id] ?? line.quantity;
-          const disableLineAwards = isFullyAwarded || remaining <= 0;
+          const disableLineAwards = isFullyAwarded || rfq?.status === 'CANCELLED' || remaining <= 0;
           return (
             <Stack key={line.id} spacing={1}>
               <Stack direction="row" justifyContent="space-between" alignItems="center">
@@ -671,6 +686,7 @@ export default function RfqDetailPage() {
                       const disableAward =
                         awarding
                         || isFullyAwarded
+                        || rfq?.status === 'CANCELLED'
                         || compareLoading
                         || !hasSubmittedQuotes
                         || isSupplierFullyAwarded(quote.supplierId);
@@ -732,6 +748,27 @@ export default function RfqDetailPage() {
           );
         })}
         {!rfq.lines?.length && <Typography>No lines to award</Typography>}
+        <Stack spacing={1}>
+          <FormControl component="fieldset">
+            <FormLabel component="legend">Remaining quantity handling</FormLabel>
+            <RadioGroup
+              row
+              value={closeRemaining ? 'cancel' : 'open'}
+              onChange={(event) => setCloseRemaining(event.target.value === 'cancel')}
+            >
+              <FormControlLabel value="open" control={<Radio />} label="Keep RFQ open for further awards" />
+              <FormControlLabel value="cancel" control={<Radio />} label="Cancel remaining quantity" />
+            </RadioGroup>
+          </FormControl>
+          {closeRemaining && (
+            <TextField
+              label="Closure Reason"
+              value={closureReason}
+              onChange={(event) => setClosureReason(event.target.value)}
+              required
+            />
+          )}
+        </Stack>
         {awardErrors.form && (
           <Typography color="error" variant="body2">
             {awardErrors.form}
@@ -751,14 +788,18 @@ export default function RfqDetailPage() {
             <Button variant="outlined" onClick={() => navigate(`/purchase/rfq/${id}/edit`)} disabled={rfq.status !== 'DRAFT'}>
               Edit
             </Button>
-            <Button variant="outlined" onClick={() => setTab('quotes')} disabled={!['SUBMITTED', 'PARTIALLY_AWARDED'].includes(rfq.status)}>
+            <Button
+              variant="outlined"
+              onClick={() => setTab('quotes')}
+              disabled={!['QUOTING', 'AWARDED_PARTIAL', 'AWARDED_FULL'].includes(rfq.status)}
+            >
               Supplier Quotes
             </Button>
             <Button
               variant="contained"
               color="secondary"
               onClick={() => setTab('compare')}
-              disabled={!['SUBMITTED', 'PARTIALLY_AWARDED'].includes(rfq.status)}
+              disabled={!['QUOTING', 'AWARDED_PARTIAL'].includes(rfq.status)}
             >
               Compare &amp; Award
             </Button>
@@ -769,9 +810,9 @@ export default function RfqDetailPage() {
               variant="outlined"
               color="secondary"
               onClick={() => setCloseOpen(true)}
-              disabled={['CLOSED', 'AWARDED'].includes(rfq.status)}
+              disabled={['CANCELLED', 'AWARDED_FULL'].includes(rfq.status)}
             >
-              Close RFQ
+              Cancel RFQ
             </Button>
           </Stack>
         }

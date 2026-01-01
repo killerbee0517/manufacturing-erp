@@ -7,6 +7,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.CascadeType;
+import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
@@ -17,6 +18,10 @@ import java.util.List;
 @Entity
 @Table(name = "rfq")
 public class Rfq extends BaseEntity {
+  @ManyToOne
+  @JoinColumn(name = "company_id")
+  private Company company;
+
   @Column(name = "rfq_no", nullable = false)
   private String rfqNo;
 
@@ -50,6 +55,14 @@ public class Rfq extends BaseEntity {
 
   public void setRfqNo(String rfqNo) {
     this.rfqNo = rfqNo;
+  }
+
+  public Company getCompany() {
+    return company;
+  }
+
+  public void setCompany(Company company) {
+    this.company = company;
   }
 
   public Supplier getSupplier() {

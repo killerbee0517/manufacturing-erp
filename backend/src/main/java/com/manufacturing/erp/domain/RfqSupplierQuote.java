@@ -14,6 +14,10 @@ import jakarta.persistence.Table;
 @Table(name = "rfq_supplier_quotes")
 public class RfqSupplierQuote extends BaseEntity {
   @ManyToOne
+  @JoinColumn(name = "company_id")
+  private Company company;
+
+  @ManyToOne
   @JoinColumn(name = "rfq_id")
   private Rfq rfq;
 
@@ -33,6 +37,14 @@ public class RfqSupplierQuote extends BaseEntity {
 
   public void setRfq(Rfq rfq) {
     this.rfq = rfq;
+  }
+
+  public Company getCompany() {
+    return company;
+  }
+
+  public void setCompany(Company company) {
+    this.company = company;
   }
 
   public Supplier getSupplier() {
