@@ -1,5 +1,6 @@
 package com.manufacturing.erp.service;
 
+import com.manufacturing.erp.domain.Company;
 import com.manufacturing.erp.domain.Enums.DocumentStatus;
 import com.manufacturing.erp.domain.Enums.LedgerTxnType;
 import com.manufacturing.erp.domain.Enums.StockStatus;
@@ -14,6 +15,7 @@ import com.manufacturing.erp.domain.Supplier;
 import com.manufacturing.erp.domain.Uom;
 import com.manufacturing.erp.domain.WeighbridgeTicket;
 import com.manufacturing.erp.dto.GrnDtos;
+import com.manufacturing.erp.repository.CompanyRepository;
 import com.manufacturing.erp.repository.GrnLineRepository;
 import com.manufacturing.erp.repository.GrnRepository;
 import com.manufacturing.erp.repository.GodownRepository;
@@ -23,12 +25,15 @@ import com.manufacturing.erp.repository.PurchaseOrderLineRepository;
 import com.manufacturing.erp.repository.QcInspectionRepository;
 import com.manufacturing.erp.repository.UomRepository;
 import com.manufacturing.erp.repository.WeighbridgeTicketRepository;
+import com.manufacturing.erp.security.CompanyContext;
 import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.http.HttpStatus;
 
 @Service
 public class GrnService {
@@ -42,6 +47,8 @@ public class GrnService {
   private final GodownRepository godownRepository;
   private final PurchaseOrderLineRepository purchaseOrderLineRepository;
   private final QcInspectionRepository qcInspectionRepository;
+  private final CompanyRepository companyRepository;
+  private final CompanyContext companyContext;
 
   public GrnService(GrnRepository grnRepository,
                     GrnLineRepository grnLineRepository,
@@ -52,7 +59,9 @@ public class GrnService {
                     PurchaseOrderRepository purchaseOrderRepository,
                     GodownRepository godownRepository,
                     PurchaseOrderLineRepository purchaseOrderLineRepository,
-                    QcInspectionRepository qcInspectionRepository) {
+                    QcInspectionRepository qcInspectionRepository,
+                    CompanyRepository companyRepository,
+                    CompanyContext companyContext) {
     this.grnRepository = grnRepository;
     this.grnLineRepository = grnLineRepository;
     this.weighbridgeTicketRepository = weighbridgeTicketRepository;
@@ -63,17 +72,21 @@ public class GrnService {
     this.godownRepository = godownRepository;
     this.purchaseOrderLineRepository = purchaseOrderLineRepository;
     this.qcInspectionRepository = qcInspectionRepository;
+    this.companyRepository = companyRepository;
+    this.companyContext = companyContext;
   }
 
   @Transactional
   public Grn createGrn(GrnDtos.CreateGrnRequest request) {
-    PurchaseOrder purchaseOrder = purchaseOrderRepository.findById(request.purchaseOrderId())
-        .orElseThrow(() -> new IllegalArgumentException("Purchase order not found"));
+    PurchaseOrder purchaseOrder = getPurchaseOrder(request.purchaseOrderId());
     Supplier supplier = purchaseOrder.getSupplier();
     WeighbridgeTicket ticket = request.weighbridgeTicketId() != null
-        ? weighbridgeTicketRepository.findById(request.weighbridgeTicketId())
+        ? weighbridgeTicketRepository.findByIdAndPurchaseOrderCompanyId(request.weighbridgeTicketId(), purchaseOrder.getCompany().getId())
             .orElseThrow(() -> new IllegalArgumentException("Weighbridge ticket not found"))
         : null;
+    if (ticket != null && !qcInspectionRepository.existsByWeighbridgeTicketIdAndStatus(ticket.getId(), QcStatus.APPROVED)) {
+      throw new IllegalStateException("QC approval is required before creating GRN");
+    }
     Godown godown = request.godownId() != null
         ? godownRepository.findById(request.godownId()).orElseThrow(() -> new IllegalArgumentException("Godown not found"))
         : null;
@@ -126,18 +139,26 @@ public class GrnService {
   }
 
   @Transactional
-  public Grn createDraftFromWeighbridge(WeighbridgeTicket ticket) {
-    Optional<Grn> existing = grnRepository.findFirstByWeighbridgeTicketId(ticket.getId());
-    if (existing.isPresent()) {
-      return existing.get();
+  public Grn createDraftFromQc(com.manufacturing.erp.domain.QcInspection inspection) {
+    if (inspection == null) {
+      throw new IllegalArgumentException("QC inspection is required");
     }
-    if (ticket.getStatus() != DocumentStatus.UNLOADED && ticket.getStatus() != DocumentStatus.POSTED) {
-      throw new IllegalStateException("Weighbridge ticket must be completed before creating GRN");
+    if (inspection.getStatus() != QcStatus.APPROVED) {
+      throw new IllegalStateException("QC inspection must be approved before GRN");
     }
-    PurchaseOrder po = ticket.getPurchaseOrder();
+    if (inspection.getGrn() != null) {
+      return inspection.getGrn();
+    }
+    PurchaseOrder po = inspection.getPurchaseOrder();
     if (po == null) {
-      throw new IllegalStateException("Weighbridge ticket must reference a purchase order");
+      throw new IllegalStateException("QC inspection missing purchase order");
     }
+    WeighbridgeTicket ticket = inspection.getWeighbridgeTicket();
+    BigDecimal netWeight = ticket != null ? ticket.getNetWeight() : BigDecimal.ZERO;
+    BigDecimal totalPoQty = po.getLines().stream()
+        .map(line -> line.getQuantity() != null ? line.getQuantity() : BigDecimal.ZERO)
+        .reduce(BigDecimal.ZERO, BigDecimal::add);
+
     Grn grn = new Grn();
     grn.setGrnNo(resolveGrnNo(null));
     grn.setSupplier(po.getSupplier());
@@ -145,23 +166,22 @@ public class GrnService {
     grn.setWeighbridgeTicket(ticket);
     grn.setGrnDate(java.time.LocalDate.now());
     grn.setReceivedDate(java.time.LocalDate.now());
-    grn.setFirstWeight(ticket.getGrossWeight());
-    grn.setSecondWeight(ticket.getUnloadedWeight());
-    grn.setNetWeight(ticket.getNetWeight());
+    grn.setFirstWeight(ticket != null ? ticket.getGrossWeight() : null);
+    grn.setSecondWeight(ticket != null ? ticket.getUnloadedWeight() : null);
+    grn.setNetWeight(netWeight);
     grn.setStatus(DocumentStatus.DRAFT);
     Grn saved = grnRepository.save(grn);
 
-    BigDecimal totalPoQty = po.getLines().stream()
-        .map(line -> line.getQuantity() != null ? line.getQuantity() : BigDecimal.ZERO)
-        .reduce(BigDecimal.ZERO, BigDecimal::add);
-    BigDecimal net = ticket.getNetWeight() != null ? ticket.getNetWeight() : BigDecimal.ZERO;
-
-    for (PurchaseOrderLine poLine : po.getLines()) {
+    for (com.manufacturing.erp.domain.QcInspectionLine qcLine : inspection.getLines()) {
+      PurchaseOrderLine poLine = qcLine.getPurchaseOrderLine();
+      if (poLine == null) {
+        continue;
+      }
       BigDecimal lineQty = poLine.getQuantity() != null ? poLine.getQuantity() : BigDecimal.ZERO;
       BigDecimal proportion = totalPoQty.compareTo(BigDecimal.ZERO) > 0
           ? lineQty.divide(totalPoQty, 6, java.math.RoundingMode.HALF_UP)
           : BigDecimal.ZERO;
-      BigDecimal lineWeight = net.multiply(proportion);
+      BigDecimal lineWeight = netWeight != null ? netWeight.multiply(proportion) : BigDecimal.ZERO;
 
       GrnLine line = new GrnLine();
       line.setGrn(saved);
@@ -172,12 +192,12 @@ public class GrnService {
       line.setBagCount(0);
       line.setQuantity(lineQty);
       line.setExpectedQty(lineQty);
-      line.setReceivedQty(lineQty);
-      line.setAcceptedQty(lineQty);
-      line.setRejectedQty(BigDecimal.ZERO);
+      line.setReceivedQty(defaultQty(qcLine.getReceivedQty(), lineQty));
+      line.setAcceptedQty(defaultQty(qcLine.getAcceptedQty(), lineQty));
+      line.setRejectedQty(defaultQty(qcLine.getRejectedQty(), BigDecimal.ZERO));
       line.setWeight(lineWeight);
       line.setRate(poLine.getRate());
-      line.setAmount(poLine.getRate() != null && lineQty != null ? poLine.getRate().multiply(lineQty) : BigDecimal.ZERO);
+      line.setAmount(poLine.getRate() != null ? poLine.getRate().multiply(defaultQty(qcLine.getReceivedQty(), lineQty)) : BigDecimal.ZERO);
       grnLineRepository.save(line);
       saved.getLines().add(line);
     }
@@ -185,9 +205,22 @@ public class GrnService {
   }
 
   @Transactional
+  public Grn createDraftFromWeighbridge(WeighbridgeTicket ticket) {
+    Optional<Grn> existing = grnRepository.findFirstByWeighbridgeTicketId(ticket.getId());
+    if (existing.isPresent()) {
+      return existing.get();
+    }
+    var inspections = qcInspectionRepository.findByWeighbridgeTicketId(ticket.getId());
+    var approved = inspections.stream()
+        .filter(qc -> qc.getStatus() == QcStatus.APPROVED)
+        .findFirst()
+        .orElseThrow(() -> new IllegalStateException("QC approval is required before creating GRN"));
+    return createDraftFromQc(approved);
+  }
+
+  @Transactional
   public Grn updateDraft(Long grnId, GrnDtos.UpdateGrnRequest request) {
-    Grn grn = grnRepository.findById(grnId)
-        .orElseThrow(() -> new IllegalArgumentException("GRN not found"));
+    Grn grn = getGrnOrThrow(grnId);
     if (grn.getStatus() != DocumentStatus.DRAFT) {
       throw new IllegalStateException("Only draft GRN can be updated");
     }
@@ -221,15 +254,13 @@ public class GrnService {
 
   @Transactional
   public Grn post(Long grnId) {
-    Grn grn = grnRepository.findById(grnId)
-        .orElseThrow(() -> new IllegalArgumentException("GRN not found"));
+    Grn grn = getGrnOrThrow(grnId);
     if (grn.getStatus() == DocumentStatus.POSTED) {
       return grn;
     }
     boolean qcApproved = qcInspectionRepository.existsByGrnIdAndStatus(grnId, QcStatus.APPROVED);
     if (!qcApproved) {
-      // TEMP: allow posting without QC approval until QC flow is implemented.
-      qcApproved = true;
+      throw new IllegalStateException("QC approval is required before posting GRN");
     }
     if (grn.getGodown() == null) {
       throw new IllegalStateException("Godown is required before posting GRN");
@@ -304,5 +335,30 @@ public class GrnService {
       return request.rate().multiply(request.quantity());
     }
     return BigDecimal.ZERO;
+  }
+
+  private BigDecimal defaultQty(BigDecimal value, BigDecimal fallback) {
+    return value != null ? value : fallback;
+  }
+
+  private PurchaseOrder getPurchaseOrder(Long purchaseOrderId) {
+    Company company = requireCompany();
+    return purchaseOrderRepository.findByIdAndCompanyId(purchaseOrderId, company.getId())
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Purchase order not found"));
+  }
+
+  private Grn getGrnOrThrow(Long grnId) {
+    Company company = requireCompany();
+    return grnRepository.findByIdAndPurchaseOrderCompanyId(grnId, company.getId())
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "GRN not found"));
+  }
+
+  private Company requireCompany() {
+    Long companyId = companyContext.getCompanyId();
+    if (companyId == null) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Missing company context");
+    }
+    return companyRepository.findById(companyId)
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Company not found"));
   }
 }

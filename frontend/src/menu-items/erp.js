@@ -80,6 +80,7 @@ const erp = {
         { id: 'purchase-rfq', title: 'RFQ', type: 'item', url: '/purchase/rfq' },
         { id: 'purchase-po', title: 'Purchase Order', type: 'item', url: '/purchase/po' },
         { id: 'purchase-weighbridge', title: 'Weighbridge In', type: 'item', url: '/purchase/weighbridge-in' },
+        { id: 'purchase-qc', title: 'QC Inspection', type: 'item', url: '/purchase/qc' },
         { id: 'purchase-grn', title: 'GRN', type: 'item', url: '/purchase/grn' },
         { id: 'purchase-arrival', title: 'Purchase Arrival', type: 'item', url: '/purchase/arrival' },
         { id: 'purchase-invoice', title: 'Purchase Invoice', type: 'item', url: '/purchase/purchase-invoice' },

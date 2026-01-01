@@ -26,6 +26,8 @@ const WeighbridgeEditPage = Loadable(lazy(() => import('views/erp/pages/purchase
 const GrnPage = Loadable(lazy(() => import('views/erp/pages/purchase/GrnPage')));
 const GrnCreatePage = Loadable(lazy(() => import('views/erp/pages/purchase/GrnCreatePage')));
 const GrnDetailPage = Loadable(lazy(() => import('views/erp/pages/purchase/GrnDetailPage')));
+const QcPage = Loadable(lazy(() => import('views/erp/pages/purchase/QcPage')));
+const QcDetailPage = Loadable(lazy(() => import('views/erp/pages/purchase/QcDetailPage')));
 const PurchaseArrivalPage = Loadable(lazy(() => import('views/erp/pages/purchase/PurchaseArrivalPage')));
 const PurchaseArrivalCreatePage = Loadable(lazy(() => import('views/erp/pages/purchase/PurchaseArrivalCreatePage')));
 const PurchaseArrivalDetailPage = Loadable(lazy(() => import('views/erp/pages/purchase/PurchaseArrivalDetailPage')));
@@ -107,6 +109,8 @@ const MainRoutes = {
         { path: 'weighbridge-in/new', element: <WeighbridgeCreatePage /> },
         { path: 'weighbridge-in/:id', element: <WeighbridgeDetailPage /> },
         { path: 'weighbridge-in/:id/edit', element: <WeighbridgeEditPage /> },
+        { path: 'qc', element: <QcPage /> },
+        { path: 'qc/:id', element: <QcDetailPage /> },
         { path: 'grn', element: <GrnPage /> },
         { path: 'grn/new', element: <GrnCreatePage /> },
         { path: 'grn/:id', element: <GrnDetailPage /> },

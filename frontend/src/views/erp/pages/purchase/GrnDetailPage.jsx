@@ -26,6 +26,7 @@ export default function GrnDetailPage() {
   const [loading, setLoading] = useState(true);
   const [godownId, setGodownId] = useState('');
   const [narration, setNarration] = useState('');
+  const [lines, setLines] = useState([]);
   const [saving, setSaving] = useState(false);
   const [posting, setPosting] = useState(false);
   const [creatingInvoice, setCreatingInvoice] = useState(false);
@@ -38,6 +39,18 @@ export default function GrnDetailPage() {
       setGrn(response.data);
       setGodownId(response.data.godownId || '');
       setNarration(response.data.narration || '');
+      setLines(
+        (response.data.lines || []).map((line) => ({
+          id: line.id,
+          itemName: line.itemName || line.itemId || '-',
+          expectedQty: line.expectedQty ?? '',
+          receivedQty: line.receivedQty ?? '',
+          acceptedQty: line.acceptedQty ?? '',
+          rejectedQty: line.rejectedQty ?? '',
+          rate: line.rate ?? '',
+          amount: line.amount ?? ''
+        }))
+      );
     } catch {
       setGrn(null);
     } finally {
@@ -53,12 +66,25 @@ export default function GrnDetailPage() {
   const isDraft = useMemo(() => grn?.status === 'DRAFT', [grn]);
   const isPosted = useMemo(() => grn?.status === 'POSTED', [grn]);
 
+  const updateLine = (index, key, value) => {
+    setLines((prev) => {
+      const next = [...prev];
+      next[index] = { ...next[index], [key]: value };
+      return next;
+    });
+  };
+
   const handleSave = async () => {
     setSaving(true);
     try {
       await apiClient.put(`/api/grn/${id}`, {
         godownId: godownId || null,
-        narration
+        narration,
+        lines: lines.map((line) => ({
+          id: line.id,
+          acceptedQty: Number(line.acceptedQty || 0),
+          rejectedQty: Number(line.rejectedQty || 0)
+        }))
       });
       await fetchGrn();
       setError('');
@@ -77,7 +103,12 @@ export default function GrnDetailPage() {
       }
       await apiClient.put(`/api/grn/${id}`, {
         godownId: parsedGodownId,
-        narration
+        narration,
+        lines: lines.map((line) => ({
+          id: line.id,
+          acceptedQty: Number(line.acceptedQty || 0),
+          rejectedQty: Number(line.rejectedQty || 0)
+        }))
       });
       await apiClient.post(`/api/grn/${id}/post`);
       await fetchGrn();
@@ -209,23 +240,45 @@ export default function GrnDetailPage() {
                 <TableCell>Amount</TableCell>
               </TableRow>
             </TableHead>
-            <TableBody>
-              {grn.lines?.map((line) => (
-                <TableRow key={line.id}>
-                  <TableCell>{line.itemName || line.itemId || '-'}</TableCell>
-                  <TableCell>{line.expectedQty ?? '-'}</TableCell>
-                  <TableCell>{line.receivedQty ?? '-'}</TableCell>
-                  <TableCell>{line.acceptedQty ?? '-'}</TableCell>
-                  <TableCell>{line.rejectedQty ?? '-'}</TableCell>
-                  <TableCell>{line.rate ?? '-'}</TableCell>
-                  <TableCell>{line.amount ?? '-'}</TableCell>
-                </TableRow>
-              ))}
-              {!grn.lines?.length && (
-                <TableRow>
-                  <TableCell colSpan={7}>No line items.</TableCell>
-                </TableRow>
-              )}
+          <TableBody>
+            {lines.map((line, index) => (
+              <TableRow key={line.id || index}>
+                <TableCell>{line.itemName}</TableCell>
+                <TableCell>{line.expectedQty ?? '-'}</TableCell>
+                <TableCell>{line.receivedQty ?? '-'}</TableCell>
+                <TableCell>
+                  {isDraft ? (
+                    <TextField
+                      type="number"
+                      value={line.acceptedQty}
+                      onChange={(event) => updateLine(index, 'acceptedQty', event.target.value)}
+                      size="small"
+                    />
+                  ) : (
+                    line.acceptedQty ?? '-'
+                  )}
+                </TableCell>
+                <TableCell>
+                  {isDraft ? (
+                    <TextField
+                      type="number"
+                      value={line.rejectedQty}
+                      onChange={(event) => updateLine(index, 'rejectedQty', event.target.value)}
+                      size="small"
+                    />
+                  ) : (
+                    line.rejectedQty ?? '-'
+                  )}
+                </TableCell>
+                <TableCell>{line.rate ?? '-'}</TableCell>
+                <TableCell>{line.amount ?? '-'}</TableCell>
+              </TableRow>
+            ))}
+            {!lines.length && (
+              <TableRow>
+                <TableCell colSpan={7}>No line items.</TableCell>
+              </TableRow>
+            )}
             </TableBody>
           </Table>
         </Stack>

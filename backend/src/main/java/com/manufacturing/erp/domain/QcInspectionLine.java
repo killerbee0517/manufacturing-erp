@@ -16,6 +16,10 @@ public class QcInspectionLine extends BaseEntity {
   private QcInspection qcInspection;
 
   @ManyToOne
+  @JoinColumn(name = "purchase_order_line_id")
+  private PurchaseOrderLine purchaseOrderLine;
+
+  @ManyToOne
   @JoinColumn(name = "grn_line_id")
   private GrnLine grnLine;
 
@@ -36,6 +40,14 @@ public class QcInspectionLine extends BaseEntity {
 
   public void setQcInspection(QcInspection qcInspection) {
     this.qcInspection = qcInspection;
+  }
+
+  public PurchaseOrderLine getPurchaseOrderLine() {
+    return purchaseOrderLine;
+  }
+
+  public void setPurchaseOrderLine(PurchaseOrderLine purchaseOrderLine) {
+    this.purchaseOrderLine = purchaseOrderLine;
   }
 
   public GrnLine getGrnLine() {

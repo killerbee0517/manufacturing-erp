@@ -54,8 +54,8 @@ export default function WeighbridgeEditPage() {
           timeIn: ticket.timeIn || '',
           grossWeight: ticket.grossWeight ?? '',
           unloadedWeight: ticket.unloadedWeight ?? '',
-          secondDate: ticket.secondDate || '',
-          secondTime: ticket.secondTime || ''
+          secondDate: ticket.secondDate || new Date().toISOString().slice(0, 10),
+          secondTime: ticket.secondTime || new Date().toISOString().slice(11, 16)
         });
         if (ticket.poId) {
           handlePoChange(ticket.poId);
@@ -209,8 +209,10 @@ export default function WeighbridgeEditPage() {
               label="Product"
               value={
                 poInfo?.lines?.length === 1
-                  ? poInfo.lines[0].itemId
-                  : header.itemId
+                  ? itemMap[poInfo.lines[0].itemId] || poInfo.lines[0].itemId
+                  : poInfo?.lines?.length
+                    ? 'Multiple items'
+                    : itemMap[header.itemId] || header.itemId || ''
               }
               InputProps={{ readOnly: true }}
             />

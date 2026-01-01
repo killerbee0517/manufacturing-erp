@@ -20,6 +20,7 @@ export default function WeighbridgeDetailPage() {
   const [itemMap, setItemMap] = useState({});
   const [vehicleMap, setVehicleMap] = useState({});
   const [poMap, setPoMap] = useState({});
+  const [openingQc, setOpeningQc] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -88,9 +89,28 @@ export default function WeighbridgeDetailPage() {
         title={`Weighbridge Ticket ${ticket.serialNo || ticket.id}`}
         breadcrumbs={[{ label: 'Purchase', to: '/purchase/weighbridge-in' }, { label: 'Ticket Detail' }]}
         actions={
-          <Button variant="outlined" onClick={() => navigate(`/purchase/weighbridge-in/${id}/edit`)}>
-            Edit
-          </Button>
+          <Stack direction="row" spacing={1}>
+            <Button variant="outlined" onClick={async () => {
+              setOpeningQc(true);
+              try {
+                const response = await apiClient.get('/api/qc/inspections', { params: { weighbridgeId: id } });
+                const existing = response.data?.[0];
+                if (existing?.id) {
+                  navigate(`/purchase/qc/${existing.id}`);
+                  return;
+                }
+                const created = await apiClient.post(`/api/qc/inspections/from-weighbridge/${id}`);
+                navigate(`/purchase/qc/${created.data.id}`);
+              } finally {
+                setOpeningQc(false);
+              }
+            }} disabled={openingQc}>
+              QC Inspection
+            </Button>
+            <Button variant="outlined" onClick={() => navigate(`/purchase/weighbridge-in/${id}/edit`)}>
+              Edit
+            </Button>
+          </Stack>
         }
       />
       <Stack spacing={3}>

@@ -4,6 +4,9 @@ import com.manufacturing.erp.dto.GrnDtos;
 import com.manufacturing.erp.repository.GrnRepository;
 import com.manufacturing.erp.repository.WeighbridgeTicketRepository;
 import com.manufacturing.erp.service.GrnService;
+import com.manufacturing.erp.security.CompanyContext;
+import com.manufacturing.erp.repository.CompanyRepository;
+import com.manufacturing.erp.domain.Company;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -21,19 +24,26 @@ public class GrnController {
   private final GrnService grnService;
   private final GrnRepository grnRepository;
   private final WeighbridgeTicketRepository weighbridgeTicketRepository;
+  private final CompanyRepository companyRepository;
+  private final CompanyContext companyContext;
 
   public GrnController(GrnService grnService, GrnRepository grnRepository,
-                       WeighbridgeTicketRepository weighbridgeTicketRepository) {
+                       WeighbridgeTicketRepository weighbridgeTicketRepository,
+                       CompanyRepository companyRepository,
+                       CompanyContext companyContext) {
     this.grnService = grnService;
     this.grnRepository = grnRepository;
     this.weighbridgeTicketRepository = weighbridgeTicketRepository;
+    this.companyRepository = companyRepository;
+    this.companyContext = companyContext;
   }
 
   @GetMapping
   public List<GrnDtos.GrnResponse> list(@RequestParam(required = false) Long poId,
                                         @RequestParam(required = false) Long weighbridgeId,
                                         @RequestParam(required = false) String status) {
-    var source = grnRepository.findAll();
+    Company company = requireCompany();
+    var source = grnRepository.findByPurchaseOrderCompanyId(company.getId());
     if (poId != null) {
       source = source.stream()
           .filter(grn -> grn.getPurchaseOrder() != null && grn.getPurchaseOrder().getId().equals(poId))
@@ -53,7 +63,8 @@ public class GrnController {
 
   @GetMapping("/{id}")
   public GrnDtos.GrnResponse get(@PathVariable Long id) {
-    var grn = grnRepository.findById(id)
+    Company company = requireCompany();
+    var grn = grnRepository.findByIdAndPurchaseOrderCompanyId(id, company.getId())
         .orElseThrow(() -> new IllegalArgumentException("GRN not found"));
     return toResponse(grn);
   }
@@ -66,8 +77,14 @@ public class GrnController {
 
   @PostMapping("/from-weighbridge/{weighbridgeId}")
   public GrnDtos.GrnResponse createFromWeighbridge(@PathVariable Long weighbridgeId) {
+    Company company = requireCompany();
     var ticket = weighbridgeTicketRepository.findById(weighbridgeId)
         .orElseThrow(() -> new IllegalArgumentException("Weighbridge ticket not found"));
+    if (ticket.getPurchaseOrder() == null
+        || ticket.getPurchaseOrder().getCompany() == null
+        || !ticket.getPurchaseOrder().getCompany().getId().equals(company.getId())) {
+      throw new IllegalArgumentException("Weighbridge ticket not found");
+    }
     var grn = grnService.createDraftFromWeighbridge(ticket);
     return toResponse(grn);
   }
@@ -82,6 +99,15 @@ public class GrnController {
   public GrnDtos.GrnResponse post(@PathVariable Long id) {
     var grn = grnService.post(id);
     return toResponse(grn);
+  }
+
+  private Company requireCompany() {
+    Long companyId = companyContext.getCompanyId();
+    if (companyId == null) {
+      throw new IllegalArgumentException("Missing company context");
+    }
+    return companyRepository.findById(companyId)
+        .orElseThrow(() -> new IllegalArgumentException("Company not found"));
   }
 
   private GrnDtos.GrnResponse toResponse(com.manufacturing.erp.domain.Grn grn) {

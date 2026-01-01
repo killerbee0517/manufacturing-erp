@@ -11,4 +11,10 @@ public interface QcInspectionRepository extends JpaRepository<QcInspection, Long
   List<QcInspection> findByGrnId(Long grnId);
 
   boolean existsByGrnIdAndStatus(Long grnId, QcStatus status);
+
+  List<QcInspection> findByWeighbridgeTicketId(Long weighbridgeTicketId);
+
+  List<QcInspection> findByPurchaseOrderId(Long purchaseOrderId);
+
+  boolean existsByWeighbridgeTicketIdAndStatus(Long weighbridgeTicketId, QcStatus status);
 }

@@ -29,8 +29,8 @@ export default function GrnPage() {
         title="GRN"
         breadcrumbs={[{ label: 'Purchase' }, { label: 'GRN' }]}
         actions={
-          <Button variant="contained" color="secondary" onClick={() => navigate('/purchase/grn/new')}>
-            Create GRN
+          <Button variant="contained" color="secondary" onClick={() => navigate('/purchase/qc')}>
+            QC Inspections
           </Button>
         }
       />

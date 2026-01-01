@@ -19,6 +19,14 @@ import java.util.List;
 @Table(name = "qc_inspections")
 public class QcInspection extends BaseEntity {
   @ManyToOne
+  @JoinColumn(name = "purchase_order_id")
+  private PurchaseOrder purchaseOrder;
+
+  @ManyToOne
+  @JoinColumn(name = "weighbridge_ticket_id")
+  private WeighbridgeTicket weighbridgeTicket;
+
+  @ManyToOne
   @JoinColumn(name = "grn_id")
   private Grn grn;
 
@@ -55,6 +63,22 @@ public class QcInspection extends BaseEntity {
 
   public void setGrn(Grn grn) {
     this.grn = grn;
+  }
+
+  public PurchaseOrder getPurchaseOrder() {
+    return purchaseOrder;
+  }
+
+  public void setPurchaseOrder(PurchaseOrder purchaseOrder) {
+    this.purchaseOrder = purchaseOrder;
+  }
+
+  public WeighbridgeTicket getWeighbridgeTicket() {
+    return weighbridgeTicket;
+  }
+
+  public void setWeighbridgeTicket(WeighbridgeTicket weighbridgeTicket) {
+    this.weighbridgeTicket = weighbridgeTicket;
   }
 
   public GrnLine getGrnLine() {

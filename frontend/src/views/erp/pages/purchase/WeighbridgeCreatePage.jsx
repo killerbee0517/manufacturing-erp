@@ -30,8 +30,8 @@ export default function WeighbridgeCreatePage() {
     timeIn: new Date().toISOString().slice(11, 16),
     grossWeight: '',
     unloadedWeight: '',
-    secondDate: '',
-    secondTime: ''
+    secondDate: new Date().toISOString().slice(0, 10),
+    secondTime: new Date().toISOString().slice(11, 16)
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -215,15 +215,18 @@ export default function WeighbridgeCreatePage() {
             />
           </Grid>
           <Grid size={{ xs: 12, md: 4 }}>
-            <MasterAutocomplete
+            <TextField
+              fullWidth
               label="Product"
-              endpoint="/api/items"
-              value={header.itemId}
-              onChange={(nextValue) => setHeader((prev) => ({ ...prev, itemId: nextValue }))}
-              optionLabelKey="name"
-              optionValueKey="id"
-              placeholder="Search items"
-              disabled
+              value={
+                poInfo?.lines?.length === 1
+                  ? itemMap[poInfo.lines[0].itemId] || poInfo.lines[0].itemId
+                  : poInfo?.lines?.length
+                    ? 'Multiple items'
+                    : ''
+              }
+              InputProps={{ readOnly: true }}
+              placeholder="Auto from PO"
             />
           </Grid>
           <Grid size={{ xs: 12, md: 4 }}>

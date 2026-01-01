@@ -1,16 +1,21 @@
 package com.manufacturing.erp.service;
 
+import com.manufacturing.erp.domain.Company;
 import com.manufacturing.erp.domain.Enums.QcStatus;
 import com.manufacturing.erp.domain.Grn;
-import com.manufacturing.erp.domain.GrnLine;
+import com.manufacturing.erp.domain.PurchaseOrder;
+import com.manufacturing.erp.domain.PurchaseOrderLine;
 import com.manufacturing.erp.domain.QcInspection;
 import com.manufacturing.erp.domain.QcInspectionLine;
+import com.manufacturing.erp.domain.WeighbridgeTicket;
 import com.manufacturing.erp.dto.QcDtos;
-import com.manufacturing.erp.repository.GrnLineRepository;
-import com.manufacturing.erp.repository.GrnRepository;
+import com.manufacturing.erp.repository.CompanyRepository;
+import com.manufacturing.erp.repository.PurchaseOrderLineRepository;
 import com.manufacturing.erp.repository.QcInspectionLineRepository;
 import com.manufacturing.erp.repository.QcInspectionRepository;
 import com.manufacturing.erp.repository.UomRepository;
+import com.manufacturing.erp.repository.WeighbridgeTicketRepository;
+import com.manufacturing.erp.security.CompanyContext;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -19,37 +24,66 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.http.HttpStatus;
 
 @Service
 public class QcService {
   private final QcInspectionRepository qcInspectionRepository;
   private final QcInspectionLineRepository qcInspectionLineRepository;
-  private final GrnRepository grnRepository;
-  private final GrnLineRepository grnLineRepository;
+  private final PurchaseOrderLineRepository purchaseOrderLineRepository;
   private final UomRepository uomRepository;
+  private final GrnService grnService;
+  private final CompanyRepository companyRepository;
+  private final CompanyContext companyContext;
+  private final WeighbridgeTicketRepository weighbridgeTicketRepository;
 
   public QcService(QcInspectionRepository qcInspectionRepository,
                    QcInspectionLineRepository qcInspectionLineRepository,
-                   GrnRepository grnRepository,
-                   GrnLineRepository grnLineRepository,
-                   UomRepository uomRepository) {
+                   PurchaseOrderLineRepository purchaseOrderLineRepository,
+                   UomRepository uomRepository,
+                   GrnService grnService,
+                   CompanyRepository companyRepository,
+                   CompanyContext companyContext,
+                   WeighbridgeTicketRepository weighbridgeTicketRepository) {
     this.qcInspectionRepository = qcInspectionRepository;
     this.qcInspectionLineRepository = qcInspectionLineRepository;
-    this.grnRepository = grnRepository;
-    this.grnLineRepository = grnLineRepository;
+    this.purchaseOrderLineRepository = purchaseOrderLineRepository;
     this.uomRepository = uomRepository;
+    this.grnService = grnService;
+    this.companyRepository = companyRepository;
+    this.companyContext = companyContext;
+    this.weighbridgeTicketRepository = weighbridgeTicketRepository;
   }
 
   @Transactional
-  public QcInspection createDraftFromGrn(Long grnId) {
-    List<QcInspection> existing = qcInspectionRepository.findByGrnId(grnId);
+  public QcInspection createDraftFromWeighbridge(Long weighbridgeId) {
+    Company company = requireCompany();
+    WeighbridgeTicket ticket = weighbridgeTicketRepository.findByIdAndPurchaseOrderCompanyId(weighbridgeId, company.getId())
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Weighbridge ticket not found"));
+    return createDraftFromWeighbridge(ticket);
+  }
+
+  @Transactional
+  public QcInspection createDraftFromWeighbridge(WeighbridgeTicket ticket) {
+    if (ticket == null) {
+      throw new IllegalArgumentException("Weighbridge ticket is required");
+    }
+    if (ticket.getStatus() != com.manufacturing.erp.domain.Enums.DocumentStatus.UNLOADED) {
+      throw new IllegalStateException("Weighbridge ticket must be unloaded before QC inspection");
+    }
+    ensureSameCompany(ticket.getPurchaseOrder());
+    List<QcInspection> existing = qcInspectionRepository.findByWeighbridgeTicketId(ticket.getId());
     if (!existing.isEmpty()) {
       return existing.get(0);
     }
-    Grn grn = grnRepository.findById(grnId)
-        .orElseThrow(() -> new IllegalArgumentException("GRN not found"));
+    PurchaseOrder purchaseOrder = ticket.getPurchaseOrder();
+    if (purchaseOrder == null) {
+      throw new IllegalArgumentException("Weighbridge ticket must reference a purchase order");
+    }
     QcInspection inspection = new QcInspection();
-    inspection.setGrn(grn);
+    inspection.setPurchaseOrder(purchaseOrder);
+    inspection.setWeighbridgeTicket(ticket);
     inspection.setStatus(QcStatus.DRAFT);
     inspection.setInspectionDate(LocalDate.now());
     inspection.setSampleQty(null);
@@ -57,13 +91,13 @@ public class QcService {
     inspection.setMethod(null);
     inspection.setRemarks(null);
     QcInspection saved = qcInspectionRepository.save(inspection);
-    for (GrnLine grnLine : grn.getLines()) {
+    for (PurchaseOrderLine poLine : purchaseOrder.getLines()) {
       QcInspectionLine line = new QcInspectionLine();
       line.setQcInspection(saved);
-      line.setGrnLine(grnLine);
-      line.setReceivedQty(defaultQty(grnLine.getReceivedQty(), grnLine.getQuantity()));
-      line.setAcceptedQty(defaultQty(grnLine.getAcceptedQty(), grnLine.getReceivedQty()));
-      line.setRejectedQty(defaultQty(grnLine.getRejectedQty(), BigDecimal.ZERO));
+      line.setPurchaseOrderLine(poLine);
+      line.setReceivedQty(defaultQty(poLine.getQuantity(), BigDecimal.ZERO));
+      line.setAcceptedQty(defaultQty(poLine.getQuantity(), BigDecimal.ZERO));
+      line.setRejectedQty(BigDecimal.ZERO);
       qcInspectionLineRepository.save(line);
       saved.getLines().add(line);
     }
@@ -71,17 +105,33 @@ public class QcService {
   }
 
   @Transactional(readOnly = true)
-  public List<QcInspection> list(Long grnId) {
-    if (grnId == null) {
-      return qcInspectionRepository.findAll();
+  public List<QcInspection> list(Long grnId, Long weighbridgeId, Long purchaseOrderId) {
+    Company company = requireCompany();
+    List<QcInspection> inspections;
+    if (grnId != null) {
+      inspections = qcInspectionRepository.findByGrnId(grnId);
+    } else if (weighbridgeId != null) {
+      inspections = qcInspectionRepository.findByWeighbridgeTicketId(weighbridgeId);
+    } else if (purchaseOrderId != null) {
+      inspections = qcInspectionRepository.findByPurchaseOrderId(purchaseOrderId);
+    } else {
+      inspections = qcInspectionRepository.findAll();
     }
-    return qcInspectionRepository.findByGrnId(grnId);
+    return inspections.stream()
+        .filter(inspection -> resolveCompanyId(inspection) != null && resolveCompanyId(inspection).equals(company.getId()))
+        .toList();
   }
 
   @Transactional(readOnly = true)
   public QcInspection get(Long id) {
-    return qcInspectionRepository.findById(id)
-        .orElseThrow(() -> new IllegalArgumentException("QC inspection not found"));
+    QcInspection inspection = qcInspectionRepository.findById(id)
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "QC inspection not found"));
+    Company company = requireCompany();
+    Long inspectionCompanyId = resolveCompanyId(inspection);
+    if (inspectionCompanyId != null && !inspectionCompanyId.equals(company.getId())) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, "QC inspection not found");
+    }
+    return inspection;
   }
 
   @Transactional
@@ -100,17 +150,20 @@ public class QcService {
     inspection.setMethod(request.method());
     inspection.setRemarks(request.remarks());
     Map<Long, QcInspectionLine> existing = inspection.getLines().stream()
-        .collect(Collectors.toMap(line -> line.getGrnLine().getId(), line -> line));
+        .filter(line -> line.getPurchaseOrderLine() != null)
+        .collect(Collectors.toMap(line -> line.getPurchaseOrderLine().getId(), line -> line));
     inspection.getLines().clear();
     for (QcDtos.QcInspectionLineRequest lineRequest : request.lines()) {
-      GrnLine grnLine = grnLineRepository.findById(lineRequest.grnLineId())
-          .orElseThrow(() -> new IllegalArgumentException("GRN line not found"));
-      if (!grnLine.getGrn().getId().equals(inspection.getGrn().getId())) {
-        throw new IllegalArgumentException("GRN line does not belong to inspection GRN");
+      PurchaseOrderLine poLine = purchaseOrderLineRepository.findById(lineRequest.poLineId())
+          .orElseThrow(() -> new IllegalArgumentException("PO line not found"));
+      if (inspection.getPurchaseOrder() == null
+          || poLine.getPurchaseOrder() == null
+          || !poLine.getPurchaseOrder().getId().equals(inspection.getPurchaseOrder().getId())) {
+        throw new IllegalArgumentException("PO line does not belong to inspection purchase order");
       }
-      QcInspectionLine line = existing.getOrDefault(grnLine.getId(), new QcInspectionLine());
+      QcInspectionLine line = existing.getOrDefault(poLine.getId(), new QcInspectionLine());
       line.setQcInspection(inspection);
-      line.setGrnLine(grnLine);
+      line.setPurchaseOrderLine(poLine);
       validateQuantities(lineRequest.receivedQty(), lineRequest.acceptedQty(), lineRequest.rejectedQty());
       line.setReceivedQty(lineRequest.receivedQty());
       line.setAcceptedQty(lineRequest.acceptedQty());
@@ -118,7 +171,6 @@ public class QcService {
       line.setReason(lineRequest.reason());
       qcInspectionLineRepository.save(line);
       inspection.getLines().add(line);
-      syncGrnLineQuantities(grnLine, line);
     }
     inspection.setStatus(QcStatus.DRAFT);
     return qcInspectionRepository.save(inspection);
@@ -130,7 +182,7 @@ public class QcService {
     if (inspection.getStatus() != QcStatus.DRAFT && inspection.getStatus() != QcStatus.REJECTED) {
       throw new IllegalStateException("Only draft QC inspections can be submitted");
     }
-    applyLineUpdatesToGrn(inspection);
+    applyLineUpdates(inspection);
     inspection.setStatus(QcStatus.SUBMITTED);
     return qcInspectionRepository.save(inspection);
   }
@@ -141,8 +193,10 @@ public class QcService {
     if (inspection.getStatus() != QcStatus.SUBMITTED && inspection.getStatus() != QcStatus.DRAFT) {
       throw new IllegalStateException("Only submitted QC inspections can be approved");
     }
-    applyLineUpdatesToGrn(inspection);
+    applyLineUpdates(inspection);
     inspection.setStatus(QcStatus.APPROVED);
+    Grn grn = grnService.createDraftFromQc(inspection);
+    inspection.setGrn(grn);
     return qcInspectionRepository.save(inspection);
   }
 
@@ -153,22 +207,14 @@ public class QcService {
     for (QcInspectionLine line : inspection.getLines()) {
       line.setAcceptedQty(BigDecimal.ZERO);
       qcInspectionLineRepository.save(line);
-      syncGrnLineQuantities(line.getGrnLine(), line);
     }
     return qcInspectionRepository.save(inspection);
   }
 
-  private void applyLineUpdatesToGrn(QcInspection inspection) {
+  private void applyLineUpdates(QcInspection inspection) {
     for (QcInspectionLine line : inspection.getLines()) {
       validateQuantities(line.getReceivedQty(), line.getAcceptedQty(), line.getRejectedQty());
-      syncGrnLineQuantities(line.getGrnLine(), line);
     }
-  }
-
-  private void syncGrnLineQuantities(GrnLine grnLine, QcInspectionLine qcLine) {
-    grnLine.setAcceptedQty(qcLine.getAcceptedQty());
-    grnLine.setRejectedQty(qcLine.getRejectedQty());
-    grnLineRepository.save(grnLine);
   }
 
   private void validateQuantities(BigDecimal received, BigDecimal accepted, BigDecimal rejected) {
@@ -182,5 +228,35 @@ public class QcService {
 
   private BigDecimal defaultQty(BigDecimal value, BigDecimal fallback) {
     return Optional.ofNullable(value).orElse(fallback);
+  }
+
+  private void ensureSameCompany(PurchaseOrder purchaseOrder) {
+    if (purchaseOrder == null) {
+      return;
+    }
+    Company company = requireCompany();
+    if (purchaseOrder.getCompany() == null || !purchaseOrder.getCompany().getId().equals(company.getId())) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Purchase order not found");
+    }
+  }
+
+  private Long resolveCompanyId(QcInspection inspection) {
+    if (inspection.getPurchaseOrder() != null && inspection.getPurchaseOrder().getCompany() != null) {
+      return inspection.getPurchaseOrder().getCompany().getId();
+    }
+    if (inspection.getGrn() != null && inspection.getGrn().getPurchaseOrder() != null
+        && inspection.getGrn().getPurchaseOrder().getCompany() != null) {
+      return inspection.getGrn().getPurchaseOrder().getCompany().getId();
+    }
+    return null;
+  }
+
+  private Company requireCompany() {
+    Long companyId = companyContext.getCompanyId();
+    if (companyId == null) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Missing company context");
+    }
+    return companyRepository.findById(companyId)
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Company not found"));
   }
 }

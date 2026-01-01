@@ -23,13 +23,15 @@ public class QcController {
   }
 
   @GetMapping("/inspections")
-  public List<QcDtos.QcResponse> list(@RequestParam(required = false) Long grnId) {
-    return qcService.list(grnId).stream().map(this::toResponse).toList();
+  public List<QcDtos.QcResponse> list(@RequestParam(required = false) Long grnId,
+                                      @RequestParam(required = false) Long weighbridgeId,
+                                      @RequestParam(required = false) Long poId) {
+    return qcService.list(grnId, weighbridgeId, poId).stream().map(this::toResponse).toList();
   }
 
-  @PostMapping("/inspections/from-grn/{grnId}")
-  public QcDtos.QcResponse createFromGrn(@PathVariable Long grnId) {
-    return toResponse(qcService.createDraftFromGrn(grnId));
+  @PostMapping("/inspections/from-weighbridge/{weighbridgeId}")
+  public QcDtos.QcResponse createFromWeighbridge(@PathVariable Long weighbridgeId) {
+    return toResponse(qcService.createDraftFromWeighbridge(weighbridgeId));
   }
 
   @GetMapping("/inspections/{id}")
@@ -60,7 +62,19 @@ public class QcController {
   private QcDtos.QcResponse toResponse(com.manufacturing.erp.domain.QcInspection inspection) {
     List<QcDtos.QcLineResponse> lines = inspection.getLines().stream()
         .map(line -> new QcDtos.QcLineResponse(
-            line.getGrnLine() != null ? line.getGrnLine().getId() : null,
+            line.getPurchaseOrderLine() != null ? line.getPurchaseOrderLine().getId() : null,
+            line.getPurchaseOrderLine() != null && line.getPurchaseOrderLine().getItem() != null
+                ? line.getPurchaseOrderLine().getItem().getId()
+                : null,
+            line.getPurchaseOrderLine() != null && line.getPurchaseOrderLine().getItem() != null
+                ? line.getPurchaseOrderLine().getItem().getName()
+                : null,
+            line.getPurchaseOrderLine() != null && line.getPurchaseOrderLine().getUom() != null
+                ? line.getPurchaseOrderLine().getUom().getId()
+                : null,
+            line.getPurchaseOrderLine() != null && line.getPurchaseOrderLine().getUom() != null
+                ? line.getPurchaseOrderLine().getUom().getCode()
+                : null,
             line.getReceivedQty(),
             line.getAcceptedQty(),
             line.getRejectedQty(),
@@ -68,9 +82,16 @@ public class QcController {
         .toList();
     return new QcDtos.QcResponse(
         inspection.getId(),
+        inspection.getPurchaseOrder() != null ? inspection.getPurchaseOrder().getId() : null,
+        inspection.getWeighbridgeTicket() != null ? inspection.getWeighbridgeTicket().getId() : null,
         inspection.getGrn() != null ? inspection.getGrn().getId() : null,
         inspection.getStatus() != null ? inspection.getStatus().name() : null,
         inspection.getInspectionDate(),
+        inspection.getSampleQty(),
+        inspection.getSampleUom() != null ? inspection.getSampleUom().getId() : null,
+        inspection.getSampleUom() != null ? inspection.getSampleUom().getCode() : null,
+        inspection.getMethod(),
+        inspection.getRemarks(),
         lines);
   }
 }
