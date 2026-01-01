@@ -139,6 +139,20 @@ public class Enums {
     RECEIVABLE
   }
 
+  public enum PaymentMode {
+    BANK,
+    CASH,
+    PDC
+  }
+
+  public enum PaymentStatus {
+    DRAFT,
+    POSTED,
+    PDC_ISSUED,
+    PDC_CLEARED,
+    CANCELLED
+  }
+
   public enum PdcStatus {
     ISSUED,
     DEPOSITED,

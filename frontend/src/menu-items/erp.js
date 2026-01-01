@@ -129,7 +129,8 @@ const erp = {
       type: 'collapse',
       icon: icons.IconReportAnalytics,
       children: [
-        { id: 'accounts-ledgers', title: 'Ledgers', type: 'item', url: '/accounts/ledgers' }
+        { id: 'accounts-ledgers', title: 'Ledgers', type: 'item', url: '/accounts/ledgers' },
+        { id: 'accounts-payments', title: 'Payments', type: 'item', url: '/accounts/payments' }
       ]
     },
     {
@@ -140,7 +141,8 @@ const erp = {
       children: [
         { id: 'reports-ledger', title: 'Ledger', type: 'item', url: '/reports/ledger' },
         { id: 'reports-outstanding', title: 'Outstanding', type: 'item', url: '/reports/outstanding' },
-        { id: 'reports-ageing', title: 'Ageing', type: 'item', url: '/reports/ageing' }
+        { id: 'reports-ageing', title: 'Ageing', type: 'item', url: '/reports/ageing' },
+        { id: 'reports-payments', title: 'Payment Reports', type: 'item', url: '/reports/payments' }
       ]
     },
     ...(devToolsItem ? [devToolsItem] : []),

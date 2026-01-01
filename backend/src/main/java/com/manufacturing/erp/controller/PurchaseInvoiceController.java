@@ -42,12 +42,18 @@ public class PurchaseInvoiceController {
   }
 
   @GetMapping
-  public List<PurchaseInvoiceDtos.InvoiceResponse> list(@RequestParam(required = false) String status) {
+  public List<PurchaseInvoiceDtos.InvoiceResponse> list(@RequestParam(required = false) String status,
+                                                        @RequestParam(required = false) Long supplierId) {
     Long companyId = requireCompanyId();
     var invoices = purchaseInvoiceRepository.findByPurchaseOrderCompanyId(companyId);
     if (status != null && !status.isBlank()) {
       DocumentStatus filter = DocumentStatus.valueOf(status.toUpperCase());
       invoices = invoices.stream().filter(inv -> inv.getStatus() == filter).toList();
+    }
+    if (supplierId != null) {
+      invoices = invoices.stream()
+          .filter(inv -> inv.getSupplier() != null && supplierId.equals(inv.getSupplier().getId()))
+          .toList();
     }
     return invoices.stream().map(this::toResponse).toList();
   }

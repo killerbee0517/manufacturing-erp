@@ -54,9 +54,12 @@ const OutstandingReportPage = Loadable(lazy(() => import('views/erp/pages/report
 const AgeingReportPage = Loadable(lazy(() => import('views/erp/pages/reports/AgeingReportPage')));
 const LedgerListPage = Loadable(lazy(() => import('views/erp/pages/accounts/LedgerListPage')));
 const LedgerStatementPage = Loadable(lazy(() => import('views/erp/pages/accounts/LedgerStatementPage')));
+const PaymentVoucherPage = Loadable(lazy(() => import('views/erp/pages/accounts/PaymentVoucherPage')));
+const PaymentVoucherDetailPage = Loadable(lazy(() => import('views/erp/pages/accounts/PaymentVoucherDetailPage')));
 const ProfilePage = Loadable(lazy(() => import('views/erp/pages/profile/ProfilePage')));
 const ChangePasswordPage = Loadable(lazy(() => import('views/erp/pages/profile/ChangePasswordPage')));
 const DevToolsPage = Loadable(lazy(() => import('views/erp/pages/dev-tools/DevToolsPage')));
+const PaymentsReportsPage = Loadable(lazy(() => import('views/erp/pages/reports/PaymentsReportsPage')));
 
 // ==============================|| MAIN ROUTING ||============================== //
 
@@ -158,7 +161,10 @@ const MainRoutes = {
       path: 'accounts',
       children: [
         { path: 'ledgers', element: <LedgerListPage /> },
-        { path: 'ledgers/:id', element: <LedgerStatementPage /> }
+        { path: 'ledgers/:id', element: <LedgerStatementPage /> },
+        { path: 'payments', element: <PaymentVoucherPage /> },
+        { path: 'payments/new', element: <PaymentVoucherDetailPage /> },
+        { path: 'payments/:id', element: <PaymentVoucherDetailPage /> }
       ]
     },
     {
@@ -166,7 +172,8 @@ const MainRoutes = {
       children: [
         { path: 'ledger', element: <LedgerReportPage /> },
         { path: 'outstanding', element: <OutstandingReportPage /> },
-        { path: 'ageing', element: <AgeingReportPage /> }
+        { path: 'ageing', element: <AgeingReportPage /> },
+        { path: 'payments', element: <PaymentsReportsPage /> }
       ]
     },
     {
