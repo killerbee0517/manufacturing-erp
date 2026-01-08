@@ -21,6 +21,12 @@ public class PurchaseArrival extends BaseEntity {
   private WeighbridgeTicket weighbridgeTicket;
 
   @ManyToOne
+  private Broker broker;
+
+  @Column(name = "brokerage_amount")
+  private BigDecimal brokerageAmount;
+
+  @ManyToOne
   private Godown godown;
 
   @Column(nullable = false)
@@ -58,6 +64,22 @@ public class PurchaseArrival extends BaseEntity {
 
   public void setWeighbridgeTicket(WeighbridgeTicket weighbridgeTicket) {
     this.weighbridgeTicket = weighbridgeTicket;
+  }
+
+  public Broker getBroker() {
+    return broker;
+  }
+
+  public void setBroker(Broker broker) {
+    this.broker = broker;
+  }
+
+  public BigDecimal getBrokerageAmount() {
+    return brokerageAmount;
+  }
+
+  public void setBrokerageAmount(BigDecimal brokerageAmount) {
+    this.brokerageAmount = brokerageAmount;
   }
 
   public Godown getGodown() {

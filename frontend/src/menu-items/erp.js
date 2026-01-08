@@ -57,16 +57,14 @@ const erp = {
       type: 'collapse',
       icon: icons.IconBuildingWarehouse,
       children: [
-        { id: 'masters-suppliers', title: 'Supplier Management', type: 'item', url: '/masters/suppliers' },
-        { id: 'masters-customers', title: 'Customer Management', type: 'item', url: '/masters/customers' },
+        { id: 'masters-parties', title: 'Party Master', type: 'item', url: '/masters/parties' },
+        { id: 'masters-companies', title: 'Company Master', type: 'item', url: '/masters/companies' },
         { id: 'masters-banks', title: 'Bank Details', type: 'item', url: '/masters/banks' },
         { id: 'masters-vehicles', title: 'Vehicle Management', type: 'item', url: '/masters/vehicles' },
         { id: 'masters-godowns', title: 'Godown Management', type: 'item', url: '/masters/godowns' },
         { id: 'masters-items', title: 'Item Master', type: 'item', url: '/masters/items' },
         { id: 'masters-uoms', title: 'UOM Master', type: 'item', url: '/masters/uoms' },
-        { id: 'masters-brokers', title: 'Broker Master', type: 'item', url: '/masters/brokers' },
         { id: 'masters-charge-types', title: 'Charges & Deductions', type: 'item', url: '/masters/charge-types' },
-        { id: 'masters-expense-parties', title: 'Payee Parties', type: 'item', url: '/masters/expense-parties' },
         { id: 'admin-users', title: 'User Management', type: 'item', url: '/admin/users' },
         { id: 'admin-roles', title: 'Role Management', type: 'item', url: '/admin/roles' }
       ]

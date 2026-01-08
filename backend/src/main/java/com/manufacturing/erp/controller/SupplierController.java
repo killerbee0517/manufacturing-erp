@@ -1,12 +1,22 @@
 package com.manufacturing.erp.controller;
 
+import com.manufacturing.erp.domain.Company;
 import com.manufacturing.erp.domain.Enums.LedgerType;
+import com.manufacturing.erp.domain.Enums.PartyRoleType;
+import com.manufacturing.erp.domain.Enums.PartyStatus;
 import com.manufacturing.erp.domain.Ledger;
+import com.manufacturing.erp.domain.Party;
+import com.manufacturing.erp.domain.PartyRole;
 import com.manufacturing.erp.domain.Supplier;
 import com.manufacturing.erp.dto.MasterDtos;
 import com.manufacturing.erp.repository.BankRepository;
+import com.manufacturing.erp.repository.CompanyRepository;
+import com.manufacturing.erp.repository.PartyRepository;
+import com.manufacturing.erp.repository.PartyRoleRepository;
 import com.manufacturing.erp.repository.SupplierRepository;
 import com.manufacturing.erp.repository.SupplierTaxProfileRepository;
+import com.manufacturing.erp.security.CompanyContext;
+import com.manufacturing.erp.service.LedgerAccountService;
 import com.manufacturing.erp.service.LedgerService;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -28,13 +38,26 @@ import org.springframework.transaction.annotation.Transactional;
 public class SupplierController {
   private final SupplierRepository supplierRepository;
   private final BankRepository bankRepository;
+  private final PartyRepository partyRepository;
+  private final PartyRoleRepository partyRoleRepository;
+  private final CompanyRepository companyRepository;
+  private final CompanyContext companyContext;
+  private final LedgerAccountService ledgerAccountService;
   private final LedgerService ledgerService;
   private final SupplierTaxProfileRepository supplierTaxProfileRepository;
 
-  public SupplierController(SupplierRepository supplierRepository, BankRepository bankRepository, LedgerService ledgerService,
+  public SupplierController(SupplierRepository supplierRepository, BankRepository bankRepository,
+                            PartyRepository partyRepository, PartyRoleRepository partyRoleRepository,
+                            CompanyRepository companyRepository, CompanyContext companyContext,
+                            LedgerAccountService ledgerAccountService, LedgerService ledgerService,
                             SupplierTaxProfileRepository supplierTaxProfileRepository) {
     this.supplierRepository = supplierRepository;
     this.bankRepository = bankRepository;
+    this.partyRepository = partyRepository;
+    this.partyRoleRepository = partyRoleRepository;
+    this.companyRepository = companyRepository;
+    this.companyContext = companyContext;
+    this.ledgerAccountService = ledgerAccountService;
     this.ledgerService = ledgerService;
     this.supplierTaxProfileRepository = supplierTaxProfileRepository;
   }
@@ -75,7 +98,8 @@ public class SupplierController {
   @Transactional
   public MasterDtos.SupplierResponse create(@Valid @RequestBody MasterDtos.SupplierRequest request) {
     Supplier supplier = new Supplier();
-    applyRequest(supplier, request);
+    Party party = resolveParty(request, supplier);
+    applyRequest(supplier, request, party);
     Supplier saved = supplierRepository.save(supplier);
     Ledger ledger = ledgerService.createLedger(request.name(), LedgerType.SUPPLIER, "SUPPLIER", saved.getId());
     saved.setLedger(ledger);
@@ -88,7 +112,8 @@ public class SupplierController {
   public MasterDtos.SupplierResponse update(@PathVariable Long id, @Valid @RequestBody MasterDtos.SupplierRequest request) {
     Supplier supplier = supplierRepository.findById(id)
         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Supplier not found"));
-    applyRequest(supplier, request);
+    Party party = resolveParty(request, supplier);
+    applyRequest(supplier, request, party);
     Supplier saved = supplierRepository.save(supplier);
     if (saved.getLedger() == null) {
       Ledger ledger = ledgerService.createLedger(saved.getName(), LedgerType.SUPPLIER, "SUPPLIER", saved.getId());
@@ -108,7 +133,7 @@ public class SupplierController {
     supplierRepository.deleteById(id);
   }
 
-  private void applyRequest(Supplier supplier, MasterDtos.SupplierRequest request) {
+  private void applyRequest(Supplier supplier, MasterDtos.SupplierRequest request, Party party) {
     supplier.setName(request.name());
     supplier.setCode(request.code());
     supplier.setPan(request.pan());
@@ -119,8 +144,8 @@ public class SupplierController {
     supplier.setGstNo(request.gstNo());
     supplier.setContact(request.contact());
     supplier.setEmail(request.email());
-    supplier.setSupplierType(request.supplierType());
     supplier.setCreditPeriod(request.creditPeriod());
+    supplier.setParty(party);
     if (request.bankId() != null) {
       supplier.setBank(bankRepository.findById(request.bankId())
           .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Bank not found")));
@@ -132,6 +157,7 @@ public class SupplierController {
   private MasterDtos.SupplierResponse toResponse(Supplier supplier) {
     return new MasterDtos.SupplierResponse(
         supplier.getId(),
+        supplier.getParty() != null ? supplier.getParty().getId() : null,
         supplier.getName(),
         supplier.getCode(),
         supplier.getPan(),
@@ -144,10 +170,69 @@ public class SupplierController {
         supplier.getEmail(),
         supplier.getBank() != null ? supplier.getBank().getId() : null,
         supplier.getBank() != null ? supplier.getBank().getName() : null,
-        supplier.getSupplierType(),
         supplier.getCreditPeriod(),
         supplier.getLedger() != null ? supplier.getLedger().getId() : null,
         supplier.getLedger() != null ? ledgerService.getBalance(supplier.getLedger().getId()) : null);
+  }
+
+  private Party resolveParty(MasterDtos.SupplierRequest request, Supplier supplier) {
+    Company company = requireCompany();
+    Party party = null;
+    if (request.partyId() != null) {
+      party = partyRepository.findById(request.partyId())
+          .filter(p -> p.getCompany().getId().equals(company.getId()))
+          .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Party not found"));
+    } else if (supplier.getParty() != null) {
+      party = supplier.getParty();
+    }
+    if (party == null) {
+      party = new Party();
+      party.setCompany(company);
+      party.setPartyCode(resolvePartyCode(company));
+      party.setStatus(PartyStatus.ACTIVE);
+    }
+    party.setName(request.name());
+    party.setAddress(request.address());
+    party.setState(request.state());
+    party.setCountry(request.country());
+    party.setPinCode(request.pinCode());
+    party.setPan(request.pan());
+    party.setGstNo(request.gstNo());
+    party.setContact(request.contact());
+    party.setEmail(request.email());
+    Party saved = partyRepository.save(party);
+    syncRole(saved, company, request);
+    return saved;
+  }
+
+  private void syncRole(Party party, Company company, MasterDtos.SupplierRequest request) {
+    PartyRole role = partyRoleRepository.findByCompanyIdAndPartyId(company.getId(), party.getId()).stream()
+        .filter(r -> r.getRoleType() == PartyRoleType.SUPPLIER)
+        .findFirst()
+        .orElseGet(() -> {
+          PartyRole fresh = new PartyRole();
+          fresh.setCompany(company);
+          fresh.setParty(party);
+          fresh.setRoleType(PartyRoleType.SUPPLIER);
+          return fresh;
+        });
+    role.setCreditPeriodDays(request.creditPeriod());
+    role.setActive(true);
+    partyRoleRepository.save(role);
+    ledgerAccountService.ensurePartyLedger(company, party, com.manufacturing.erp.domain.Enums.LedgerType.SUPPLIER, party.getName());
+  }
+
+  private Company requireCompany() {
+    Long companyId = companyContext.getCompanyId();
+    if (companyId == null) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Missing company context");
+    }
+    return companyRepository.findById(companyId)
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Company not found"));
+  }
+
+  private String resolvePartyCode(Company company) {
+    return "PTY-" + (partyRepository.countByCompanyId(company.getId()) + 1);
   }
 
   private List<Supplier> applyLimit(List<Supplier> suppliers, Integer limit) {

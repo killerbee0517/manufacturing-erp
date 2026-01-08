@@ -6,6 +6,7 @@ import Box from '@mui/material/Box';
 
 // project imports
 import LogoSection from '../LogoSection';
+import CompanySwitcher from './CompanySwitcher';
 import ProfileSection from './ProfileSection';
 
 import { handlerDrawerOpen, useGetMenuMaster } from 'api/menu';
@@ -50,6 +51,8 @@ export default function Header() {
       </Box>
 
       <Box sx={{ flexGrow: 1 }} />
+
+      <CompanySwitcher />
 
       {/* profile */}
       <ProfileSection />

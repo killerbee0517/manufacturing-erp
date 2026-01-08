@@ -34,7 +34,13 @@ public class UomController {
         ? uomRepository.findAll()
         : uomRepository.findByCodeContainingIgnoreCaseOrDescriptionContainingIgnoreCase(q, q);
     return applyLimit(uoms, limit).stream()
-        .map(uom -> new UomResponse(uom.getId(), uom.getCode(), uom.getDescription()))
+        .map(uom -> new UomResponse(
+            uom.getId(),
+            uom.getCode(),
+            uom.getDescription(),
+            uom.getBaseUom() != null ? uom.getBaseUom().getId() : null,
+            uom.getBaseUom() != null ? uom.getBaseUom().getCode() : null,
+            uom.getConversionFactor()))
         .toList();
   }
 
@@ -42,7 +48,13 @@ public class UomController {
   public UomResponse get(@PathVariable Long id) {
     Uom uom = uomRepository.findById(id)
         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "UOM not found"));
-    return new UomResponse(uom.getId(), uom.getCode(), uom.getDescription());
+    return new UomResponse(
+        uom.getId(),
+        uom.getCode(),
+        uom.getDescription(),
+        uom.getBaseUom() != null ? uom.getBaseUom().getId() : null,
+        uom.getBaseUom() != null ? uom.getBaseUom().getCode() : null,
+        uom.getConversionFactor());
   }
 
   @PostMapping
@@ -51,8 +63,22 @@ public class UomController {
     Uom uom = new Uom();
     uom.setCode(request.code());
     uom.setDescription(request.description());
+    if (request.baseUomId() != null) {
+      Uom base = uomRepository.findById(request.baseUomId())
+          .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Base UOM not found"));
+      uom.setBaseUom(base);
+    } else {
+      uom.setBaseUom(null);
+    }
+    uom.setConversionFactor(request.conversionFactor());
     Uom saved = uomRepository.save(uom);
-    return new UomResponse(saved.getId(), saved.getCode(), saved.getDescription());
+    return new UomResponse(
+        saved.getId(),
+        saved.getCode(),
+        saved.getDescription(),
+        saved.getBaseUom() != null ? saved.getBaseUom().getId() : null,
+        saved.getBaseUom() != null ? saved.getBaseUom().getCode() : null,
+        saved.getConversionFactor());
   }
 
   @PutMapping("/{id}")
@@ -62,8 +88,22 @@ public class UomController {
         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "UOM not found"));
     uom.setCode(request.code());
     uom.setDescription(request.description());
+    if (request.baseUomId() != null) {
+      Uom base = uomRepository.findById(request.baseUomId())
+          .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Base UOM not found"));
+      uom.setBaseUom(base);
+    } else {
+      uom.setBaseUom(null);
+    }
+    uom.setConversionFactor(request.conversionFactor());
     Uom saved = uomRepository.save(uom);
-    return new UomResponse(saved.getId(), saved.getCode(), saved.getDescription());
+    return new UomResponse(
+        saved.getId(),
+        saved.getCode(),
+        saved.getDescription(),
+        saved.getBaseUom() != null ? saved.getBaseUom().getId() : null,
+        saved.getBaseUom() != null ? saved.getBaseUom().getCode() : null,
+        saved.getConversionFactor());
   }
 
   @DeleteMapping("/{id}")
@@ -74,8 +114,15 @@ public class UomController {
     uomRepository.deleteById(id);
   }
 
-  public record UomResponse(Long id, String code, String description) {}
-  public record UomRequest(String code, String description) {}
+  public record UomResponse(
+      Long id,
+      String code,
+      String description,
+      Long baseUomId,
+      String baseUomCode,
+      java.math.BigDecimal conversionFactor) {}
+
+  public record UomRequest(String code, String description, Long baseUomId, java.math.BigDecimal conversionFactor) {}
 
   private List<Uom> applyLimit(List<Uom> uoms, Integer limit) {
     if (limit == null) {

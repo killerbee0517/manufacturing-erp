@@ -165,7 +165,12 @@ export default function PurchaseInvoiceDetailPage() {
     setPosting(true);
     try {
       await apiClient.post(`/api/purchase-invoices/${id}/post`);
-      await fetchInvoice();
+      const noteResponse = await apiClient.post(`/api/debit-notes/from-invoice/${id}`);
+      if (noteResponse?.data?.id) {
+        navigate(`/purchase/debit-note/${noteResponse.data.id}`);
+      } else {
+        await fetchInvoice();
+      }
     } finally {
       setPosting(false);
     }

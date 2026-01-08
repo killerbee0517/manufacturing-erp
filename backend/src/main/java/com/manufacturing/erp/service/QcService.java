@@ -164,10 +164,13 @@ public class QcService {
       QcInspectionLine line = existing.getOrDefault(poLine.getId(), new QcInspectionLine());
       line.setQcInspection(inspection);
       line.setPurchaseOrderLine(poLine);
-      validateQuantities(lineRequest.receivedQty(), lineRequest.acceptedQty(), lineRequest.rejectedQty());
-      line.setReceivedQty(lineRequest.receivedQty());
-      line.setAcceptedQty(lineRequest.acceptedQty());
-      line.setRejectedQty(lineRequest.rejectedQty());
+      BigDecimal received = lineRequest.receivedQty();
+      BigDecimal rejected = lineRequest.rejectedQty();
+      BigDecimal accepted = normalizeAccepted(received, rejected);
+      validateQuantities(received, accepted, rejected);
+      line.setReceivedQty(received);
+      line.setAcceptedQty(accepted);
+      line.setRejectedQty(rejected);
       line.setReason(lineRequest.reason());
       qcInspectionLineRepository.save(line);
       inspection.getLines().add(line);
@@ -213,7 +216,11 @@ public class QcService {
 
   private void applyLineUpdates(QcInspection inspection) {
     for (QcInspectionLine line : inspection.getLines()) {
-      validateQuantities(line.getReceivedQty(), line.getAcceptedQty(), line.getRejectedQty());
+      BigDecimal received = line.getReceivedQty();
+      BigDecimal rejected = line.getRejectedQty();
+      BigDecimal accepted = normalizeAccepted(received, rejected);
+      line.setAcceptedQty(accepted);
+      validateQuantities(received, accepted, rejected);
     }
   }
 
@@ -228,6 +235,13 @@ public class QcService {
 
   private BigDecimal defaultQty(BigDecimal value, BigDecimal fallback) {
     return Optional.ofNullable(value).orElse(fallback);
+  }
+
+  private BigDecimal normalizeAccepted(BigDecimal received, BigDecimal rejected) {
+    BigDecimal rec = defaultQty(received, BigDecimal.ZERO);
+    BigDecimal rej = defaultQty(rejected, BigDecimal.ZERO);
+    BigDecimal acc = rec.subtract(rej);
+    return acc.compareTo(BigDecimal.ZERO) < 0 ? BigDecimal.ZERO : acc;
   }
 
   private void ensureSameCompany(PurchaseOrder purchaseOrder) {

@@ -8,6 +8,8 @@ public class PurchaseArrivalDtos {
   public record CreatePurchaseArrivalRequest(
       @NotNull Long purchaseOrderId,
       Long weighbridgeTicketId,
+      Long brokerId,
+      BigDecimal brokerageAmount,
       @NotNull Long godownId,
       BigDecimal unloadingCharges,
       BigDecimal deductions,
@@ -28,6 +30,9 @@ public class PurchaseArrivalDtos {
       Long id,
       Long purchaseOrderId,
       Long weighbridgeTicketId,
+      Long brokerId,
+      String brokerName,
+      BigDecimal brokerageAmount,
       Long godownId,
       BigDecimal unloadingCharges,
       BigDecimal deductions,

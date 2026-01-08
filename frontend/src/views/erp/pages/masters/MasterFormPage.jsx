@@ -21,13 +21,26 @@ const lookupEndpoints = {
   uoms: '/api/uoms',
   locations: '/api/locations',
   customers: '/api/customers',
-  banks: '/api/banks',
+  banks: '/api/banks/autocomplete',
   godowns: '/api/godowns',
   brokers: '/api/brokers',
+  parties: '/api/parties/autocomplete',
   roles: '/api/roles',
   tickets: '/api/weighbridge/tickets',
   salesOrders: '/api/sales-orders'
 };
+const partyAutofillDefaults = [
+  'name',
+  'address',
+  'state',
+  'country',
+  'pinCode',
+  'pan',
+  'gstNo',
+  'contact',
+  'email',
+  'bankId'
+];
 
 export default function MasterFormPage({ mode }) {
   const { entity, id } = useParams();
@@ -41,6 +54,11 @@ export default function MasterFormPage({ mode }) {
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
   const fields = useMemo(() => config?.fields || [], [config]);
+  const fieldNames = useMemo(() => new Set(fields.map((field) => field.name)), [fields]);
+  const partyAutofillFields = useMemo(
+    () => config?.partyAutofillFields || partyAutofillDefaults,
+    [config?.partyAutofillFields]
+  );
 
   const fieldLookups = useMemo(
     () => fields.filter((field) => field.optionsSource).map((field) => field.optionsSource),
@@ -56,7 +74,9 @@ export default function MasterFormPage({ mode }) {
       apiClient
         .get(endpoint)
         .then((response) => {
-          setLookups((prev) => ({ ...prev, [source]: response.data || [] }));
+          const payload = response.data || [];
+          const options = Array.isArray(payload) ? payload : (payload.content || []);
+          setLookups((prev) => ({ ...prev, [source]: options }));
         })
         .catch(() => {
           setLookups((prev) => ({ ...prev, [source]: [] }));
@@ -105,6 +125,29 @@ export default function MasterFormPage({ mode }) {
       }
       return acc;
     }, {});
+  };
+
+  const applyPartyAutofill = (party) => {
+    if (!party) return;
+    setFormValues((prev) => {
+      const next = { ...prev, partyId: party.id ?? prev.partyId };
+      partyAutofillFields.forEach((key) => {
+        if (!fieldNames.has(key) || !Object.prototype.hasOwnProperty.call(party, key)) return;
+        next[key] = party[key] ?? '';
+      });
+      return next;
+    });
+  };
+
+  const handlePartyChange = async (nextValue) => {
+    setFormValues((prev) => ({ ...prev, partyId: nextValue || '' }));
+    if (!nextValue || !config?.partyAutofill) return;
+    try {
+      const response = await apiClient.get(`/api/parties/${nextValue}`);
+      applyPartyAutofill(response.data);
+    } catch {
+      // ignore lookup failures
+    }
   };
 
   const handleSubmit = async (event) => {
@@ -160,31 +203,50 @@ export default function MasterFormPage({ mode }) {
             return (
               <Grid key={field.name} size={{ xs: 12, md: 6 }}>
                 {field.type === 'select' ? (
-                  <TextField
-                    fullWidth
-                    select
-                    label={field.label}
-                    value={formValues[field.name] ?? ''}
-                    onChange={(event) => setFormValues((prev) => ({ ...prev, [field.name]: event.target.value }))}
-                    required={field.required}
-                    error={Boolean(errors[field.name])}
-                    helperText={errors[field.name]}
-                  >
-                    <MenuItem value="">Select</MenuItem>
-                    {options.map((option) => {
-                      const value = typeof option === 'object'
-                        ? option[field.optionValue] || option.id || option.name
-                        : option;
-                      const label = typeof option === 'object'
-                        ? option[field.optionLabel] || option.name || option.code || option.vehicleNo || option.ticketNo
-                        : (typeof option === 'boolean' ? (option ? 'Yes' : 'No') : option);
-                      return (
-                        <MenuItem key={String(value)} value={value}>
-                          {label}
-                        </MenuItem>
-                      );
-                    })}
-                  </TextField>
+                  <Stack spacing={1}>
+                    <TextField
+                      fullWidth
+                      select
+                      label={field.label}
+                      value={formValues[field.name] ?? ''}
+                      onChange={(event) => {
+                        const nextValue = event.target.value;
+                        if (field.name === 'partyId') {
+                          handlePartyChange(nextValue);
+                        } else {
+                          setFormValues((prev) => ({ ...prev, [field.name]: nextValue }));
+                        }
+                      }}
+                      required={field.required}
+                      error={Boolean(errors[field.name])}
+                      helperText={errors[field.name]}
+                    >
+                      <MenuItem value="">Select</MenuItem>
+                      {options.map((option) => {
+                        const value = typeof option === 'object'
+                          ? option[field.optionValue] || option.id || option.name
+                          : option;
+                        const label = typeof option === 'object'
+                          ? option[field.optionLabel] || option.name || option.code || option.vehicleNo || option.ticketNo
+                          : (typeof option === 'boolean' ? (option ? 'Yes' : 'No') : option);
+                        return (
+                          <MenuItem key={String(value)} value={value}>
+                            {label}
+                          </MenuItem>
+                        );
+                      })}
+                    </TextField>
+                    {field.manageRoute && (
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        onClick={() => navigate(field.manageRoute)}
+                        sx={{ alignSelf: 'flex-start' }}
+                      >
+                        {field.manageLabel || 'Manage'}
+                      </Button>
+                    )}
+                  </Stack>
                 ) : (
                   <TextField
                     fullWidth

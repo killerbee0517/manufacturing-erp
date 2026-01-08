@@ -21,6 +21,7 @@ const lookupEndpoints = {
   banks: '/api/banks',
   godowns: '/api/godowns',
   brokers: '/api/brokers',
+  parties: '/api/parties/autocomplete',
   roles: '/api/roles',
   tickets: '/api/weighbridge/tickets',
   salesOrders: '/api/sales-orders'
@@ -109,7 +110,11 @@ export default function MasterDetailPage() {
           const lookupMap = field.optionsSource ? buildLookupMap(lookups[field.optionsSource]) : {};
           const fieldName = field.name;
           const labelKey = fieldName.endsWith('Id') ? `${fieldName.slice(0, -2)}Name` : null;
-          const rawValue = labelKey && record[labelKey] ? record[labelKey] : record[fieldName];
+          const codeKey = fieldName.endsWith('Id') ? `${fieldName.slice(0, -2)}Code` : null;
+          const rawValue =
+            (labelKey && record[labelKey]) ||
+            (codeKey && record[codeKey]) ||
+            record[fieldName];
           const displayValue =
             field.type === 'select' && rawValue !== null && rawValue !== undefined
               ? lookupMap[rawValue] || rawValue

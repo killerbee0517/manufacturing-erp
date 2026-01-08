@@ -40,6 +40,8 @@ public class CompanyContextFilter extends OncePerRequestFilter {
     try {
       Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
       if (authentication != null && authentication.isAuthenticated()) {
+        boolean isAdmin = authentication.getAuthorities().stream()
+            .anyMatch(auth -> "ROLE_ADMIN".equals(auth.getAuthority()));
         String companyHeader = request.getHeader("X-Company-Id");
         if (companyHeader == null || companyHeader.isBlank()) {
           writeError(response, HttpStatus.BAD_REQUEST, "Missing X-Company-Id header");
@@ -53,12 +55,14 @@ public class CompanyContextFilter extends OncePerRequestFilter {
           return;
         }
         String username = authentication.getName();
-        boolean hasAccess = userCompanyRepository
-            .findByUserUsernameAndCompanyId(username, companyId)
-            .isPresent();
-        if (!hasAccess) {
-          writeError(response, HttpStatus.FORBIDDEN, "Company access denied");
-          return;
+        if (!isAdmin) {
+          boolean hasAccess = userCompanyRepository
+              .findByUserUsernameAndCompanyId(username, companyId)
+              .isPresent();
+          if (!hasAccess) {
+            writeError(response, HttpStatus.FORBIDDEN, "Company access denied");
+            return;
+          }
         }
         companyContext.setCompanyId(companyId);
       }

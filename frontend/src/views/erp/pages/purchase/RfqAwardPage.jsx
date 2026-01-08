@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
+import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
 import Grid from '@mui/material/Grid';
+import Snackbar from '@mui/material/Snackbar';
 import Stack from '@mui/material/Stack';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
@@ -25,6 +27,9 @@ export default function RfqAwardPage() {
   const [awards, setAwards] = useState([]);
   const [saving, setSaving] = useState(false);
   const [supplierOptions, setSupplierOptions] = useState([]);
+  const [submitting, setSubmitting] = useState(false);
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+  const [quoteCache, setQuoteCache] = useState({});
 
   useEffect(() => {
     apiClient.get(`/api/rfq/${id}`).then((response) => {
@@ -33,14 +38,13 @@ export default function RfqAwardPage() {
       const baseSuppliers = (data.suppliers || []).map((s) => s.supplierId);
       setSupplierOptions(baseSuppliers);
       const seed = (data.lines || []).flatMap((line) => {
-        if (!baseSuppliers.length) return [];
         return [
           {
             key: `${line.id}-0`,
             rfqLineId: line.id,
-            supplierId: baseSuppliers[0],
-            qty: line.quantity,
-            rate: line.rateExpected || ''
+            supplierId: '',
+            qty: '',
+            rate: ''
           }
         ];
       });
@@ -51,7 +55,7 @@ export default function RfqAwardPage() {
   const addAwardRow = (lineId) => {
     setAwards((prev) => [
       ...prev,
-      { key: `${lineId}-${Date.now()}`, rfqLineId: lineId, supplierId: supplierOptions[0] || '', qty: '', rate: '' }
+      { key: `${lineId}-${Date.now()}`, rfqLineId: lineId, supplierId: '', qty: '', rate: '' }
     ]);
   };
 
@@ -61,6 +65,31 @@ export default function RfqAwardPage() {
 
   const removeAward = (key) => {
     setAwards((prev) => prev.filter((award) => award.key !== key));
+  };
+
+  const loadQuoteForSupplier = async (supplierId) => {
+    if (!supplierId) return null;
+    if (quoteCache[supplierId]) return quoteCache[supplierId];
+    const response = await apiClient.get(`/api/rfq/${id}/quotes/${supplierId}`);
+    setQuoteCache((prev) => ({ ...prev, [supplierId]: response.data }));
+    return response.data;
+  };
+
+  const handleSupplierChange = async (award, supplierId) => {
+    updateAward(award.key, { supplierId });
+    if (!supplierId) return;
+    try {
+      const quote = await loadQuoteForSupplier(supplierId);
+      const quoteLine = quote?.lines?.find((line) => line.rfqLineId === award.rfqLineId);
+      if (quoteLine) {
+        updateAward(award.key, {
+          qty: quoteLine.quotedQty ?? '',
+          rate: quoteLine.quotedRate ?? ''
+        });
+      }
+    } catch {
+      // ignore quote load failures
+    }
   };
 
   const handleSubmit = async () => {
@@ -75,10 +104,42 @@ export default function RfqAwardPage() {
         })),
         closeRemaining: false
       };
-      await apiClient.post(`/api/rfq/${id}/award`, payload);
-      navigate(`/purchase/rfq/${id}`);
+      const response = await apiClient.post(`/api/rfq/${id}/award`, payload);
+      const poIds = response.data?.poIdsBySupplier;
+      const poRefs = response.data?.purchaseOrders || [];
+      const firstPoId = poRefs[0]?.poId || (poIds ? Object.values(poIds).flat()[0] : null);
+      if (firstPoId) {
+        navigate(`/purchase/po/${firstPoId}`);
+      } else {
+        navigate(`/purchase/rfq/${id}`);
+      }
+    } catch (error) {
+      setSnackbar({
+        open: true,
+        message: error?.response?.data?.message || 'Unable to award RFQ. Please check inputs.',
+        severity: 'error'
+      });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSubmitRfq = async () => {
+    if (!rfq) return;
+    setSubmitting(true);
+    try {
+      await apiClient.post(`/api/rfq/${id}/submit`);
+      const response = await apiClient.get(`/api/rfq/${id}`);
+      setRfq(response.data);
+      setSnackbar({ open: true, message: 'RFQ submitted successfully', severity: 'success' });
+    } catch (error) {
+      setSnackbar({
+        open: true,
+        message: error?.response?.data?.message || 'Unable to submit RFQ.',
+        severity: 'error'
+      });
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -100,12 +161,29 @@ export default function RfqAwardPage() {
           { label: 'Award' }
         ]}
         actions={
-          <Button variant="contained" color="secondary" onClick={handleSubmit} disabled={saving}>
+          <Button
+            variant="contained"
+            color="secondary"
+            onClick={handleSubmit}
+            disabled={saving || !['QUOTING', 'AWARDED_PARTIAL'].includes(rfq.status)}
+          >
             Confirm Awards
           </Button>
         }
       />
       <Stack spacing={2}>
+        {rfq.status === 'DRAFT' && (
+          <Alert
+            severity="info"
+            action={
+              <Button color="inherit" onClick={handleSubmitRfq} disabled={submitting}>
+                Submit RFQ
+              </Button>
+            }
+          >
+            Submit the RFQ before awarding.
+          </Alert>
+        )}
         <Typography variant="body1">
           Assign quantities and rates per supplier. Remaining quantity must not exceed requested quantity.
         </Typography>
@@ -134,7 +212,7 @@ export default function RfqAwardPage() {
                           label="Supplier"
                           endpoint="/api/suppliers"
                           value={award.supplierId}
-                          onChange={(nextValue) => updateAward(award.key, { supplierId: nextValue })}
+                          onChange={(nextValue) => handleSupplierChange(award, nextValue)}
                           optionLabelKey="name"
                           optionValueKey="id"
                           placeholder="Choose supplier"
@@ -174,6 +252,15 @@ export default function RfqAwardPage() {
           </Stack>
         ))}
       </Stack>
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={4000}
+        onClose={() => setSnackbar((prev) => ({ ...prev, open: false }))}
+      >
+        <Alert severity={snackbar.severity} onClose={() => setSnackbar((prev) => ({ ...prev, open: false }))}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </MainCard>
   );
 }

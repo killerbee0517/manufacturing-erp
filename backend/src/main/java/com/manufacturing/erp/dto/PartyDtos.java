@@ -4,7 +4,6 @@ import com.manufacturing.erp.domain.Enums.BrokerCommissionType;
 import com.manufacturing.erp.domain.Enums.BrokeragePaidBy;
 import com.manufacturing.erp.domain.Enums.PartyRoleType;
 import com.manufacturing.erp.domain.Enums.PartyStatus;
-import com.manufacturing.erp.domain.Enums.SupplierType;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -15,7 +14,6 @@ public class PartyDtos {
   public record PartyRoleRequest(
       @NotNull PartyRoleType roleType,
       Integer creditPeriodDays,
-      SupplierType supplierType,
       BrokerCommissionType brokerCommissionType,
       BigDecimal brokerCommissionRate,
       BrokeragePaidBy brokeragePaidBy,
@@ -36,11 +34,44 @@ public class PartyDtos {
       PartyStatus status,
       @Valid List<PartyRoleRequest> roles) {}
 
+  public record PartyBankAccountRequest(
+      @NotBlank String bankName,
+      String branch,
+      String accountNo,
+      String ifsc,
+      String swiftCode,
+      String accountType,
+      Boolean isDefault,
+      Boolean active) {}
+
+  public record PartyBankAccountResponse(
+      Long id,
+      String bankName,
+      String branch,
+      String accountNo,
+      String ifsc,
+      String swiftCode,
+      String accountType,
+      boolean isDefault,
+      boolean active) {}
+
+  public record PartyBankAccountSummaryResponse(
+      Long id,
+      Long partyId,
+      String partyName,
+      String bankName,
+      String branch,
+      String accountNo,
+      String ifsc,
+      String swiftCode,
+      String accountType,
+      boolean isDefault,
+      boolean active) {}
+
   public record PartyRoleResponse(
       Long id,
       PartyRoleType roleType,
       Integer creditPeriodDays,
-      SupplierType supplierType,
       BrokerCommissionType brokerCommissionType,
       BigDecimal brokerCommissionRate,
       BrokeragePaidBy brokeragePaidBy,

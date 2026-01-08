@@ -27,9 +27,7 @@ export default function GrnDetailPage() {
   const [godownId, setGodownId] = useState('');
   const [narration, setNarration] = useState('');
   const [lines, setLines] = useState([]);
-  const [saving, setSaving] = useState(false);
   const [posting, setPosting] = useState(false);
-  const [creatingInvoice, setCreatingInvoice] = useState(false);
   const [error, setError] = useState('');
 
   const fetchGrn = async () => {
@@ -64,34 +62,6 @@ export default function GrnDetailPage() {
   }, [id]);
 
   const isDraft = useMemo(() => grn?.status === 'DRAFT', [grn]);
-  const isPosted = useMemo(() => grn?.status === 'POSTED', [grn]);
-
-  const updateLine = (index, key, value) => {
-    setLines((prev) => {
-      const next = [...prev];
-      next[index] = { ...next[index], [key]: value };
-      return next;
-    });
-  };
-
-  const handleSave = async () => {
-    setSaving(true);
-    try {
-      await apiClient.put(`/api/grn/${id}`, {
-        godownId: godownId || null,
-        narration,
-        lines: lines.map((line) => ({
-          id: line.id,
-          acceptedQty: Number(line.acceptedQty || 0),
-          rejectedQty: Number(line.rejectedQty || 0)
-        }))
-      });
-      await fetchGrn();
-      setError('');
-    } finally {
-      setSaving(false);
-    }
-  };
 
   const handlePost = async () => {
     setPosting(true);
@@ -113,18 +83,18 @@ export default function GrnDetailPage() {
       await apiClient.post(`/api/grn/${id}/post`);
       await fetchGrn();
       setError('');
+      if (grn?.purchaseOrderId) {
+        const params = new URLSearchParams();
+        params.set('poId', String(grn.purchaseOrderId));
+        if (grn.weighbridgeTicketId) {
+          params.set('ticketId', String(grn.weighbridgeTicketId));
+        }
+        navigate(`/purchase/arrival/new?${params.toString()}`);
+      } else {
+        navigate('/purchase/arrival/new');
+      }
     } finally {
       setPosting(false);
-    }
-  };
-
-  const handleCreateInvoice = async () => {
-    setCreatingInvoice(true);
-    try {
-      const response = await apiClient.post(`/api/purchase-invoices/from-grn/${id}`);
-      navigate(`/purchase/purchase-invoice/${response.data.id}`);
-    } finally {
-      setCreatingInvoice(false);
     }
   };
 
@@ -146,17 +116,6 @@ export default function GrnDetailPage() {
           <Stack direction="row" spacing={1}>
             <Button variant="outlined" onClick={() => navigate('/purchase/grn')}>
               Back to GRN
-            </Button>
-            <Button
-              variant="outlined"
-              color="primary"
-              onClick={handleCreateInvoice}
-              disabled={!isPosted || creatingInvoice}
-            >
-              Create Purchase Invoice
-            </Button>
-            <Button variant="contained" color="secondary" onClick={handleSave} disabled={!isDraft || saving}>
-              Save
             </Button>
             <Button variant="contained" color="primary" onClick={handlePost} disabled={!isDraft || posting || !godownId}>
               Post GRN
@@ -247,28 +206,10 @@ export default function GrnDetailPage() {
                 <TableCell>{line.expectedQty ?? '-'}</TableCell>
                 <TableCell>{line.receivedQty ?? '-'}</TableCell>
                 <TableCell>
-                  {isDraft ? (
-                    <TextField
-                      type="number"
-                      value={line.acceptedQty}
-                      onChange={(event) => updateLine(index, 'acceptedQty', event.target.value)}
-                      size="small"
-                    />
-                  ) : (
-                    line.acceptedQty ?? '-'
-                  )}
+                  {line.acceptedQty ?? '-'}
                 </TableCell>
                 <TableCell>
-                  {isDraft ? (
-                    <TextField
-                      type="number"
-                      value={line.rejectedQty}
-                      onChange={(event) => updateLine(index, 'rejectedQty', event.target.value)}
-                      size="small"
-                    />
-                  ) : (
-                    line.rejectedQty ?? '-'
-                  )}
+                  {line.rejectedQty ?? '-'}
                 </TableCell>
                 <TableCell>{line.rate ?? '-'}</TableCell>
                 <TableCell>{line.amount ?? '-'}</TableCell>

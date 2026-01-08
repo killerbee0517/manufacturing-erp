@@ -7,6 +7,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 
@@ -23,6 +24,10 @@ public class ExpenseParty extends BaseEntity {
   @OneToOne
   @JoinColumn(name = "ledger_id")
   private Ledger ledger;
+
+  @ManyToOne
+  @JoinColumn(name = "party_id")
+  private Party party;
 
   public String getName() {
     return name;
@@ -46,5 +51,13 @@ public class ExpenseParty extends BaseEntity {
 
   public void setLedger(Ledger ledger) {
     this.ledger = ledger;
+  }
+
+  public Party getParty() {
+    return party;
+  }
+
+  public void setParty(Party party) {
+    this.party = party;
   }
 }

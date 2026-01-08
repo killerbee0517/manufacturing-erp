@@ -15,6 +15,7 @@ import com.manufacturing.erp.domain.PurchaseInvoiceCharge;
 import com.manufacturing.erp.domain.PurchaseInvoiceLine;
 import com.manufacturing.erp.domain.PurchaseOrder;
 import com.manufacturing.erp.domain.PurchaseOrderLine;
+import com.manufacturing.erp.domain.PurchaseArrival;
 import com.manufacturing.erp.domain.Supplier;
 import com.manufacturing.erp.dto.PurchaseInvoiceDtos;
 import com.manufacturing.erp.repository.BrokerCommissionRuleRepository;
@@ -28,6 +29,7 @@ import com.manufacturing.erp.repository.PurchaseInvoiceLineRepository;
 import com.manufacturing.erp.repository.PurchaseInvoiceRepository;
 import com.manufacturing.erp.repository.PurchaseOrderLineRepository;
 import com.manufacturing.erp.repository.PurchaseOrderRepository;
+import com.manufacturing.erp.repository.PurchaseArrivalRepository;
 import com.manufacturing.erp.repository.SupplierRepository;
 import com.manufacturing.erp.repository.VehicleRepository;
 import com.manufacturing.erp.security.CompanyContext;
@@ -49,6 +51,7 @@ public class PurchaseInvoiceService {
   private final GrnRepository grnRepository;
   private final PurchaseOrderRepository purchaseOrderRepository;
   private final PurchaseOrderLineRepository purchaseOrderLineRepository;
+  private final PurchaseArrivalRepository purchaseArrivalRepository;
   private final DeductionChargeTypeRepository chargeTypeRepository;
   private final ExpensePartyRepository expensePartyRepository;
   private final SupplierRepository supplierRepository;
@@ -67,6 +70,7 @@ public class PurchaseInvoiceService {
                                 GrnRepository grnRepository,
                                 PurchaseOrderRepository purchaseOrderRepository,
                                 PurchaseOrderLineRepository purchaseOrderLineRepository,
+                                PurchaseArrivalRepository purchaseArrivalRepository,
                                 DeductionChargeTypeRepository chargeTypeRepository,
                                 ExpensePartyRepository expensePartyRepository,
                                 SupplierRepository supplierRepository,
@@ -84,6 +88,7 @@ public class PurchaseInvoiceService {
     this.grnRepository = grnRepository;
     this.purchaseOrderRepository = purchaseOrderRepository;
     this.purchaseOrderLineRepository = purchaseOrderLineRepository;
+    this.purchaseArrivalRepository = purchaseArrivalRepository;
     this.chargeTypeRepository = chargeTypeRepository;
     this.expensePartyRepository = expensePartyRepository;
     this.supplierRepository = supplierRepository;
@@ -115,6 +120,7 @@ public class PurchaseInvoiceService {
     invoice.setSupplier(grn.getSupplier());
     invoice.setPurchaseOrder(grn.getPurchaseOrder());
     invoice.setGrn(grn);
+    invoice.setBroker(resolveBrokerFromArrival(grn, grn.getPurchaseOrder()));
     invoice.setSupplierInvoiceNo(null);
     invoice.setInvoiceDate(LocalDate.now());
     invoice.setNarration(null);
@@ -151,6 +157,7 @@ public class PurchaseInvoiceService {
     invoice.setSupplier(purchaseOrder.getSupplier());
     invoice.setPurchaseOrder(purchaseOrder);
     invoice.setGrn(null);
+    invoice.setBroker(resolveBrokerFromArrival(null, purchaseOrder));
     invoice.setSupplierInvoiceNo(null);
     invoice.setInvoiceDate(LocalDate.now());
     invoice.setNarration(null);
@@ -371,7 +378,6 @@ public class PurchaseInvoiceService {
       boolean isDeduction = req.isDeduction() != null ? req.isDeduction() : type.isDeduction();
 
       PurchaseInvoiceCharge charge = new PurchaseInvoiceCharge();
-      charge.setPurchaseInvoice(invoice);
       charge.setChargeType(type);
       charge.setCalcType(calcType);
       charge.setRate(rate);
@@ -445,6 +451,22 @@ public class PurchaseInvoiceService {
       supplierRepository.save(supplier);
     }
     return ledger;
+  }
+
+  private Broker resolveBrokerFromArrival(Grn grn, PurchaseOrder purchaseOrder) {
+    if (grn != null && grn.getWeighbridgeTicket() != null) {
+      var arrival = purchaseArrivalRepository.findFirstByWeighbridgeTicketIdOrderByCreatedAtDesc(
+          grn.getWeighbridgeTicket().getId());
+      if (arrival.isPresent()) {
+        return arrival.get().getBroker();
+      }
+    }
+    if (purchaseOrder != null) {
+      return purchaseArrivalRepository.findFirstByPurchaseOrderIdOrderByCreatedAtDesc(purchaseOrder.getId())
+          .map(PurchaseArrival::getBroker)
+          .orElse(null);
+    }
+    return null;
   }
 
   private BigDecimal resolveBrokerageAmount(Broker broker, BigDecimal baseAmount) {

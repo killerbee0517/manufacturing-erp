@@ -51,6 +51,7 @@ export default function AuthLogin() {
       setError('');
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('refreshToken', response.data.refreshToken);
+      localStorage.setItem('userRoles', JSON.stringify(response.data.roles || []));
       localStorage.removeItem('companyId');
       localStorage.removeItem('companyName');
       const companiesResponse = await apiClient.get('/api/companies/my');

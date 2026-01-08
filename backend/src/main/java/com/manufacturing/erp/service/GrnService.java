@@ -30,6 +30,7 @@ import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Locale;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -154,10 +155,24 @@ public class GrnService {
       throw new IllegalStateException("QC inspection missing purchase order");
     }
     WeighbridgeTicket ticket = inspection.getWeighbridgeTicket();
-    BigDecimal netWeight = ticket != null ? ticket.getNetWeight() : BigDecimal.ZERO;
-    BigDecimal totalPoQty = po.getLines().stream()
-        .map(line -> line.getQuantity() != null ? line.getQuantity() : BigDecimal.ZERO)
+    BigDecimal netWeight = ticket != null && ticket.getNetWeight() != null ? ticket.getNetWeight() : BigDecimal.ZERO;
+    BigDecimal sampleWeight = convertToKg(inspection.getSampleQty(), inspection.getSampleUom());
+    BigDecimal rejectedWeight = inspection.getLines().stream()
+        .map(line -> convertToKg(line.getRejectedQty(), line.getPurchaseOrderLine() != null ? line.getPurchaseOrderLine().getUom() : null))
         .reduce(BigDecimal.ZERO, BigDecimal::add);
+    BigDecimal netWeightAdjusted = netWeight.subtract(sampleWeight).subtract(rejectedWeight);
+    if (netWeightAdjusted.compareTo(BigDecimal.ZERO) < 0) {
+      netWeightAdjusted = BigDecimal.ZERO;
+    }
+    BigDecimal totalAcceptedQty = inspection.getLines().stream()
+        .map(line -> defaultQty(line.getAcceptedQty(), defaultQty(line.getReceivedQty(), defaultQty(
+            line.getPurchaseOrderLine() != null ? line.getPurchaseOrderLine().getQuantity() : null, BigDecimal.ZERO))))
+        .reduce(BigDecimal.ZERO, BigDecimal::add);
+    if (totalAcceptedQty.compareTo(BigDecimal.ZERO) <= 0) {
+      totalAcceptedQty = po.getLines().stream()
+          .map(line -> line.getQuantity() != null ? line.getQuantity() : BigDecimal.ZERO)
+          .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
 
     Grn grn = new Grn();
     grn.setGrnNo(resolveGrnNo(null));
@@ -168,7 +183,7 @@ public class GrnService {
     grn.setReceivedDate(java.time.LocalDate.now());
     grn.setFirstWeight(ticket != null ? ticket.getGrossWeight() : null);
     grn.setSecondWeight(ticket != null ? ticket.getUnloadedWeight() : null);
-    grn.setNetWeight(netWeight);
+    grn.setNetWeight(netWeightAdjusted);
     grn.setStatus(DocumentStatus.DRAFT);
     Grn saved = grnRepository.save(grn);
 
@@ -178,10 +193,11 @@ public class GrnService {
         continue;
       }
       BigDecimal lineQty = poLine.getQuantity() != null ? poLine.getQuantity() : BigDecimal.ZERO;
-      BigDecimal proportion = totalPoQty.compareTo(BigDecimal.ZERO) > 0
-          ? lineQty.divide(totalPoQty, 6, java.math.RoundingMode.HALF_UP)
+      BigDecimal acceptedQty = defaultQty(qcLine.getAcceptedQty(), defaultQty(qcLine.getReceivedQty(), lineQty));
+      BigDecimal proportion = totalAcceptedQty.compareTo(BigDecimal.ZERO) > 0
+          ? acceptedQty.divide(totalAcceptedQty, 6, java.math.RoundingMode.HALF_UP)
           : BigDecimal.ZERO;
-      BigDecimal lineWeight = netWeight != null ? netWeight.multiply(proportion) : BigDecimal.ZERO;
+      BigDecimal lineWeight = netWeightAdjusted.multiply(proportion);
 
       GrnLine line = new GrnLine();
       line.setGrn(saved);
@@ -193,7 +209,7 @@ public class GrnService {
       line.setQuantity(lineQty);
       line.setExpectedQty(lineQty);
       line.setReceivedQty(defaultQty(qcLine.getReceivedQty(), lineQty));
-      line.setAcceptedQty(defaultQty(qcLine.getAcceptedQty(), lineQty));
+      line.setAcceptedQty(acceptedQty);
       line.setRejectedQty(defaultQty(qcLine.getRejectedQty(), BigDecimal.ZERO));
       line.setWeight(lineWeight);
       line.setRate(poLine.getRate());
@@ -339,6 +355,35 @@ public class GrnService {
 
   private BigDecimal defaultQty(BigDecimal value, BigDecimal fallback) {
     return value != null ? value : fallback;
+  }
+
+  private BigDecimal convertToKg(BigDecimal quantity, Uom uom) {
+    return convertToKg(quantity, uom, 0);
+  }
+
+  private BigDecimal convertToKg(BigDecimal quantity, Uom uom, int depth) {
+    if (quantity == null || uom == null || depth > 5) {
+      return BigDecimal.ZERO;
+    }
+    String code = uom.getCode() != null ? uom.getCode().trim().toUpperCase(Locale.ROOT) : "";
+    if (!code.isEmpty()) {
+      return switch (code) {
+        case "KG" -> quantity;
+        case "GM" -> quantity.divide(BigDecimal.valueOf(1000), 6, java.math.RoundingMode.HALF_UP);
+        case "MG" -> quantity.divide(BigDecimal.valueOf(1000000), 6, java.math.RoundingMode.HALF_UP);
+        case "TON" -> quantity.multiply(BigDecimal.valueOf(1000));
+        case "QTL" -> quantity.multiply(BigDecimal.valueOf(100));
+        default -> convertUsingBase(quantity, uom, depth);
+      };
+    }
+    return convertUsingBase(quantity, uom, depth);
+  }
+
+  private BigDecimal convertUsingBase(BigDecimal quantity, Uom uom, int depth) {
+    if (uom.getBaseUom() != null && uom.getConversionFactor() != null) {
+      return convertToKg(quantity.multiply(uom.getConversionFactor()), uom.getBaseUom(), depth + 1);
+    }
+    return BigDecimal.ZERO;
   }
 
   private PurchaseOrder getPurchaseOrder(Long purchaseOrderId) {

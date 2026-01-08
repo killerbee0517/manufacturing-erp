@@ -27,6 +27,7 @@ import MainCard from 'ui-component/cards/MainCard';
 import { gridSpacing } from 'store/constant';
 import apiClient from 'api/client';
 import MasterAutocomplete from 'components/common/MasterAutocomplete';
+import PartyBankAccountsDialog from 'views/erp/pages/masters/PartyBankAccountsDialog';
 
 const lookupEndpoints = {
   suppliers: '/api/suppliers',
@@ -34,16 +35,29 @@ const lookupEndpoints = {
   uoms: '/api/uoms',
   locations: '/api/locations',
   customers: '/api/customers',
-  banks: '/api/banks',
+  banks: '/api/banks/autocomplete',
   vehicles: '/api/vehicles',
   godowns: '/api/godowns',
   brokers: '/api/brokers',
+  parties: '/api/parties/autocomplete',
   roles: '/api/roles',
   tickets: '/api/weighbridge/tickets',
   salesOrders: '/api/sales-orders'
 };
 
 const hiddenFieldNames = new Set(['id', 'createdAt', 'updatedAt', 'serialNo', 'rfqNo', 'poNo', 'grnNo']);
+const partyAutofillDefaults = [
+  'name',
+  'address',
+  'state',
+  'country',
+  'pinCode',
+  'pan',
+  'gstNo',
+  'contact',
+  'email',
+  'bankId'
+];
 
 const buildEndpoint = (base, id) => {
   if (!base) return '';
@@ -57,6 +71,7 @@ export default function ModulePage({ config }) {
   const [debouncedFilters, setDebouncedFilters] = useState({ search: '', status: '' });
   const [formState, setFormState] = useState({});
   const [editingId, setEditingId] = useState(null);
+  const [bankAccountsPartyId, setBankAccountsPartyId] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
@@ -71,6 +86,11 @@ export default function ModulePage({ config }) {
   const isEditing = Boolean(editingId);
 
   const visibleFields = useMemo(() => fields.filter((field) => !hiddenFieldNames.has(field.name)), [fields]);
+  const visibleFieldNames = useMemo(() => new Set(visibleFields.map((field) => field.name)), [visibleFields]);
+  const partyAutofillFields = useMemo(
+    () => config.partyAutofillFields || partyAutofillDefaults,
+    [config.partyAutofillFields]
+  );
 
   useEffect(() => {
     const handle = setTimeout(() => {
@@ -93,15 +113,22 @@ export default function ModulePage({ config }) {
 
   const fetcher = useCallback(async () => {
     if (!config.listEndpoint) return [];
+    const extraParams = typeof config.listParams === 'function'
+      ? config.listParams()
+      : (config.listParams || {});
     const response = await apiClient.get(config.listEndpoint, {
       params: {
         q: debouncedFilters.search || undefined,
-        status: debouncedFilters.status || undefined
+        status: debouncedFilters.status || undefined,
+        ...extraParams
       }
     });
     const payload = response.data || [];
-    return payload.content || payload;
-  }, [config.listEndpoint, debouncedFilters]);
+    const rowsPayload = payload.content || payload;
+    return config.rowTransformer
+      ? rowsPayload.map((row) => config.rowTransformer(row))
+      : rowsPayload;
+  }, [config.listEndpoint, config.listParams, config.rowTransformer, debouncedFilters]);
 
   const {
     data: rows = [],
@@ -117,6 +144,35 @@ export default function ModulePage({ config }) {
     setFormState({});
     setEditingId(null);
   };
+
+  const applyPartyAutofill = useCallback(
+    (party) => {
+      if (!party) return;
+      setFormState((prev) => {
+        const next = { ...prev, partyId: party.id ?? prev.partyId };
+        partyAutofillFields.forEach((key) => {
+          if (!visibleFieldNames.has(key) || !Object.prototype.hasOwnProperty.call(party, key)) return;
+          next[key] = party[key] ?? '';
+        });
+        return next;
+      });
+    },
+    [partyAutofillFields, visibleFieldNames]
+  );
+
+  const handlePartyChange = useCallback(
+    async (nextValue) => {
+      setFormState((prev) => ({ ...prev, partyId: nextValue || '' }));
+      if (!nextValue || !config.partyAutofill) return;
+      try {
+        const response = await apiClient.get(`/api/parties/${nextValue}`);
+        applyPartyAutofill(response.data);
+      } catch {
+        // ignore lookup failures
+      }
+    },
+    [applyPartyAutofill, config.partyAutofill]
+  );
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -240,15 +296,34 @@ export default function ModulePage({ config }) {
                         return (
                           <Grid key={field.name} size={{ xs: 12, md: 6 }}>
                             {field.type === 'select' && field.optionsSource ? (
-                              <MasterAutocomplete
-                                label={field.label}
-                                endpoint={lookupEndpoints[field.optionsSource]}
-                                value={formState[field.name] || ''}
-                                onChange={(nextValue) => setFormState({ ...formState, [field.name]: nextValue })}
-                                optionLabelKey={field.optionLabel}
-                                optionValueKey={field.optionValue || 'id'}
-                                required={field.required}
-                              />
+                              <Stack spacing={1}>
+                                <MasterAutocomplete
+                                  label={field.label}
+                                  endpoint={lookupEndpoints[field.optionsSource]}
+                                  value={formState[field.name] || ''}
+                                  onChange={(nextValue) => {
+                                    if (field.name === 'partyId') {
+                                      handlePartyChange(nextValue);
+                                    } else {
+                                      setFormState({ ...formState, [field.name]: nextValue });
+                                    }
+                                  }}
+                                  optionLabelKey={field.optionLabel}
+                                  optionValueKey={field.optionValue || 'id'}
+                                  required={field.required}
+                                  queryParams={field.queryParams}
+                                />
+                                {field.manageRoute && (
+                                  <Button
+                                    size="small"
+                                    variant="outlined"
+                                    onClick={() => navigate(field.manageRoute)}
+                                    sx={{ alignSelf: 'flex-start' }}
+                                  >
+                                    {field.manageLabel || 'Manage'}
+                                  </Button>
+                                )}
+                              </Stack>
                             ) : field.type === 'select' ? (
                               <TextField
                                 fullWidth
@@ -350,23 +425,36 @@ export default function ModulePage({ config }) {
                             </TableCell>
                           ))}
                           {showActions && (
-                            <TableCell align="right" onClick={(event) => event.stopPropagation()}>
-                              {config.detailRouteBase && (
-                                <Button size="small" onClick={() => navigate(`${config.detailRouteBase}/${row.id}`)}>
-                                  View
-                                </Button>
-                              )}
-                              {config.editRouteBase && (
-                                <Button size="small" onClick={() => navigate(`${config.editRouteBase}/${row.id}/edit`)}>
-                                  Edit
-                                </Button>
-                              )}
-                              {allowInlineEdit && (
-                                <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end', mt: hasNavigationActions ? 1 : 0 }}>
-                                  <Button size="small" onClick={() => handleEdit(row)} disabled={actionLoading}>
-                                    Edit
-                                  </Button>
-                                  <Button
+                        <TableCell align="right" onClick={(event) => event.stopPropagation()}>
+                          {config.detailRouteBase && (
+                            <Button size="small" onClick={() => navigate(`${config.detailRouteBase}/${row.id}`)}>
+                              View
+                            </Button>
+                          )}
+                          {config.editRouteBase && (
+                            <Button size="small" onClick={() => navigate(`${config.editRouteBase}/${row.id}/edit`)}>
+                              Edit
+                            </Button>
+                          )}
+                          {config.enableBankAccounts && (
+                            <Button
+                              size="small"
+                              onClick={() => {
+                                const partyId = config.bankAccountsPartyField ? row[config.bankAccountsPartyField] : row.id;
+                                if (partyId) {
+                                  setBankAccountsPartyId(partyId);
+                                }
+                              }}
+                            >
+                              Bank Accounts
+                            </Button>
+                          )}
+                          {allowInlineEdit && (
+                            <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end', mt: hasNavigationActions ? 1 : 0 }}>
+                              <Button size="small" onClick={() => handleEdit(row)} disabled={actionLoading}>
+                                Edit
+                              </Button>
+                              <Button
                                     size="small"
                                     color="error"
                                     onClick={() => handleDelete(row.id)}
@@ -397,6 +485,11 @@ export default function ModulePage({ config }) {
           {snackbar.message}
         </Alert>
       </Snackbar>
+      <PartyBankAccountsDialog
+        open={Boolean(bankAccountsPartyId)}
+        partyId={bankAccountsPartyId}
+        onClose={() => setBankAccountsPartyId(null)}
+      />
     </>
   );
 }
@@ -409,12 +502,18 @@ ModulePage.propTypes = {
     updateEndpoint: PropTypes.string,
     deleteEndpoint: PropTypes.string,
     listEndpoint: PropTypes.string,
+    listParams: PropTypes.oneOfType([PropTypes.object, PropTypes.func]),
     fields: PropTypes.array,
     columns: PropTypes.array,
     buildPayload: PropTypes.func,
+    rowTransformer: PropTypes.func,
     useInlineCreate: PropTypes.bool,
     inlineEditable: PropTypes.bool,
     enableFilters: PropTypes.bool,
+    enableBankAccounts: PropTypes.bool,
+    bankAccountsPartyField: PropTypes.string,
+    partyAutofill: PropTypes.bool,
+    partyAutofillFields: PropTypes.arrayOf(PropTypes.string),
     detailRouteBase: PropTypes.string,
     editRouteBase: PropTypes.string
   }).isRequired

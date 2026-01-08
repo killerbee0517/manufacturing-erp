@@ -375,10 +375,19 @@ export default function RfqDetailPage() {
       setTab('request');
       const poIds = response.data?.poIdsBySupplier;
       const poRefs = response.data?.purchaseOrders || [];
-      const firstPoId = poRefs[0]?.poId || (poIds ? Object.values(poIds).flat()[0] : null);
-      if (firstPoId) {
-        navigate(`/purchase/po/${firstPoId}`);
+      const supplierPo = supplierFilter
+        ? poRefs.find((po) => Number(po.supplierId) === Number(supplierFilter))
+        : null;
+      const supplierPoId =
+        supplierPo?.poId
+        || (poIds && supplierFilter ? (poIds[supplierFilter] || [])[0] : null);
+      const fallbackPoId = poRefs[0]?.poId || (poIds ? Object.values(poIds).flat()[0] : null);
+      const targetPoId = supplierPoId || fallbackPoId;
+      if (targetPoId) {
+        navigate(`/purchase/po/${targetPoId}`);
       }
+    } catch (error) {
+      setAwardErrors({ form: error?.response?.data?.message || 'Unable to award RFQ. Please review the inputs.' });
     } finally {
       setAwarding(false);
     }
@@ -803,7 +812,11 @@ export default function RfqDetailPage() {
             >
               Compare &amp; Award
             </Button>
-            <Button variant="outlined" disabled={rfq.status !== 'DRAFT'} onClick={handleSubmit}>
+            <Button
+              variant="outlined"
+              disabled={rfq.status !== 'DRAFT'}
+              onClick={handleSubmit}
+            >
               Submit
             </Button>
             <Button

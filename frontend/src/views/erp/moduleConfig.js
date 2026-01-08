@@ -12,7 +12,11 @@ export const moduleConfigs = {
     subtitle: 'Masters',
     createEndpoint: '/api/suppliers',
     listEndpoint: '/api/suppliers',
+    enableBankAccounts: true,
+    bankAccountsPartyField: 'partyId',
+    partyAutofill: true,
     fields: [
+      { name: 'partyId', label: 'Existing Party (optional)', type: 'select', optionsSource: 'parties', optionLabel: 'name' },
       { name: 'name', label: 'Supplier Name', type: 'text', required: true },
       { name: 'code', label: 'Supplier Code', type: 'text', required: true },
       { name: 'address', label: 'Address', type: 'text' },
@@ -23,12 +27,18 @@ export const moduleConfigs = {
       { name: 'gstNo', label: 'GST No', type: 'text' },
       { name: 'contact', label: 'Contact', type: 'text' },
       { name: 'email', label: 'Email', type: 'text' },
-      { name: 'bankId', label: 'Bank', type: 'select', optionsSource: 'banks' },
-      { name: 'supplierType', label: 'Supplier Type', type: 'select', options: ['DIRECT', 'BROKER'] },
+      { name: 'bankId', label: 'Bank', type: 'select', optionsSource: 'banks', manageRoute: '/masters/banks', manageLabel: 'Manage banks' },
       { name: 'creditPeriod', label: 'Credit Period', type: 'number' }
     ],
+    buildPayload: (values) => ({
+      ...values,
+      partyId: values.partyId ? Number(values.partyId) : null,
+      creditPeriod: values.creditPeriod ? Number(values.creditPeriod) : null,
+      bankId: values.bankId ? Number(values.bankId) : null
+    }),
     columns: [
       { label: 'ID', field: 'id' },
+      { label: 'Party ID', field: 'partyId' },
       { label: 'Code', field: 'code' },
       { label: 'Name', field: 'name' },
       { label: 'GST No', field: 'gstNo' },
@@ -60,12 +70,47 @@ export const moduleConfigs = {
     listEndpoint: '/api/uoms',
     fields: [
       { name: 'code', label: 'UOM Code', type: 'text', required: true },
-      { name: 'description', label: 'Description', type: 'text' }
+      { name: 'description', label: 'Description', type: 'text' },
+      { name: 'baseUomId', label: 'Base UOM', type: 'select', optionsSource: 'uoms', optionLabel: 'code' },
+      { name: 'conversionFactor', label: 'Conversion Factor', type: 'number' }
     ],
+    buildPayload: (values) => ({
+      ...values,
+      baseUomId: values.baseUomId ? Number(values.baseUomId) : null,
+      conversionFactor: values.conversionFactor ? Number(values.conversionFactor) : null
+    }),
     columns: [
       { label: 'ID', field: 'id' },
       { label: 'Code', field: 'code' },
-      { label: 'Description', field: 'description' }
+      { label: 'Description', field: 'description' },
+      { label: 'Base UOM', field: 'baseUomCode' },
+      { label: 'Factor', field: 'conversionFactor' }
+    ]
+  },
+  companies: {
+    title: 'Company Master',
+    subtitle: 'Masters',
+    createEndpoint: '/api/companies',
+    listEndpoint: '/api/companies',
+    fields: [
+      { name: 'code', label: 'Company Code', type: 'text', required: true },
+      { name: 'name', label: 'Company Name', type: 'text', required: true },
+      { name: 'gstNo', label: 'GST No', type: 'text' },
+      { name: 'pan', label: 'PAN', type: 'text' },
+      { name: 'address', label: 'Address', type: 'text' },
+      { name: 'active', label: 'Active', type: 'select', options: [true, false] },
+      { name: 'parentCompanyId', label: 'Parent Company ID', type: 'number' }
+    ],
+    buildPayload: (values) => ({
+      ...values,
+      parentCompanyId: values.parentCompanyId ? Number(values.parentCompanyId) : null,
+      active: values.active === '' || values.active === undefined ? null : values.active
+    }),
+    columns: [
+      { label: 'ID', field: 'id' },
+      { label: 'Code', field: 'code' },
+      { label: 'Name', field: 'name' },
+      { label: 'Active', field: 'active' }
     ]
   },
   banks: {
@@ -124,7 +169,11 @@ export const moduleConfigs = {
     subtitle: 'Masters',
     createEndpoint: '/api/customers',
     listEndpoint: '/api/customers',
+    enableBankAccounts: true,
+    bankAccountsPartyField: 'partyId',
+    partyAutofill: true,
     fields: [
+      { name: 'partyId', label: 'Existing Party (optional)', type: 'select', optionsSource: 'parties', optionLabel: 'name' },
       { name: 'name', label: 'Customer Name', type: 'text', required: true },
       { name: 'code', label: 'Customer Code', type: 'text', required: true },
       { name: 'address', label: 'Address', type: 'text' },
@@ -135,11 +184,18 @@ export const moduleConfigs = {
       { name: 'gstNo', label: 'GST No', type: 'text' },
       { name: 'contact', label: 'Contact', type: 'text' },
       { name: 'email', label: 'Email', type: 'text' },
-      { name: 'bankId', label: 'Bank', type: 'select', optionsSource: 'banks' },
+      { name: 'bankId', label: 'Bank', type: 'select', optionsSource: 'banks', manageRoute: '/masters/banks', manageLabel: 'Manage banks' },
       { name: 'creditPeriod', label: 'Credit Period', type: 'number' }
     ],
+    buildPayload: (values) => ({
+      ...values,
+      partyId: values.partyId ? Number(values.partyId) : null,
+      creditPeriod: values.creditPeriod ? Number(values.creditPeriod) : null,
+      bankId: values.bankId ? Number(values.bankId) : null
+    }),
     columns: [
       { label: 'ID', field: 'id' },
+      { label: 'Party ID', field: 'partyId' },
       { label: 'Code', field: 'code' },
       { label: 'Name', field: 'name' },
       { label: 'GST No', field: 'gstNo' },
@@ -152,14 +208,39 @@ export const moduleConfigs = {
     subtitle: 'Masters',
     createEndpoint: '/api/brokers',
     listEndpoint: '/api/brokers',
+    enableBankAccounts: true,
+    bankAccountsPartyField: 'partyId',
+    partyAutofill: true,
     fields: [
+      { name: 'partyId', label: 'Existing Party (optional)', type: 'select', optionsSource: 'parties', optionLabel: 'name' },
       { name: 'name', label: 'Broker Name', type: 'text', required: true },
-      { name: 'code', label: 'Broker Code', type: 'text', required: true }
+      { name: 'code', label: 'Broker Code', type: 'text', required: true },
+      {
+        name: 'brokerCommissionType',
+        label: 'Commission Type',
+        type: 'select',
+        options: ['PERCENT', 'PER_QTY', 'FIXED']
+      },
+      { name: 'brokerCommissionRate', label: 'Commission Rate', type: 'number' },
+      {
+        name: 'brokeragePaidBy',
+        label: 'Brokerage Paid By',
+        type: 'select',
+        options: ['COMPANY', 'SUPPLIER']
+      }
     ],
+    buildPayload: (values) => ({
+      ...values,
+      partyId: values.partyId ? Number(values.partyId) : null,
+      brokerCommissionRate: values.brokerCommissionRate ? Number(values.brokerCommissionRate) : null
+    }),
     columns: [
       { label: 'ID', field: 'id' },
+      { label: 'Party ID', field: 'partyId' },
       { label: 'Name', field: 'name' },
-      { label: 'Code', field: 'code' }
+      { label: 'Code', field: 'code' },
+      { label: 'Commission Type', field: 'brokerCommissionType' },
+      { label: 'Commission Rate', field: 'brokerCommissionRate' }
     ]
   },
   chargeTypes: {
@@ -190,12 +271,21 @@ export const moduleConfigs = {
     subtitle: 'Masters',
     createEndpoint: '/api/expense-parties',
     listEndpoint: '/api/expense-parties',
+    enableBankAccounts: true,
+    bankAccountsPartyField: 'partyId',
+    partyAutofill: true,
     fields: [
+      { name: 'partyId', label: 'Existing Party (optional)', type: 'select', optionsSource: 'parties', optionLabel: 'name' },
       { name: 'name', label: 'Name', type: 'text', required: true },
       { name: 'partyType', label: 'Type', type: 'select', options: ['BROKER', 'VEHICLE', 'EXPENSE'], required: true }
     ],
+    buildPayload: (values) => ({
+      ...values,
+      partyId: values.partyId ? Number(values.partyId) : null
+    }),
     columns: [
       { label: 'ID', field: 'id' },
+      { label: 'Party ID', field: 'partyId' },
       { label: 'Name', field: 'name' },
       { label: 'Type', field: 'partyType' },
       { label: 'Ledger', field: 'ledgerId' }

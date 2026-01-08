@@ -20,6 +20,7 @@ export default function PurchaseArrivalDetailPage() {
   const [godownMap, setGodownMap] = useState({});
   const [ticketMap, setTicketMap] = useState({});
   const [chargeTypeMap, setChargeTypeMap] = useState({});
+  const [brokerMap, setBrokerMap] = useState({});
 
   useEffect(() => {
     setLoading(true);
@@ -72,6 +73,17 @@ export default function PurchaseArrivalDetailPage() {
         setChargeTypeMap(lookup);
       })
       .catch(() => setChargeTypeMap({}));
+
+    apiClient
+      .get('/api/brokers')
+      .then((response) => {
+        const lookup = (response.data || []).reduce((acc, broker) => {
+          acc[broker.id] = broker.name;
+          return acc;
+        }, {});
+        setBrokerMap(lookup);
+      })
+      .catch(() => setBrokerMap({}));
   }, [id]);
 
   if (!arrival) {
@@ -107,6 +119,10 @@ export default function PurchaseArrivalDetailPage() {
             <Typography variant="subtitle2">Godown</Typography>
             <Typography>{godownMap[arrival.godownId] || arrival.godownId || '-'}</Typography>
           </Grid>
+          <Grid size={{ xs: 12, md: 4 }}>
+            <Typography variant="subtitle2">Broker</Typography>
+            <Typography>{brokerMap[arrival.brokerId] || arrival.brokerName || arrival.brokerId || '-'}</Typography>
+          </Grid>
         </Grid>
         <Divider />
         <Grid container spacing={2}>
@@ -129,6 +145,10 @@ export default function PurchaseArrivalDetailPage() {
           <Grid size={{ xs: 12, md: 4 }}>
             <Typography variant="subtitle2">Net Payable</Typography>
             <Typography>{arrival.netPayable ?? '-'}</Typography>
+          </Grid>
+          <Grid size={{ xs: 12, md: 4 }}>
+            <Typography variant="subtitle2">Brokerage Amount</Typography>
+            <Typography>{arrival.brokerageAmount ?? '-'}</Typography>
           </Grid>
           <Grid size={{ xs: 12, md: 4 }}>
             <Typography variant="subtitle2">Created</Typography>

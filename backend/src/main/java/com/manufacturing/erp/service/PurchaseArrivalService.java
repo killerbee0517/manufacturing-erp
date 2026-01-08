@@ -1,7 +1,10 @@
 package com.manufacturing.erp.service;
 
+import com.manufacturing.erp.domain.Broker;
+import com.manufacturing.erp.domain.Enums.DocumentStatus;
 import com.manufacturing.erp.domain.Enums.LedgerType;
 import com.manufacturing.erp.domain.Enums.PayablePartyType;
+import com.manufacturing.erp.domain.Enums.QcStatus;
 import com.manufacturing.erp.domain.Godown;
 import com.manufacturing.erp.domain.Ledger;
 import com.manufacturing.erp.domain.PurchaseArrival;
@@ -9,6 +12,7 @@ import com.manufacturing.erp.domain.PurchaseArrivalCharge;
 import com.manufacturing.erp.domain.PurchaseOrder;
 import com.manufacturing.erp.domain.WeighbridgeTicket;
 import com.manufacturing.erp.dto.PurchaseArrivalDtos;
+import com.manufacturing.erp.repository.BrokerCommissionRuleRepository;
 import com.manufacturing.erp.repository.BrokerRepository;
 import com.manufacturing.erp.repository.DeductionChargeTypeRepository;
 import com.manufacturing.erp.repository.ExpensePartyRepository;
@@ -16,6 +20,7 @@ import com.manufacturing.erp.repository.GodownRepository;
 import com.manufacturing.erp.repository.PurchaseArrivalChargeRepository;
 import com.manufacturing.erp.repository.PurchaseArrivalRepository;
 import com.manufacturing.erp.repository.PurchaseOrderRepository;
+import com.manufacturing.erp.repository.QcInspectionRepository;
 import com.manufacturing.erp.repository.SupplierRepository;
 import com.manufacturing.erp.repository.VehicleRepository;
 import com.manufacturing.erp.repository.WeighbridgeTicketRepository;
@@ -40,6 +45,8 @@ public class PurchaseArrivalService {
   private final PurchaseArrivalChargeRepository purchaseArrivalChargeRepository;
   private final BrokerRepository brokerRepository;
   private final VehicleRepository vehicleRepository;
+  private final QcInspectionRepository qcInspectionRepository;
+  private final BrokerCommissionRuleRepository brokerCommissionRuleRepository;
 
   public PurchaseArrivalService(PurchaseArrivalRepository purchaseArrivalRepository,
                                 PurchaseOrderRepository purchaseOrderRepository,
@@ -52,7 +59,9 @@ public class PurchaseArrivalService {
                                 ExpensePartyRepository expensePartyRepository,
                                 PurchaseArrivalChargeRepository purchaseArrivalChargeRepository,
                                 BrokerRepository brokerRepository,
-                                VehicleRepository vehicleRepository) {
+                                VehicleRepository vehicleRepository,
+                                QcInspectionRepository qcInspectionRepository,
+                                BrokerCommissionRuleRepository brokerCommissionRuleRepository) {
     this.purchaseArrivalRepository = purchaseArrivalRepository;
     this.purchaseOrderRepository = purchaseOrderRepository;
     this.weighbridgeTicketRepository = weighbridgeTicketRepository;
@@ -65,18 +74,31 @@ public class PurchaseArrivalService {
     this.purchaseArrivalChargeRepository = purchaseArrivalChargeRepository;
     this.brokerRepository = brokerRepository;
     this.vehicleRepository = vehicleRepository;
+    this.qcInspectionRepository = qcInspectionRepository;
+    this.brokerCommissionRuleRepository = brokerCommissionRuleRepository;
   }
 
   @Transactional
   public PurchaseArrival createArrival(PurchaseArrivalDtos.CreatePurchaseArrivalRequest request) {
     PurchaseOrder purchaseOrder = purchaseOrderRepository.findById(request.purchaseOrderId())
         .orElseThrow(() -> new IllegalArgumentException("Purchase order not found"));
-    WeighbridgeTicket ticket = request.weighbridgeTicketId() != null
-        ? weighbridgeTicketRepository.findById(request.weighbridgeTicketId())
-            .orElseThrow(() -> new IllegalArgumentException("Weighbridge ticket not found"))
-        : null;
+    if (request.weighbridgeTicketId() == null) {
+      throw new IllegalArgumentException("Weighbridge ticket is required before purchase arrival");
+    }
+    WeighbridgeTicket ticket = weighbridgeTicketRepository.findById(request.weighbridgeTicketId())
+        .orElseThrow(() -> new IllegalArgumentException("Weighbridge ticket not found"));
+    if (ticket.getStatus() != DocumentStatus.UNLOADED) {
+      throw new IllegalStateException("Weighbridge ticket must be unloaded before purchase arrival");
+    }
+    if (!qcInspectionRepository.existsByWeighbridgeTicketIdAndStatus(ticket.getId(), QcStatus.APPROVED)) {
+      throw new IllegalStateException("QC approval is required before purchase arrival");
+    }
     Godown godown = godownRepository.findById(request.godownId())
         .orElseThrow(() -> new IllegalArgumentException("Godown not found"));
+    Broker broker = request.brokerId() != null
+        ? brokerRepository.findById(request.brokerId())
+            .orElseThrow(() -> new IllegalArgumentException("Broker not found"))
+        : null;
 
     BigDecimal unloadingCharges = defaultAmount(request.unloadingCharges());
     BigDecimal deductions = defaultAmount(request.deductions());
@@ -95,6 +117,9 @@ public class PurchaseArrivalService {
     PurchaseArrival arrival = new PurchaseArrival();
     arrival.setPurchaseOrder(purchaseOrder);
     arrival.setWeighbridgeTicket(ticket);
+    arrival.setBroker(broker);
+    BigDecimal brokerageAmount = resolveBrokerageAmount(broker, grossAmount);
+    arrival.setBrokerageAmount(brokerageAmount);
     arrival.setGodown(godown);
     arrival.setUnloadingCharges(unloadingCharges);
     arrival.setDeductions(deductions);
@@ -122,6 +147,7 @@ public class PurchaseArrivalService {
     Ledger unloadingLedger = ledgerService.findOrCreateLedger("Unloading Expense", LedgerType.EXPENSE);
     Ledger deductionLedger = ledgerService.findOrCreateLedger("Purchase Deductions", LedgerType.GENERAL);
     Ledger tdsLedger = ledgerService.findOrCreateLedger("TDS Payable", LedgerType.GENERAL);
+    Ledger brokerageLedger = ledgerService.findOrCreateLedger("Brokerage Expense", LedgerType.EXPENSE);
 
     List<VoucherService.VoucherLineRequest> lines = new java.util.ArrayList<>();
     lines.add(new VoucherService.VoucherLineRequest(purchaseLedger, grossAmount, BigDecimal.ZERO));
@@ -136,6 +162,13 @@ public class PurchaseArrivalService {
     }
     if (tdsAmount.compareTo(BigDecimal.ZERO) > 0) {
       lines.add(new VoucherService.VoucherLineRequest(tdsLedger, BigDecimal.ZERO, tdsAmount));
+    }
+    if (broker != null && brokerageAmount.compareTo(BigDecimal.ZERO) > 0) {
+      Ledger brokerLedger = ledgerForParty(PayablePartyType.BROKER, broker.getId());
+      if (brokerLedger != null) {
+        lines.add(new VoucherService.VoucherLineRequest(brokerageLedger, brokerageAmount, BigDecimal.ZERO));
+        lines.add(new VoucherService.VoucherLineRequest(brokerLedger, BigDecimal.ZERO, brokerageAmount));
+      }
     }
     if (supplierLedger != null) {
       lines.add(new VoucherService.VoucherLineRequest(supplierLedger, BigDecimal.ZERO, netPayable));
@@ -263,4 +296,16 @@ public class PurchaseArrivalService {
                                          List<PurchaseArrivalCharge> charges, List<ChargePosting> postings) {}
 
   private record ChargePosting(Ledger ledger, BigDecimal drAmount, BigDecimal crAmount) {}
+
+  private BigDecimal resolveBrokerageAmount(Broker broker, BigDecimal baseAmount) {
+    if (broker == null || baseAmount == null) {
+      return BigDecimal.ZERO;
+    }
+    var rule = brokerCommissionRuleRepository.findFirstByBrokerId(broker.getId());
+    if (rule.isEmpty() || rule.get().getRatePercent() == null) {
+      return BigDecimal.ZERO;
+    }
+    return baseAmount.multiply(rule.get().getRatePercent())
+        .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+  }
 }

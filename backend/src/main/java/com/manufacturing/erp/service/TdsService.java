@@ -27,7 +27,10 @@ public class TdsService {
 
   public BigDecimal calculateTds(Long supplierId, LocalDate invoiceDate, BigDecimal invoiceAmount) {
     SupplierTaxProfile profile = supplierTaxProfileRepository.findBySupplierId(supplierId)
-        .orElseThrow(() -> new IllegalArgumentException("Supplier tax profile missing"));
+        .orElse(null);
+    if (profile == null) {
+      return BigDecimal.ZERO;
+    }
     if (!profile.isTdsApplicable()) {
       return BigDecimal.ZERO;
     }

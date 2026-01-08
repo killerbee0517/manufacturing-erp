@@ -32,6 +32,13 @@ public class CompanyController {
     if (authentication == null || !authentication.isAuthenticated()) {
       throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized");
     }
+    boolean isAdmin = authentication.getAuthorities().stream()
+        .anyMatch(auth -> "ROLE_ADMIN".equals(auth.getAuthority()));
+    if (isAdmin) {
+      return companyRepository.findAll().stream()
+          .map(this::toResponse)
+          .toList();
+    }
     return companyRepository.findCompaniesForUser(authentication.getName()).stream()
         .map(this::toResponse)
         .toList();

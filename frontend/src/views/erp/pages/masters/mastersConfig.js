@@ -3,6 +3,7 @@ import { moduleConfigs } from 'views/erp/moduleConfig';
 export const mastersEntities = {
   suppliers: moduleConfigs.suppliers,
   customers: moduleConfigs.customers,
+  companies: moduleConfigs.companies,
   banks: moduleConfigs.banks,
   vehicles: moduleConfigs.vehicles,
   godowns: moduleConfigs.godowns,

@@ -1,0 +1,21 @@
+CREATE TABLE party_bank_accounts (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  company_id BIGINT NOT NULL,
+  party_id BIGINT NOT NULL,
+  bank_name VARCHAR(150) NOT NULL,
+  branch VARCHAR(120),
+  account_no VARCHAR(50),
+  ifsc VARCHAR(50),
+  swift_code VARCHAR(50),
+  account_type VARCHAR(50),
+  is_default BOOLEAN NOT NULL DEFAULT FALSE,
+  active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMP NOT NULL,
+  created_by VARCHAR(100) NOT NULL,
+  updated_at TIMESTAMP NOT NULL,
+  updated_by VARCHAR(100) NOT NULL,
+  INDEX idx_party_bank_accounts_party (party_id),
+  INDEX idx_party_bank_accounts_company (company_id),
+  CONSTRAINT fk_party_bank_accounts_party FOREIGN KEY (party_id) REFERENCES parties(id),
+  CONSTRAINT fk_party_bank_accounts_company FOREIGN KEY (company_id) REFERENCES companies(id)
+);

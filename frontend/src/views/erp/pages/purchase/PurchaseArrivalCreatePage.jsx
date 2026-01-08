@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
@@ -16,18 +16,23 @@ import MasterAutocomplete from 'components/common/MasterAutocomplete';
 
 export default function PurchaseArrivalCreatePage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [header, setHeader] = useState({
     purchaseOrderId: '',
     weighbridgeTicketId: '',
+    brokerId: '',
     godownId: '',
     unloadingCharges: '',
     deductions: '',
     tdsPercent: ''
   });
   const [purchaseOrders, setPurchaseOrders] = useState([]);
+  const [purchaseOrderMap, setPurchaseOrderMap] = useState({});
   const [tickets, setTickets] = useState([]);
+  const [ticketMap, setTicketMap] = useState({});
   const [grossAmount, setGrossAmount] = useState(0);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
   const [charges, setCharges] = useState([]);
   const [chargeTypes, setChargeTypes] = useState([]);
   const [expenseParties, setExpenseParties] = useState([]);
@@ -41,9 +46,30 @@ export default function PurchaseArrivalCreatePage() {
       .then((res) => {
         const payload = res.data?.content || res.data || [];
         setPurchaseOrders(payload);
+        const lookup = payload.reduce((acc, po) => {
+          acc[String(po.id)] = po;
+          return acc;
+        }, {});
+        setPurchaseOrderMap(lookup);
       })
-      .catch(() => setPurchaseOrders([]));
-    apiClient.get('/api/weighbridge/tickets').then((res) => setTickets(res.data || [])).catch(() => setTickets([]));
+      .catch(() => {
+        setPurchaseOrders([]);
+        setPurchaseOrderMap({});
+      });
+    apiClient.get('/api/weighbridge/tickets')
+      .then((res) => {
+        const payload = res.data || [];
+        setTickets(payload);
+        const lookup = payload.reduce((acc, ticket) => {
+          acc[String(ticket.id)] = ticket;
+          return acc;
+        }, {});
+        setTicketMap(lookup);
+      })
+      .catch(() => {
+        setTickets([]);
+        setTicketMap({});
+      });
     apiClient.get('/api/deduction-charge-types').then((res) => setChargeTypes(res.data || [])).catch(() => setChargeTypes([]));
     apiClient.get('/api/expense-parties').then((res) => setExpenseParties(res.data || [])).catch(() => setExpenseParties([]));
     apiClient.get('/api/brokers').then((res) => setBrokers(res.data || [])).catch(() => setBrokers([]));
@@ -51,13 +77,25 @@ export default function PurchaseArrivalCreatePage() {
     apiClient.get('/api/suppliers').then((res) => setSuppliers(res.data || [])).catch(() => setSuppliers([]));
   }, []);
 
+  useEffect(() => {
+    const poId = searchParams.get('poId');
+    const ticketId = searchParams.get('ticketId');
+    if (poId) {
+      handlePurchaseOrderChange(poId);
+      setHeader((prev) => ({ ...prev, purchaseOrderId: poId }));
+    }
+    if (ticketId) {
+      handleTicketChange(ticketId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
   const handleTicketChange = async (ticketId) => {
     setHeader((prev) => ({ ...prev, weighbridgeTicketId: ticketId }));
     if (!ticketId) return;
-    const response = await apiClient.get(`/api/weighbridge/tickets/${ticketId}`);
-    const ticket = response.data;
-    if (ticket.poId) {
-      await handlePurchaseOrderChange(ticket.poId);
+    const ticket = ticketMap[String(ticketId)];
+    if (ticket?.poId) {
+      handlePurchaseOrderChange(ticket.poId);
       setHeader((prev) => ({ ...prev, purchaseOrderId: ticket.poId }));
     }
   };
@@ -113,33 +151,47 @@ export default function PurchaseArrivalCreatePage() {
       setGrossAmount(0);
       return;
     }
-    const response = await apiClient.get(`/api/purchase-orders/${poId}`);
-    setGrossAmount(Number(response.data?.totalAmount || 0));
+    const po = purchaseOrderMap[String(poId)];
+    setGrossAmount(Number(po?.totalAmount || 0));
   };
 
   const handleSave = async () => {
     setSaving(true);
     try {
-      const payload = {
-        purchaseOrderId: Number(header.purchaseOrderId),
-        weighbridgeTicketId: header.weighbridgeTicketId ? Number(header.weighbridgeTicketId) : null,
-        godownId: Number(header.godownId),
-        unloadingCharges: header.unloadingCharges ? Number(header.unloadingCharges) : 0,
-        deductions: header.deductions ? Number(header.deductions) : 0,
-        tdsPercent: header.tdsPercent ? Number(header.tdsPercent) : 0,
-        charges: charges.map((charge) => ({
+      const filteredCharges = charges.filter((charge) => charge.chargeTypeId);
+      const payloadCharges = filteredCharges.map((charge) => {
+        const calcType = charge.calcType || null;
+        const rate = charge.rate !== '' && charge.rate !== undefined ? Number(charge.rate) : null;
+        let amount = charge.amount !== '' && charge.amount !== undefined ? Number(charge.amount) : null;
+        if (amount === null && calcType === 'PERCENT' && rate !== null) {
+          amount = Number(((grossAmount * rate) / 100).toFixed(2));
+        }
+        return {
           chargeTypeId: Number(charge.chargeTypeId),
-          calcType: charge.calcType || null,
-          rate: charge.rate ? Number(charge.rate) : null,
-          amount: charge.amount ? Number(charge.amount) : null,
+          calcType,
+          rate,
+          amount,
           isDeduction: charge.isDeduction ?? null,
           payablePartyType: charge.payablePartyType || 'SUPPLIER',
           payablePartyId: charge.payablePartyId ? Number(charge.payablePartyId) : null,
           remarks: charge.remarks || ''
-        }))
+        };
+      });
+      const payload = {
+        purchaseOrderId: Number(header.purchaseOrderId),
+        weighbridgeTicketId: header.weighbridgeTicketId ? Number(header.weighbridgeTicketId) : null,
+        brokerId: header.brokerId ? Number(header.brokerId) : null,
+        godownId: Number(header.godownId),
+        unloadingCharges: header.unloadingCharges ? Number(header.unloadingCharges) : 0,
+        deductions: header.deductions ? Number(header.deductions) : 0,
+        tdsPercent: header.tdsPercent ? Number(header.tdsPercent) : 0,
+        charges: payloadCharges
       };
-      const response = await apiClient.post('/api/purchase-arrivals', payload);
-      navigate(`/purchase/arrival/${response.data.id}`);
+      await apiClient.post('/api/purchase-arrivals', payload);
+      navigate(`/purchase/purchase-invoice?poId=${payload.purchaseOrderId}`);
+      setError('');
+    } catch (err) {
+      setError(err?.response?.data?.message || 'Failed to save purchase arrival.');
     } finally {
       setSaving(false);
     }
@@ -157,6 +209,7 @@ export default function PurchaseArrivalCreatePage() {
         }
       />
       <Stack spacing={3}>
+        {error && <Typography color="error">{error}</Typography>}
         <Grid container spacing={2}>
           <Grid size={{ xs: 12, md: 4 }}>
             <TextField
@@ -185,10 +238,26 @@ export default function PurchaseArrivalCreatePage() {
               value={header.weighbridgeTicketId}
               onChange={(event) => handleTicketChange(event.target.value)}
             >
-              <MenuItem value="">None</MenuItem>
+              <MenuItem value="">Select Ticket</MenuItem>
               {tickets.map((ticket) => (
                 <MenuItem key={ticket.id} value={ticket.id}>
                   {ticket.serialNo}
+                </MenuItem>
+              ))}
+            </TextField>
+          </Grid>
+          <Grid size={{ xs: 12, md: 4 }}>
+            <TextField
+              fullWidth
+              select
+              label="Broker"
+              value={header.brokerId}
+              onChange={(event) => setHeader((prev) => ({ ...prev, brokerId: event.target.value }))}
+            >
+              <MenuItem value="">Select Broker</MenuItem>
+              {brokers.map((broker) => (
+                <MenuItem key={broker.id} value={broker.id}>
+                  {broker.name}
                 </MenuItem>
               ))}
             </TextField>

@@ -35,7 +35,6 @@ export default function QcDetailPage() {
   const navigate = useNavigate();
   const [qc, setQc] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [approving, setApproving] = useState(false);
   const [rejecting, setRejecting] = useState(false);
   const [error, setError] = useState('');
@@ -78,7 +77,15 @@ export default function QcDetailPage() {
   const updateLine = (index, key, value) => {
     setLines((prev) => {
       const next = [...prev];
-      next[index] = { ...next[index], [key]: value };
+      const current = next[index] || {};
+      const updated = { ...current, [key]: value };
+      if (key === 'receivedQty' || key === 'rejectedQty') {
+        const received = Number(updated.receivedQty || 0);
+        const rejected = Number(updated.rejectedQty || 0);
+        const accepted = Math.max(0, received - rejected);
+        updated.acceptedQty = Number.isFinite(accepted) ? accepted : 0;
+      }
+      next[index] = updated;
       return next;
     });
   };
@@ -96,18 +103,6 @@ export default function QcDetailPage() {
       reason: line.reason || null
     }))
   });
-
-  const handleSave = async () => {
-    setSaving(true);
-    try {
-      await apiClient.put(`/api/qc/inspections/${id}`, buildPayload());
-      await loadQc();
-    } catch (err) {
-      setError(err?.message || 'Failed to save QC inspection.');
-    } finally {
-      setSaving(false);
-    }
-  };
 
   const handleApprove = async () => {
     setApproving(true);
@@ -142,7 +137,7 @@ export default function QcDetailPage() {
   if (!qc) {
     return (
       <MainCard>
-        <PageHeader title="QC Inspection Detail" breadcrumbs={[{ label: 'Purchase', to: '/purchase/qc' }, { label: 'Detail' }]} />
+        <PageHeader title="QC Detail" breadcrumbs={[{ label: 'Purchase', to: '/purchase/qc' }, { label: 'Detail' }]} />
         <Typography>{loading ? 'Loading...' : 'QC inspection not found.'}</Typography>
       </MainCard>
     );
@@ -151,7 +146,7 @@ export default function QcDetailPage() {
   return (
     <MainCard>
       <PageHeader
-        title={`QC Inspection ${qc.id}`}
+        title="QC Detail"
         breadcrumbs={[{ label: 'Purchase', to: '/purchase/qc' }, { label: 'QC Detail' }]}
         actions={
           <Stack direction="row" spacing={1}>
@@ -160,9 +155,6 @@ export default function QcDetailPage() {
                 View GRN
               </Button>
             )}
-            <Button variant="contained" color="secondary" onClick={handleSave} disabled={!isEditable || saving}>
-              Save
-            </Button>
             <Button variant="contained" color="primary" onClick={handleApprove} disabled={!isEditable || approving}>
               Approve
             </Button>
@@ -262,8 +254,7 @@ export default function QcDetailPage() {
                     <TextField
                       type="number"
                       value={line.acceptedQty}
-                      onChange={(event) => updateLine(index, 'acceptedQty', event.target.value)}
-                      disabled={!isEditable}
+                      InputProps={{ readOnly: true }}
                     />
                   </TableCell>
                   <TableCell>

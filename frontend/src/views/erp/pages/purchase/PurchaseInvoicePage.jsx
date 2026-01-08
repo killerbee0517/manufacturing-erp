@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import Button from '@mui/material/Button';
 import Stack from '@mui/material/Stack';
@@ -13,6 +13,7 @@ import apiClient from 'api/client';
 
 export default function PurchaseInvoicePage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selectedGrn, setSelectedGrn] = useState('');
@@ -32,6 +33,13 @@ export default function PurchaseInvoicePage() {
   useEffect(() => {
     fetchInvoices();
   }, []);
+
+  useEffect(() => {
+    const poId = searchParams.get('poId');
+    if (poId) {
+      setSelectedPo(poId);
+    }
+  }, [searchParams]);
 
   const handleCreate = async () => {
     if (!selectedGrn) return;

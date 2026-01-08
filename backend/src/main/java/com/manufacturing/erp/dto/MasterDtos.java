@@ -8,6 +8,7 @@ import java.util.List;
 
 public class MasterDtos {
   public record SupplierRequest(
+      Long partyId,
       @NotBlank String name,
       @NotBlank String code,
       String pan,
@@ -19,10 +20,10 @@ public class MasterDtos {
       String contact,
       String email,
       Long bankId,
-      String supplierType,
       Integer creditPeriod) {}
   public record SupplierResponse(
       Long id,
+      Long partyId,
       String name,
       String code,
       String pan,
@@ -35,7 +36,6 @@ public class MasterDtos {
       String email,
       Long bankId,
       String bankName,
-      String supplierType,
       Integer creditPeriod,
       Long ledgerId,
       BigDecimal currentBalance) {}
@@ -47,6 +47,7 @@ public class MasterDtos {
   public record LocationResponse(Long id, String name, String code, String locationType) {}
 
   public record CustomerRequest(
+      Long partyId,
       @NotBlank String name,
       @NotBlank String code,
       String address,
@@ -61,6 +62,7 @@ public class MasterDtos {
       Integer creditPeriod) {}
   public record CustomerResponse(
       Long id,
+      Long partyId,
       String name,
       String code,
       String address,
@@ -77,8 +79,15 @@ public class MasterDtos {
       Long ledgerId,
       BigDecimal currentBalance) {}
 
-  public record BrokerRequest(@NotBlank String name, @NotBlank String code) {}
-  public record BrokerResponse(Long id, String name, String code) {}
+  public record BrokerRequest(
+      Long partyId,
+      @NotBlank String name,
+      @NotBlank String code,
+      String brokerCommissionType,
+      BigDecimal brokerCommissionRate,
+      String brokeragePaidBy) {}
+  public record BrokerResponse(Long id, Long partyId, String name, String code,
+                               String brokerCommissionType, BigDecimal brokerCommissionRate, String brokeragePaidBy) {}
 
   public record VehicleRequest(@NotBlank String vehicleNo, String vehicleType, LocalDate registrationDate) {}
   public record VehicleResponse(Long id, String vehicleNo, String vehicleType, LocalDate registrationDate) {}

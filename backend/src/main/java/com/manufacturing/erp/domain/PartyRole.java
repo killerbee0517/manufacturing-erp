@@ -4,7 +4,6 @@ import com.manufacturing.erp.common.BaseEntity;
 import com.manufacturing.erp.domain.Enums.BrokerCommissionType;
 import com.manufacturing.erp.domain.Enums.BrokeragePaidBy;
 import com.manufacturing.erp.domain.Enums.PartyRoleType;
-import com.manufacturing.erp.domain.Enums.SupplierType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -33,9 +32,6 @@ public class PartyRole extends BaseEntity {
   @Column(name = "credit_period_days")
   private Integer creditPeriodDays;
 
-  @Enumerated(EnumType.STRING)
-  @Column(name = "supplier_type")
-  private SupplierType supplierType;
 
   @Enumerated(EnumType.STRING)
   @Column(name = "broker_commission_type")
@@ -81,14 +77,6 @@ public class PartyRole extends BaseEntity {
 
   public void setCreditPeriodDays(Integer creditPeriodDays) {
     this.creditPeriodDays = creditPeriodDays;
-  }
-
-  public SupplierType getSupplierType() {
-    return supplierType;
-  }
-
-  public void setSupplierType(SupplierType supplierType) {
-    this.supplierType = supplierType;
   }
 
   public BrokerCommissionType getBrokerCommissionType() {

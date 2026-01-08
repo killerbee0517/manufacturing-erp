@@ -51,6 +51,10 @@ public class Customer extends BaseEntity {
   @JoinColumn(name = "ledger_id")
   private Ledger ledger;
 
+  @ManyToOne
+  @JoinColumn(name = "party_id")
+  private Party party;
+
   public String getName() {
     return name;
   }
@@ -153,5 +157,13 @@ public class Customer extends BaseEntity {
 
   public void setLedger(Ledger ledger) {
     this.ledger = ledger;
+  }
+
+  public Party getParty() {
+    return party;
+  }
+
+  public void setParty(Party party) {
+    this.party = party;
   }
 }

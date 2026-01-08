@@ -116,12 +116,8 @@ public class Enums {
   public enum PartyRoleType {
     SUPPLIER,
     CUSTOMER,
-    BROKER
-  }
-
-  public enum SupplierType {
-    DIRECT,
-    BROKER
+    BROKER,
+    EXPENSE
   }
 
   public enum BrokerCommissionType {

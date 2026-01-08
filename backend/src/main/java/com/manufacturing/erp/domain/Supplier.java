@@ -44,15 +44,16 @@ public class Supplier extends BaseEntity {
   @JoinColumn(name = "bank_id")
   private Bank bank;
 
-  @Column(name = "supplier_type")
-  private String supplierType;
-
   @Column(name = "credit_period")
   private Integer creditPeriod;
 
   @ManyToOne
   @JoinColumn(name = "ledger_id")
   private Ledger ledger;
+
+  @ManyToOne
+  @JoinColumn(name = "party_id")
+  private Party party;
 
   public String getName() {
     return name;
@@ -142,14 +143,6 @@ public class Supplier extends BaseEntity {
     this.bank = bank;
   }
 
-  public String getSupplierType() {
-    return supplierType;
-  }
-
-  public void setSupplierType(String supplierType) {
-    this.supplierType = supplierType;
-  }
-
   public Integer getCreditPeriod() {
     return creditPeriod;
   }
@@ -164,5 +157,13 @@ public class Supplier extends BaseEntity {
 
   public void setLedger(Ledger ledger) {
     this.ledger = ledger;
+  }
+
+  public Party getParty() {
+    return party;
+  }
+
+  public void setParty(Party party) {
+    this.party = party;
   }
 }

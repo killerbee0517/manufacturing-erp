@@ -3,18 +3,19 @@ package com.manufacturing.erp.service;
 import com.manufacturing.erp.domain.Company;
 import com.manufacturing.erp.domain.DebitNote;
 import com.manufacturing.erp.domain.DebitNoteLine;
+import com.manufacturing.erp.domain.Enums.CalcType;
 import com.manufacturing.erp.domain.Enums.DebitNoteReason;
 import com.manufacturing.erp.domain.Enums.DocumentStatus;
 import com.manufacturing.erp.domain.Enums.LedgerType;
 import com.manufacturing.erp.domain.Ledger;
 import com.manufacturing.erp.domain.PurchaseInvoice;
-import com.manufacturing.erp.domain.PurchaseInvoiceLine;
+import com.manufacturing.erp.domain.PurchaseInvoiceCharge;
 import com.manufacturing.erp.domain.Supplier;
 import com.manufacturing.erp.dto.DebitNoteDtos;
 import com.manufacturing.erp.repository.CompanyRepository;
 import com.manufacturing.erp.repository.DebitNoteLineRepository;
 import com.manufacturing.erp.repository.DebitNoteRepository;
-import com.manufacturing.erp.repository.PurchaseInvoiceLineRepository;
+import com.manufacturing.erp.repository.PurchaseInvoiceChargeRepository;
 import com.manufacturing.erp.repository.PurchaseInvoiceRepository;
 import com.manufacturing.erp.repository.SupplierRepository;
 import com.manufacturing.erp.security.CompanyContext;
@@ -32,7 +33,7 @@ public class DebitNoteService {
   private final DebitNoteRepository debitNoteRepository;
   private final DebitNoteLineRepository debitNoteLineRepository;
   private final PurchaseInvoiceRepository purchaseInvoiceRepository;
-  private final PurchaseInvoiceLineRepository purchaseInvoiceLineRepository;
+  private final PurchaseInvoiceChargeRepository purchaseInvoiceChargeRepository;
   private final LedgerService ledgerService;
   private final VoucherService voucherService;
   private final SupplierRepository supplierRepository;
@@ -42,7 +43,7 @@ public class DebitNoteService {
   public DebitNoteService(DebitNoteRepository debitNoteRepository,
                           DebitNoteLineRepository debitNoteLineRepository,
                           PurchaseInvoiceRepository purchaseInvoiceRepository,
-                          PurchaseInvoiceLineRepository purchaseInvoiceLineRepository,
+                          PurchaseInvoiceChargeRepository purchaseInvoiceChargeRepository,
                           LedgerService ledgerService,
                           VoucherService voucherService,
                           SupplierRepository supplierRepository,
@@ -51,7 +52,7 @@ public class DebitNoteService {
     this.debitNoteRepository = debitNoteRepository;
     this.debitNoteLineRepository = debitNoteLineRepository;
     this.purchaseInvoiceRepository = purchaseInvoiceRepository;
-    this.purchaseInvoiceLineRepository = purchaseInvoiceLineRepository;
+    this.purchaseInvoiceChargeRepository = purchaseInvoiceChargeRepository;
     this.ledgerService = ledgerService;
     this.voucherService = voucherService;
     this.supplierRepository = supplierRepository;
@@ -81,16 +82,19 @@ public class DebitNoteService {
     DebitNote saved = debitNoteRepository.save(note);
     List<DebitNoteLine> lines = new ArrayList<>();
     BigDecimal total = BigDecimal.ZERO;
-    for (PurchaseInvoiceLine invoiceLine : purchaseInvoiceLineRepository.findByPurchaseInvoiceId(invoice.getId())) {
+    for (PurchaseInvoiceCharge charge : purchaseInvoiceChargeRepository.findByPurchaseInvoiceId(invoice.getId())) {
+      if (!charge.isDeduction()) {
+        continue;
+      }
       DebitNoteLine line = new DebitNoteLine();
       line.setDebitNote(saved);
-      line.setDescription(invoiceLine.getItem() != null ? invoiceLine.getItem().getName() : "Invoice line");
-      line.setBaseValue(invoiceLine.getAmount());
-      line.setRate(null);
-      line.setAmount(invoiceLine.getAmount());
+      line.setDescription(charge.getChargeType() != null ? charge.getChargeType().getName() : "Invoice deduction");
+      line.setBaseValue(charge.getCalcType() == CalcType.PERCENT ? invoice.getSubtotal() : null);
+      line.setRate(charge.getRate());
+      line.setAmount(charge.getAmount());
       line.setRemarks(null);
       lines.add(line);
-      total = total.add(invoiceLine.getAmount() != null ? invoiceLine.getAmount() : BigDecimal.ZERO);
+      total = total.add(charge.getAmount() != null ? charge.getAmount() : BigDecimal.ZERO);
     }
     if (!lines.isEmpty()) {
       debitNoteLineRepository.saveAll(lines);

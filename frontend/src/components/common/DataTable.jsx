@@ -33,7 +33,8 @@ export default function DataTable({
   rowsPerPage: controlledRowsPerPage,
   onPageChange,
   onRowsPerPageChange,
-  onSearch
+  onSearch,
+  hidePagination
 }) {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -152,31 +153,33 @@ export default function DataTable({
           </TableBody>
         </Table>
       </TableContainer>
-      <Box>
-        <TablePagination
-          component="div"
-          count={isServerPagination ? totalCount ?? filteredRows.length : filteredRows.length}
-          page={currentPage}
-          onPageChange={(_, newPage) => {
-            if (isServerPagination && onPageChange) {
-              onPageChange(newPage);
-            } else {
-              setPage(newPage);
-            }
-          }}
-          rowsPerPage={currentRowsPerPage}
-          onRowsPerPageChange={(event) => {
-            const next = parseInt(event.target.value, 10);
-            if (isServerPagination && onRowsPerPageChange) {
-              onRowsPerPageChange(next);
-            } else {
-              setRowsPerPage(next);
-              setPage(0);
-            }
-          }}
-          rowsPerPageOptions={[5, 10, 25]}
-        />
-      </Box>
+      {!hidePagination && (
+        <Box>
+          <TablePagination
+            component="div"
+            count={isServerPagination ? totalCount ?? filteredRows.length : filteredRows.length}
+            page={currentPage}
+            onPageChange={(_, newPage) => {
+              if (isServerPagination && onPageChange) {
+                onPageChange(newPage);
+              } else {
+                setPage(newPage);
+              }
+            }}
+            rowsPerPage={currentRowsPerPage}
+            onRowsPerPageChange={(event) => {
+              const next = parseInt(event.target.value, 10);
+              if (isServerPagination && onRowsPerPageChange) {
+                onRowsPerPageChange(next);
+              } else {
+                setRowsPerPage(next);
+                setPage(0);
+              }
+            }}
+            rowsPerPageOptions={[5, 10, 25]}
+          />
+        </Box>
+      )}
     </Stack>
   );
 }
@@ -202,7 +205,8 @@ DataTable.propTypes = {
   rowsPerPage: PropTypes.number,
   onPageChange: PropTypes.func,
   onRowsPerPageChange: PropTypes.func,
-  onSearch: PropTypes.func
+  onSearch: PropTypes.func,
+  hidePagination: PropTypes.bool
 };
 
 DataTable.defaultProps = {
@@ -218,5 +222,6 @@ DataTable.defaultProps = {
   rowsPerPage: undefined,
   onPageChange: undefined,
   onRowsPerPageChange: undefined,
-  onSearch: undefined
+  onSearch: undefined,
+  hidePagination: false
 };

@@ -1,6 +1,7 @@
 package com.manufacturing.erp.controller;
 
 import com.manufacturing.erp.domain.Party;
+import com.manufacturing.erp.domain.PartyBankAccount;
 import com.manufacturing.erp.domain.PartyRole;
 import com.manufacturing.erp.dto.PartyDtos;
 import com.manufacturing.erp.service.PartyService;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.DeleteMapping;
 
 @RestController
 @RequestMapping("/api/parties")
@@ -61,6 +63,31 @@ public class PartyController {
     return toResponse(partyService.update(id, request));
   }
 
+  @GetMapping("/{id}/bank-accounts")
+  public List<PartyDtos.PartyBankAccountResponse> listBankAccounts(@PathVariable Long id) {
+    return partyService.listBankAccounts(id).stream()
+        .map(this::toBankAccountResponse)
+        .toList();
+  }
+
+  @PostMapping("/{id}/bank-accounts")
+  public PartyDtos.PartyBankAccountResponse createBankAccount(@PathVariable Long id,
+                                                              @Valid @RequestBody PartyDtos.PartyBankAccountRequest request) {
+    return toBankAccountResponse(partyService.addBankAccount(id, request));
+  }
+
+  @PutMapping("/{id}/bank-accounts/{accountId}")
+  public PartyDtos.PartyBankAccountResponse updateBankAccount(@PathVariable Long id,
+                                                              @PathVariable Long accountId,
+                                                              @Valid @RequestBody PartyDtos.PartyBankAccountRequest request) {
+    return toBankAccountResponse(partyService.updateBankAccount(id, accountId, request));
+  }
+
+  @DeleteMapping("/{id}/bank-accounts/{accountId}")
+  public void deleteBankAccount(@PathVariable Long id, @PathVariable Long accountId) {
+    partyService.deleteBankAccount(id, accountId);
+  }
+
   private PartyDtos.PartyResponse toResponse(Party party) {
     List<PartyRole> roles = party.getCompany() != null ? partyService.getRolesForParty(party) : List.of();
     return new PartyDtos.PartyResponse(
@@ -81,12 +108,24 @@ public class PartyController {
         roles.stream().map(this::toRoleResponse).toList());
   }
 
+  private PartyDtos.PartyBankAccountResponse toBankAccountResponse(PartyBankAccount account) {
+    return new PartyDtos.PartyBankAccountResponse(
+        account.getId(),
+        account.getBankName(),
+        account.getBranch(),
+        account.getAccountNo(),
+        account.getIfsc(),
+        account.getSwiftCode(),
+        account.getAccountType(),
+        account.isDefault(),
+        account.isActive());
+  }
+
   private PartyDtos.PartyRoleResponse toRoleResponse(PartyRole role) {
     return new PartyDtos.PartyRoleResponse(
         role.getId(),
         role.getRoleType(),
         role.getCreditPeriodDays(),
-        role.getSupplierType(),
         role.getBrokerCommissionType(),
         role.getBrokerCommissionRate(),
         role.getBrokeragePaidBy(),

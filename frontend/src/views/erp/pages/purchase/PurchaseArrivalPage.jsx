@@ -71,6 +71,7 @@ export default function PurchaseArrivalPage() {
           rows={rows}
           loading={loading}
           emptyMessage="No purchase arrivals found."
+          hidePagination
           onRowClick={(row) => navigate(`/purchase/arrival/${row.id}`)}
         />
       </Stack>
