@@ -3,12 +3,14 @@ package com.manufacturing.erp.service;
 import com.manufacturing.erp.domain.Enums.DocumentStatus;
 import com.manufacturing.erp.domain.Enums.LedgerTxnType;
 import com.manufacturing.erp.domain.Enums.StockStatus;
+import com.manufacturing.erp.domain.Company;
 import com.manufacturing.erp.domain.Godown;
 import com.manufacturing.erp.domain.Item;
 import com.manufacturing.erp.domain.StockTransferHeader;
 import com.manufacturing.erp.domain.StockTransferLine;
 import com.manufacturing.erp.domain.Uom;
 import com.manufacturing.erp.dto.StockTransferDtos;
+import com.manufacturing.erp.repository.CompanyRepository;
 import com.manufacturing.erp.repository.GodownRepository;
 import com.manufacturing.erp.repository.ItemRepository;
 import com.manufacturing.erp.repository.StockTransferHeaderRepository;
@@ -17,6 +19,7 @@ import com.manufacturing.erp.repository.UomRepository;
 import java.util.ArrayList;
 import java.util.List;
 import org.springframework.stereotype.Service;
+import com.manufacturing.erp.security.CompanyContext;
 
 @Service
 public class StockTransferService {
@@ -26,24 +29,31 @@ public class StockTransferService {
   private final GodownRepository godownRepository;
   private final StockTransferHeaderRepository stockTransferHeaderRepository;
   private final StockTransferLineRepository stockTransferLineRepository;
+  private final CompanyRepository companyRepository;
+  private final CompanyContext companyContext;
 
   public StockTransferService(StockLedgerService stockLedgerService,
                               ItemRepository itemRepository,
                               UomRepository uomRepository,
                               GodownRepository godownRepository,
                               StockTransferHeaderRepository stockTransferHeaderRepository,
-                              StockTransferLineRepository stockTransferLineRepository) {
+                              StockTransferLineRepository stockTransferLineRepository,
+                              CompanyRepository companyRepository,
+                              CompanyContext companyContext) {
     this.stockLedgerService = stockLedgerService;
     this.itemRepository = itemRepository;
     this.uomRepository = uomRepository;
     this.godownRepository = godownRepository;
     this.stockTransferHeaderRepository = stockTransferHeaderRepository;
     this.stockTransferLineRepository = stockTransferLineRepository;
+    this.companyRepository = companyRepository;
+    this.companyContext = companyContext;
   }
 
   @org.springframework.transaction.annotation.Transactional(readOnly = true)
   public List<StockTransferDtos.StockTransferResponse> list(String status) {
-    return stockTransferHeaderRepository.findAll().stream()
+    Company company = requireCompany();
+    return stockTransferHeaderRepository.findByCompanyId(company.getId()).stream()
         .filter(header -> status == null || status.isBlank() || header.getStatus().name().equalsIgnoreCase(status))
         .map(this::toResponse)
         .toList();
@@ -51,16 +61,19 @@ public class StockTransferService {
 
   @org.springframework.transaction.annotation.Transactional(readOnly = true)
   public StockTransferDtos.StockTransferResponse get(Long id) {
-    StockTransferHeader header = stockTransferHeaderRepository.findById(id)
+    Company company = requireCompany();
+    StockTransferHeader header = stockTransferHeaderRepository.findByIdAndCompanyId(id, company.getId())
         .orElseThrow(() -> new IllegalArgumentException("Stock transfer not found"));
     return toResponse(header);
   }
 
   @org.springframework.transaction.annotation.Transactional
   public StockTransferDtos.StockTransferResponse save(StockTransferDtos.StockTransferRequest request) {
+    Company company = requireCompany();
     StockTransferHeader header = request.id() != null
-        ? stockTransferHeaderRepository.findById(request.id()).orElse(new StockTransferHeader())
+        ? stockTransferHeaderRepository.findByIdAndCompanyId(request.id(), company.getId()).orElse(new StockTransferHeader())
         : new StockTransferHeader();
+    header.setCompany(company);
     header.setTransferNo(request.transferNo() != null ? request.transferNo() : generateTransferNo());
     header.setFromGodown(fetchGodown(request.fromGodownId()));
     header.setToGodown(fetchGodown(request.toGodownId()));
@@ -86,7 +99,8 @@ public class StockTransferService {
 
   @org.springframework.transaction.annotation.Transactional
   public StockTransferDtos.StockTransferResponse post(Long id) {
-    StockTransferHeader header = stockTransferHeaderRepository.findById(id)
+    Company company = requireCompany();
+    StockTransferHeader header = stockTransferHeaderRepository.findByIdAndCompanyId(id, company.getId())
         .orElseThrow(() -> new IllegalArgumentException("Stock transfer not found"));
     if (header.getStatus() == DocumentStatus.POSTED) {
       return toResponse(header);
@@ -137,5 +151,14 @@ public class StockTransferService {
 
   private String generateTransferNo() {
     return "ST-" + System.currentTimeMillis();
+  }
+
+  private Company requireCompany() {
+    Long companyId = companyContext.getCompanyId();
+    if (companyId == null) {
+      throw new IllegalArgumentException("Missing company context");
+    }
+    return companyRepository.findById(companyId)
+        .orElseThrow(() -> new IllegalArgumentException("Company not found"));
   }
 }

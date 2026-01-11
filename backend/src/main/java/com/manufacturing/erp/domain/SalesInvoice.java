@@ -8,6 +8,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
+import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
@@ -19,6 +20,10 @@ import java.util.List;
 @Entity
 @Table(name = "sales_invoices")
 public class SalesInvoice extends BaseEntity {
+  @ManyToOne
+  @JoinColumn(name = "company_id", nullable = false)
+  private Company company;
+
   @Column(nullable = false)
   private String invoiceNo;
 
@@ -43,6 +48,14 @@ public class SalesInvoice extends BaseEntity {
 
   public String getInvoiceNo() {
     return invoiceNo;
+  }
+
+  public Company getCompany() {
+    return company;
+  }
+
+  public void setCompany(Company company) {
+    this.company = company;
   }
 
   public void setInvoiceNo(String invoiceNo) {

@@ -22,5 +22,7 @@ public interface PurchaseInvoiceRepository extends JpaRepository<PurchaseInvoice
 
   List<PurchaseInvoice> findByPurchaseOrderCompanyId(Long companyId);
 
+  long countByPurchaseOrderCompanyId(Long companyId);
+
   Optional<PurchaseInvoice> findByIdAndPurchaseOrderCompanyId(Long id, Long companyId);
 }

@@ -113,10 +113,7 @@ public class DebitNoteService {
     note.setDnDate(request.dnDate() != null ? request.dnDate() : LocalDate.now());
     note.setNarration(request.narration());
 
-    List<DebitNoteLine> existingLines = debitNoteLineRepository.findByDebitNoteId(note.getId());
-    if (!existingLines.isEmpty()) {
-      debitNoteLineRepository.deleteAll(existingLines);
-    }
+    note.getLines().clear();
 
     BigDecimal total = BigDecimal.ZERO;
     List<DebitNoteLine> lines = new ArrayList<>();
@@ -142,7 +139,7 @@ public class DebitNoteService {
       debitNoteLineRepository.saveAll(lines);
     }
     note.setTotalDeduction(total);
-    note.setLines(lines);
+    note.getLines().addAll(lines);
     return debitNoteRepository.save(note);
   }
 
@@ -152,7 +149,10 @@ public class DebitNoteService {
     if (note.getStatus() == DocumentStatus.POSTED) {
       return note;
     }
-    BigDecimal total = note.getTotalDeduction() != null ? note.getTotalDeduction() : BigDecimal.ZERO;
+    BigDecimal total = debitNoteLineRepository.findByDebitNoteId(note.getId()).stream()
+        .map(line -> line.getAmount() != null ? line.getAmount() : BigDecimal.ZERO)
+        .reduce(BigDecimal.ZERO, BigDecimal::add);
+    note.setTotalDeduction(total);
     if (total.compareTo(BigDecimal.ZERO) > 0) {
       Ledger supplierLedger = ensureSupplierLedger(note.getSupplier());
       Ledger deductionLedger = ledgerService.findOrCreateLedger("Purchase Deductions", LedgerType.GENERAL);

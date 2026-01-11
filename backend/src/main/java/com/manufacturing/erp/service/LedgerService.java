@@ -39,6 +39,23 @@ public class LedgerService {
         .orElseGet(() -> createLedger(name, type, null, null));
   }
 
+  @Transactional
+  public Ledger findOrCreateLedger(String name, LedgerType type, boolean enabled) {
+    Ledger ledger = ledgerRepository.findByNameAndType(name, type)
+        .orElseGet(() -> {
+          Ledger created = new Ledger();
+          created.setName(name);
+          created.setType(type);
+          created.setEnabled(enabled);
+          return ledgerRepository.save(created);
+        });
+    if (ledger.isEnabled() != enabled) {
+      ledger.setEnabled(enabled);
+      ledger = ledgerRepository.save(ledger);
+    }
+    return ledger;
+  }
+
   public BigDecimal getBalance(Long ledgerId) {
     BigDecimal balance = voucherLineRepository.findBalanceForLedger(ledgerId);
     return balance != null ? balance : BigDecimal.ZERO;

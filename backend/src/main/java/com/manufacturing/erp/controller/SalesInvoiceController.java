@@ -3,6 +3,7 @@ package com.manufacturing.erp.controller;
 import com.manufacturing.erp.domain.SalesInvoice;
 import com.manufacturing.erp.dto.StockDtos;
 import com.manufacturing.erp.repository.SalesInvoiceRepository;
+import com.manufacturing.erp.security.CompanyContext;
 import com.manufacturing.erp.service.SalesInvoiceService;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -17,16 +18,20 @@ import org.springframework.web.bind.annotation.RestController;
 public class SalesInvoiceController {
   private final SalesInvoiceService salesInvoiceService;
   private final SalesInvoiceRepository salesInvoiceRepository;
+  private final CompanyContext companyContext;
 
   public SalesInvoiceController(SalesInvoiceService salesInvoiceService,
-                                SalesInvoiceRepository salesInvoiceRepository) {
+                                SalesInvoiceRepository salesInvoiceRepository,
+                                CompanyContext companyContext) {
     this.salesInvoiceService = salesInvoiceService;
     this.salesInvoiceRepository = salesInvoiceRepository;
+    this.companyContext = companyContext;
   }
 
   @GetMapping
   public List<SalesInvoiceResponse> list() {
-    return salesInvoiceRepository.findAll().stream()
+    Long companyId = requireCompanyId();
+    return salesInvoiceRepository.findByCompanyId(companyId).stream()
         .map(invoice -> new SalesInvoiceResponse(
             invoice.getId(),
             invoice.getInvoiceNo(),
@@ -41,6 +46,14 @@ public class SalesInvoiceController {
   @PostMapping
   public SalesInvoice create(@Valid @RequestBody StockDtos.SalesInvoiceRequest request) {
     return salesInvoiceService.postInvoice(request);
+  }
+
+  private Long requireCompanyId() {
+    Long companyId = companyContext.getCompanyId();
+    if (companyId == null) {
+      throw new IllegalArgumentException("Missing company context");
+    }
+    return companyId;
   }
 
   public record SalesInvoiceResponse(

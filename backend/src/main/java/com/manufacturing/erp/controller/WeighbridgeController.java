@@ -60,6 +60,7 @@ public class WeighbridgeController {
         ticket.getPurchaseOrder() != null ? ticket.getPurchaseOrder().getId() : null,
         ticket.getSupplier() != null ? ticket.getSupplier().getId() : null,
         ticket.getItem() != null ? ticket.getItem().getId() : null,
+        ticket.getSupplierInvoiceNo(),
         ticket.getDateIn(),
         ticket.getTimeIn(),
         ticket.getSecondDate(),

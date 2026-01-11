@@ -17,9 +17,27 @@ import MainCard from 'ui-component/cards/MainCard';
 import PageHeader from 'components/common/PageHeader';
 import DataTable from 'components/common/DataTable';
 import MasterAutocomplete from 'components/common/MasterAutocomplete';
+import apiClient from 'api/client';
 import { productionApi } from 'api/production';
 
-const createStep = (stepNo = 1) => ({ stepNo, stepName: '', stepType: 'PROCESS', notes: '' });
+const createStepCharge = () => ({
+  chargeTypeId: '',
+  calcType: '',
+  rate: '',
+  perQty: false,
+  isDeduction: false,
+  payablePartyType: 'EXPENSE',
+  payablePartyId: '',
+  remarks: ''
+});
+
+const createStep = (stepNo = 1) => ({
+  stepNo,
+  stepName: '',
+  stepType: 'PROCESS',
+  notes: '',
+  charges: [createStepCharge()]
+});
 const createInput = () => ({ itemId: '', uomId: '', defaultQty: '', optional: false, notes: '' });
 const createOutput = () => ({ itemId: '', uomId: '', defaultRatio: '', outputType: 'FG', notes: '' });
 
@@ -28,6 +46,11 @@ export default function ProcessTemplatesPage() {
   const [loading, setLoading] = useState(false);
   const [activeTemplate, setActiveTemplate] = useState(null);
   const [editingTemplateId, setEditingTemplateId] = useState(null);
+  const [chargeTypes, setChargeTypes] = useState([]);
+  const [expenseParties, setExpenseParties] = useState([]);
+  const [brokers, setBrokers] = useState([]);
+  const [vehicles, setVehicles] = useState([]);
+  const [suppliers, setSuppliers] = useState([]);
   const [formValues, setFormValues] = useState({
     code: '',
     name: '',
@@ -59,6 +82,32 @@ export default function ProcessTemplatesPage() {
 
   useEffect(() => {
     loadTemplates();
+  }, []);
+
+  useEffect(() => {
+    const loadParties = async () => {
+      try {
+        const [expenseRes, brokerRes, vehicleRes, supplierRes, chargesRes] = await Promise.all([
+          apiClient.get('/api/expense-parties'),
+          apiClient.get('/api/brokers'),
+          apiClient.get('/api/vehicles'),
+          apiClient.get('/api/suppliers'),
+          apiClient.get('/api/deduction-charge-types')
+        ]);
+        setExpenseParties(expenseRes.data || []);
+        setBrokers(brokerRes.data || []);
+        setVehicles(vehicleRes.data || []);
+        setSuppliers(supplierRes.data || []);
+        setChargeTypes(chargesRes.data || []);
+      } catch {
+        setExpenseParties([]);
+        setBrokers([]);
+        setVehicles([]);
+        setSuppliers([]);
+        setChargeTypes([]);
+      }
+    };
+    loadParties();
   }, []);
 
   const resetForm = () => {
@@ -108,7 +157,19 @@ export default function ProcessTemplatesPage() {
             stepNo: step.stepNo || 1,
             stepName: step.stepName || '',
             stepType: step.stepType || 'PROCESS',
-            notes: step.notes || ''
+            notes: step.notes || '',
+            charges: (step.charges || []).length
+              ? step.charges.map((charge) => ({
+                  chargeTypeId: charge.chargeTypeId || '',
+                  calcType: charge.calcType || '',
+                  rate: charge.rate ?? '',
+                  perQty: charge.perQty ?? false,
+                  isDeduction: charge.isDeduction ?? false,
+                  payablePartyType: charge.payablePartyType || 'EXPENSE',
+                  payablePartyId: charge.payablePartyId || '',
+                  remarks: charge.remarks || ''
+                }))
+              : [createStepCharge()]
           }))
         : [createStep()]
     });
@@ -135,6 +196,31 @@ export default function ProcessTemplatesPage() {
       ...prev,
       steps: prev.steps.filter((_, idx) => idx !== index).map((step, idx) => ({ ...step, stepNo: idx + 1 }))
     }));
+  };
+
+  const getChargeType = (id) => chargeTypes.find((ct) => ct.id === id);
+
+  const updateStepCharge = (stepIndex, chargeIndex, patch) => {
+    setFormValues((prev) => {
+      const steps = [...prev.steps];
+      const step = steps[stepIndex] || createStep(stepIndex + 1);
+      const charges = [...(step.charges || [])];
+      const existing = charges[chargeIndex] || createStepCharge();
+      const merged = { ...existing, ...patch };
+      const type = merged.chargeTypeId ? getChargeType(Number(merged.chargeTypeId)) : null;
+      if (merged.calcType === '') {
+        merged.calcType = type?.defaultCalcType || '';
+      }
+      if (merged.rate === '' || merged.rate === undefined) {
+        merged.rate = type?.defaultRate ?? '';
+      }
+      if (merged.isDeduction === undefined && type) {
+        merged.isDeduction = type.isDeduction;
+      }
+      charges[chargeIndex] = merged;
+      steps[stepIndex] = { ...step, charges };
+      return { ...prev, steps };
+    });
   };
 
   const handleCreateOrUpdate = async (event) => {
@@ -167,7 +253,19 @@ export default function ProcessTemplatesPage() {
         stepNo: Number(step.stepNo || 1),
         stepName: step.stepName,
         stepType: step.stepType || 'PROCESS',
-        notes: step.notes || null
+        notes: step.notes || null,
+        charges: (step.charges || [])
+          .filter((charge) => charge.chargeTypeId)
+          .map((charge) => ({
+            chargeTypeId: Number(charge.chargeTypeId),
+            calcType: charge.calcType || null,
+            rate: charge.rate !== '' && charge.rate !== undefined ? Number(charge.rate) : null,
+            perQty: Boolean(charge.perQty),
+            isDeduction: charge.isDeduction ?? null,
+            payablePartyType: charge.payablePartyType || 'EXPENSE',
+            payablePartyId: charge.payablePartyId ? Number(charge.payablePartyId) : null,
+            remarks: charge.remarks || null
+          }))
       }))
     };
     if (editingTemplateId) {
@@ -484,6 +582,162 @@ export default function ProcessTemplatesPage() {
                         value={step.notes}
                         onChange={(event) => handleStepChange(index, 'notes', event.target.value)}
                       />
+                      <Typography variant="subtitle2">Step Charges</Typography>
+                      {(step.charges || []).map((charge, chargeIndex) => {
+                        const typeInfo = getChargeType(Number(charge.chargeTypeId));
+                        const mode = charge.calcType === 'PERCENT' ? 'PERCENT' : charge.perQty ? 'PER_QTY' : 'FLAT';
+                        return (
+                          <Stack key={`step-charge-${index}-${chargeIndex}`} spacing={1}>
+                            <Grid container spacing={1}>
+                              <Grid size={{ xs: 12, md: 4 }}>
+                                <TextField
+                                  select
+                                  fullWidth
+                                  label="Charge Type"
+                                  value={charge.chargeTypeId || ''}
+                                  onChange={(event) =>
+                                    updateStepCharge(index, chargeIndex, { chargeTypeId: Number(event.target.value) })
+                                  }
+                                >
+                                  <MenuItem value="">Select</MenuItem>
+                                  {chargeTypes.map((ct) => (
+                                    <MenuItem key={ct.id} value={ct.id}>
+                                      {ct.name} ({ct.isDeduction ? 'Deduction' : 'Charge'})
+                                    </MenuItem>
+                                  ))}
+                                </TextField>
+                              </Grid>
+                              <Grid size={{ xs: 12, md: 4 }}>
+                                <TextField
+                                  select
+                                  fullWidth
+                                  label="Charge Mode"
+                                  value={mode}
+                                  onChange={(event) => {
+                                    const nextMode = event.target.value;
+                                    updateStepCharge(index, chargeIndex, {
+                                      perQty: nextMode === 'PER_QTY',
+                                      calcType: nextMode === 'PERCENT' ? 'PERCENT' : 'FLAT'
+                                    });
+                                  }}
+                                >
+                                  <MenuItem value="PER_QTY">Per Qty</MenuItem>
+                                  <MenuItem value="FLAT">Flat</MenuItem>
+                                  <MenuItem value="PERCENT">Percent</MenuItem>
+                                </TextField>
+                              </Grid>
+                              <Grid size={{ xs: 12, md: 4 }}>
+                                <TextField
+                                  fullWidth
+                                  type="number"
+                                  label="Rate / Value"
+                                  value={charge.rate ?? typeInfo?.defaultRate ?? ''}
+                                  onChange={(event) => updateStepCharge(index, chargeIndex, { rate: event.target.value })}
+                                />
+                              </Grid>
+                            </Grid>
+                            <Grid container spacing={1}>
+                              <Grid size={{ xs: 12, md: 4 }}>
+                                <TextField
+                                  select
+                                  fullWidth
+                                  label="Payable Type"
+                                  value={charge.payablePartyType || 'EXPENSE'}
+                                  onChange={(event) =>
+                                    updateStepCharge(index, chargeIndex, {
+                                      payablePartyType: event.target.value,
+                                      payablePartyId: ''
+                                    })
+                                  }
+                                >
+                                  <MenuItem value="SUPPLIER">Supplier</MenuItem>
+                                  <MenuItem value="BROKER">Broker</MenuItem>
+                                  <MenuItem value="VEHICLE">Vehicle</MenuItem>
+                                  <MenuItem value="EXPENSE">Expense Party</MenuItem>
+                                </TextField>
+                              </Grid>
+                              <Grid size={{ xs: 12, md: 4 }}>
+                                <TextField
+                                  select
+                                  fullWidth
+                                  label="Payee"
+                                  value={charge.payablePartyId || ''}
+                                  onChange={(event) =>
+                                    updateStepCharge(index, chargeIndex, { payablePartyId: event.target.value })
+                                  }
+                                >
+                                  <MenuItem value="">Select</MenuItem>
+                                  {(charge.payablePartyType || 'EXPENSE') === 'SUPPLIER' &&
+                                    suppliers.map((supplier) => (
+                                      <MenuItem key={supplier.id} value={supplier.id}>
+                                        {supplier.name}
+                                      </MenuItem>
+                                    ))}
+                                  {(charge.payablePartyType || 'EXPENSE') === 'BROKER' &&
+                                    brokers.map((broker) => (
+                                      <MenuItem key={broker.id} value={broker.id}>
+                                        {broker.name}
+                                      </MenuItem>
+                                    ))}
+                                  {(charge.payablePartyType || 'EXPENSE') === 'VEHICLE' &&
+                                    vehicles.map((vehicle) => (
+                                      <MenuItem key={vehicle.id} value={vehicle.id}>
+                                        {vehicle.vehicleNo}
+                                      </MenuItem>
+                                    ))}
+                                  {(charge.payablePartyType || 'EXPENSE') === 'EXPENSE' &&
+                                    expenseParties.map((party) => (
+                                      <MenuItem key={party.id} value={party.id}>
+                                        {party.name}
+                                      </MenuItem>
+                                    ))}
+                                </TextField>
+                              </Grid>
+                              <Grid size={{ xs: 12, md: 4 }}>
+                                <TextField
+                                  fullWidth
+                                  label="Remarks"
+                                  value={charge.remarks || ''}
+                                  onChange={(event) =>
+                                    updateStepCharge(index, chargeIndex, { remarks: event.target.value })
+                                  }
+                                />
+                              </Grid>
+                            </Grid>
+                            {(step.charges || []).length > 1 && (
+                              <Button
+                                variant="text"
+                                color="error"
+                                onClick={() =>
+                                  setFormValues((prev) => {
+                                    const steps = [...prev.steps];
+                                    const charges = [...(steps[index].charges || [])];
+                                    charges.splice(chargeIndex, 1);
+                                    steps[index] = { ...steps[index], charges };
+                                    return { ...prev, steps };
+                                  })
+                                }
+                              >
+                                Remove Charge
+                              </Button>
+                            )}
+                            <Divider />
+                          </Stack>
+                        );
+                      })}
+                      <Button
+                        variant="outlined"
+                        onClick={() =>
+                          setFormValues((prev) => {
+                            const steps = [...prev.steps];
+                            const charges = [...(steps[index].charges || []), createStepCharge()];
+                            steps[index] = { ...steps[index], charges };
+                            return { ...prev, steps };
+                          })
+                        }
+                      >
+                        Add Charge
+                      </Button>
                       {formValues.steps.length > 1 && (
                         <Button variant="text" color="error" onClick={() => handleRemoveStep(index)}>
                           Remove Step
@@ -536,6 +790,20 @@ export default function ProcessTemplatesPage() {
                           <Typography variant="body2" color="text.secondary">
                             {step.stepType} {step.notes || ''}
                           </Typography>
+                          {(step.charges || []).length > 0 && (
+                            <Stack spacing={1} sx={{ marginTop: 1 }}>
+                              {step.charges.map((charge) => (
+                                <Typography key={charge.id || charge.chargeTypeId} variant="body2" color="text.secondary">
+                                  {charge.chargeTypeName || 'Charge'}{' '}
+                                  {charge.calcType === 'PERCENT'
+                                    ? `${charge.rate || 0}%`
+                                    : charge.perQty
+                                      ? `@ ${charge.rate || 0} per qty`
+                                      : `@ ${charge.rate || 0} flat`}
+                                </Typography>
+                              ))}
+                            </Stack>
+                          )}
                         </CardContent>
                       </Card>
                     </Grid>

@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import Autocomplete from '@mui/material/Autocomplete';
 import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
 import Grid from '@mui/material/Grid';
@@ -17,12 +18,12 @@ import MainCard from 'ui-component/cards/MainCard';
 import PageHeader from 'components/common/PageHeader';
 import apiClient from 'api/client';
 import MasterAutocomplete from 'components/common/MasterAutocomplete';
+import CompanyField from 'components/common/CompanyField';
 
 const emptyLine = () => ({
   key: Date.now() + Math.random(),
   itemId: '',
   uomId: '',
-  brokerId: '',
   quantity: '',
   rateExpected: '',
   remarks: ''
@@ -35,10 +36,27 @@ export default function RfqCreatePage() {
     paymentTerms: '',
     narration: ''
   });
-  const [supplierInput, setSupplierInput] = useState('');
   const [suppliers, setSuppliers] = useState([]);
+  const [supplierOptions, setSupplierOptions] = useState([]);
+  const [supplierLoading, setSupplierLoading] = useState(false);
+  const [supplierSearch, setSupplierSearch] = useState('');
   const [lines, setLines] = useState([emptyLine()]);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const handle = setTimeout(() => {
+      setSupplierLoading(true);
+      apiClient
+        .get('/api/suppliers', { params: { q: supplierSearch || undefined, limit: 25 } })
+        .then((response) => {
+          const payload = response.data || [];
+          setSupplierOptions(payload.content || payload);
+        })
+        .catch(() => setSupplierOptions([]))
+        .finally(() => setSupplierLoading(false));
+    }, 300);
+    return () => clearTimeout(handle);
+  }, [supplierSearch]);
 
   const getLineAmount = (line) => {
     const quantity = Number(line.quantity);
@@ -66,19 +84,6 @@ export default function RfqCreatePage() {
     setLines((prev) => (prev.length <= 1 ? prev : prev.filter((_, idx) => idx !== index)));
   };
 
-  const addSupplier = (supplierId, label) => {
-    if (!supplierId) return;
-    setSuppliers((prev) => {
-      if (prev.find((s) => s.id === supplierId)) return prev;
-      return [...prev, { id: supplierId, name: label }];
-    });
-    setSupplierInput('');
-  };
-
-  const removeSupplier = (supplierId) => {
-    setSuppliers((prev) => prev.filter((s) => s.id !== supplierId));
-  };
-
   const handleSave = async () => {
     if (!suppliers.length) {
       alert('Please add at least one supplier before saving.');
@@ -94,7 +99,6 @@ export default function RfqCreatePage() {
         lines: lines.map((line) => ({
           itemId: Number(line.itemId),
           uomId: Number(line.uomId),
-          brokerId: line.brokerId ? Number(line.brokerId) : null,
           quantity: Number(line.quantity),
           rateExpected: line.rateExpected ? Number(line.rateExpected) : null,
           remarks: line.remarks
@@ -120,29 +124,8 @@ export default function RfqCreatePage() {
       />
       <Stack spacing={3}>
         <Grid container spacing={2}>
-          <Grid size={{ xs: 12, md: 6 }}>
-            <Stack spacing={1}>
-              <Typography variant="h6">Suppliers</Typography>
-              <MasterAutocomplete
-                label="Add Supplier"
-                endpoint="/api/suppliers"
-                value={supplierInput}
-                onChange={(nextValue, option) => {
-                  setSupplierInput(nextValue);
-                  addSupplier(nextValue, option?.name);
-                }}
-                optionLabelKey="name"
-                optionValueKey="id"
-                placeholder="Search suppliers"
-              />
-              <Stack direction="row" spacing={1} flexWrap="wrap">
-                {suppliers.map((supplier) => (
-                  <Button key={supplier.id} variant="outlined" onClick={() => removeSupplier(supplier.id)}>
-                    {supplier.name || supplier.id} ✕
-                  </Button>
-                ))}
-              </Stack>
-            </Stack>
+          <Grid size={{ xs: 12, md: 4 }}>
+            <CompanyField />
           </Grid>
           <Grid size={{ xs: 12, md: 4 }}>
             <TextField
@@ -154,13 +137,31 @@ export default function RfqCreatePage() {
               InputLabelProps={{ shrink: true }}
             />
           </Grid>
-          <Grid size={{ xs: 12 }}>
+          <Grid size={{ xs: 12, md: 4 }}>
             <TextField
               fullWidth
               label="Payment Terms"
               value={header.paymentTerms}
               onChange={(event) => setHeader((prev) => ({ ...prev, paymentTerms: event.target.value }))}
             />
+          </Grid>
+          <Grid size={{ xs: 12 }}>
+            <Stack spacing={1}>
+              <Typography variant="h6">Suppliers</Typography>
+              <Autocomplete
+                multiple
+                options={supplierOptions}
+                loading={supplierLoading}
+                value={suppliers}
+                onChange={(_, newValue) => setSuppliers(newValue)}
+                onInputChange={(_, value) => setSupplierSearch(value)}
+                getOptionLabel={(option) => option?.name || ''}
+                isOptionEqualToValue={(option, selected) => option?.id === selected?.id}
+                renderInput={(params) => (
+                  <TextField {...params} label="Suppliers" placeholder="Search suppliers" />
+                )}
+              />
+            </Stack>
           </Grid>
           <Grid size={{ xs: 12 }}>
             <TextField
@@ -179,7 +180,6 @@ export default function RfqCreatePage() {
               <TableRow>
                 <TableCell>Item</TableCell>
                 <TableCell>UOM</TableCell>
-                <TableCell>Broker</TableCell>
                 <TableCell>Qty</TableCell>
                 <TableCell>Rate</TableCell>
                 <TableCell>Amount</TableCell>
@@ -211,18 +211,6 @@ export default function RfqCreatePage() {
                       optionLabelKey="code"
                       optionValueKey="id"
                       placeholder="Search UOMs"
-                      size="small"
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <MasterAutocomplete
-                      label="Broker"
-                      endpoint="/api/brokers"
-                      value={line.brokerId}
-                      onChange={(nextValue) => updateLine(index, 'brokerId', nextValue)}
-                      optionLabelKey="name"
-                      optionValueKey="id"
-                      placeholder="Search brokers"
                       size="small"
                     />
                   </TableCell>

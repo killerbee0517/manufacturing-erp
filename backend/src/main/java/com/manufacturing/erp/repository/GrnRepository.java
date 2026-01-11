@@ -9,6 +9,8 @@ import java.util.List;
 public interface GrnRepository extends JpaRepository<Grn, Long> {
   long countByStatusNot(DocumentStatus status);
 
+  long countByStatusNotAndPurchaseOrderCompanyId(DocumentStatus status, Long companyId);
+
   Optional<Grn> findFirstByWeighbridgeTicketId(Long weighbridgeTicketId);
 
   Optional<Grn> findFirstByWeighbridgeTicketIdAndPurchaseOrderCompanyId(Long weighbridgeTicketId, Long companyId);

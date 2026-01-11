@@ -12,6 +12,7 @@ import com.manufacturing.erp.domain.PurchaseArrivalCharge;
 import com.manufacturing.erp.domain.PurchaseOrder;
 import com.manufacturing.erp.domain.WeighbridgeTicket;
 import com.manufacturing.erp.dto.PurchaseArrivalDtos;
+import com.manufacturing.erp.repository.CompanyRepository;
 import com.manufacturing.erp.repository.BrokerCommissionRuleRepository;
 import com.manufacturing.erp.repository.BrokerRepository;
 import com.manufacturing.erp.repository.DeductionChargeTypeRepository;
@@ -24,12 +25,15 @@ import com.manufacturing.erp.repository.QcInspectionRepository;
 import com.manufacturing.erp.repository.SupplierRepository;
 import com.manufacturing.erp.repository.VehicleRepository;
 import com.manufacturing.erp.repository.WeighbridgeTicketRepository;
+import com.manufacturing.erp.security.CompanyContext;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.List;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class PurchaseArrivalService {
@@ -47,6 +51,8 @@ public class PurchaseArrivalService {
   private final VehicleRepository vehicleRepository;
   private final QcInspectionRepository qcInspectionRepository;
   private final BrokerCommissionRuleRepository brokerCommissionRuleRepository;
+  private final CompanyRepository companyRepository;
+  private final CompanyContext companyContext;
 
   public PurchaseArrivalService(PurchaseArrivalRepository purchaseArrivalRepository,
                                 PurchaseOrderRepository purchaseOrderRepository,
@@ -61,7 +67,9 @@ public class PurchaseArrivalService {
                                 BrokerRepository brokerRepository,
                                 VehicleRepository vehicleRepository,
                                 QcInspectionRepository qcInspectionRepository,
-                                BrokerCommissionRuleRepository brokerCommissionRuleRepository) {
+                                BrokerCommissionRuleRepository brokerCommissionRuleRepository,
+                                CompanyRepository companyRepository,
+                                CompanyContext companyContext) {
     this.purchaseArrivalRepository = purchaseArrivalRepository;
     this.purchaseOrderRepository = purchaseOrderRepository;
     this.weighbridgeTicketRepository = weighbridgeTicketRepository;
@@ -76,11 +84,14 @@ public class PurchaseArrivalService {
     this.vehicleRepository = vehicleRepository;
     this.qcInspectionRepository = qcInspectionRepository;
     this.brokerCommissionRuleRepository = brokerCommissionRuleRepository;
+    this.companyRepository = companyRepository;
+    this.companyContext = companyContext;
   }
 
   @Transactional
   public PurchaseArrival createArrival(PurchaseArrivalDtos.CreatePurchaseArrivalRequest request) {
-    PurchaseOrder purchaseOrder = purchaseOrderRepository.findById(request.purchaseOrderId())
+    var company = requireCompany();
+    PurchaseOrder purchaseOrder = purchaseOrderRepository.findByIdAndCompanyId(request.purchaseOrderId(), company.getId())
         .orElseThrow(() -> new IllegalArgumentException("Purchase order not found"));
     if (request.weighbridgeTicketId() == null) {
       throw new IllegalArgumentException("Weighbridge ticket is required before purchase arrival");
@@ -100,19 +111,13 @@ public class PurchaseArrivalService {
             .orElseThrow(() -> new IllegalArgumentException("Broker not found"))
         : null;
 
-    BigDecimal unloadingCharges = defaultAmount(request.unloadingCharges());
-    BigDecimal deductions = defaultAmount(request.deductions());
-    BigDecimal tdsPercent = defaultAmount(request.tdsPercent());
     BigDecimal grossAmount = purchaseOrder.getTotalAmount() != null ? purchaseOrder.getTotalAmount() : BigDecimal.ZERO;
-    BigDecimal tdsAmount = grossAmount.multiply(tdsPercent)
-        .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
-    ChargeComputationResult chargeResult = computeCharges(request.charges(), grossAmount);
+    Ledger chargeLedger = ledgerService.findOrCreateLedger("Purchase Charges", LedgerType.EXPENSE);
+    Ledger deductionLedger = ledgerService.findOrCreateLedger("Purchase Deductions", LedgerType.GENERAL);
+    ChargeComputationResult chargeResult = computeCharges(request.charges(), grossAmount, chargeLedger, deductionLedger);
     BigDecimal netPayable = grossAmount
-        .add(unloadingCharges)
         .add(chargeResult.totalAdditions())
-        .subtract(deductions)
-        .subtract(chargeResult.totalDeductions())
-        .subtract(tdsAmount);
+        .subtract(chargeResult.totalDeductions());
 
     PurchaseArrival arrival = new PurchaseArrival();
     arrival.setPurchaseOrder(purchaseOrder);
@@ -121,9 +126,6 @@ public class PurchaseArrivalService {
     BigDecimal brokerageAmount = resolveBrokerageAmount(broker, grossAmount);
     arrival.setBrokerageAmount(brokerageAmount);
     arrival.setGodown(godown);
-    arrival.setUnloadingCharges(unloadingCharges);
-    arrival.setDeductions(deductions);
-    arrival.setTdsPercent(tdsPercent);
     arrival.setGrossAmount(grossAmount);
     arrival.setNetPayable(netPayable);
     arrival.setCreatedAt(Instant.now());
@@ -131,54 +133,13 @@ public class PurchaseArrivalService {
     PurchaseArrival saved = purchaseArrivalRepository.save(arrival);
     persistCharges(saved, chargeResult.charges());
 
-    Ledger supplierLedger = purchaseOrder.getSupplier() != null ? purchaseOrder.getSupplier().getLedger() : null;
-    if (supplierLedger == null && purchaseOrder.getSupplier() != null) {
-      supplierLedger = ledgerService.createLedger(purchaseOrder.getSupplier().getName(), LedgerType.SUPPLIER,
-          "SUPPLIER", purchaseOrder.getSupplier().getId());
-      purchaseOrder.getSupplier().setLedger(supplierLedger);
-      supplierRepository.save(purchaseOrder.getSupplier());
-    }
-
-    Ledger purchaseLedger = ledgerService.findOrCreateLedger(
-        purchaseOrder.getPurchaseLedger() != null && !purchaseOrder.getPurchaseLedger().isBlank()
-            ? purchaseOrder.getPurchaseLedger()
-            : "Purchase",
-        LedgerType.EXPENSE);
-    Ledger unloadingLedger = ledgerService.findOrCreateLedger("Unloading Expense", LedgerType.EXPENSE);
-    Ledger deductionLedger = ledgerService.findOrCreateLedger("Purchase Deductions", LedgerType.GENERAL);
-    Ledger tdsLedger = ledgerService.findOrCreateLedger("TDS Payable", LedgerType.GENERAL);
-    Ledger brokerageLedger = ledgerService.findOrCreateLedger("Brokerage Expense", LedgerType.EXPENSE);
-
-    List<VoucherService.VoucherLineRequest> lines = new java.util.ArrayList<>();
-    lines.add(new VoucherService.VoucherLineRequest(purchaseLedger, grossAmount, BigDecimal.ZERO));
-    if (unloadingCharges.compareTo(BigDecimal.ZERO) > 0) {
-      lines.add(new VoucherService.VoucherLineRequest(unloadingLedger, unloadingCharges, BigDecimal.ZERO));
-    }
-    if (deductions.compareTo(BigDecimal.ZERO) > 0) {
-      lines.add(new VoucherService.VoucherLineRequest(deductionLedger, BigDecimal.ZERO, deductions));
-    }
-    for (ChargePosting chargePosting : chargeResult.postings()) {
-      lines.add(new VoucherService.VoucherLineRequest(chargePosting.ledger(), chargePosting.drAmount(), chargePosting.crAmount()));
-    }
-    if (tdsAmount.compareTo(BigDecimal.ZERO) > 0) {
-      lines.add(new VoucherService.VoucherLineRequest(tdsLedger, BigDecimal.ZERO, tdsAmount));
-    }
-    if (broker != null && brokerageAmount.compareTo(BigDecimal.ZERO) > 0) {
-      Ledger brokerLedger = ledgerForParty(PayablePartyType.BROKER, broker.getId());
-      if (brokerLedger != null) {
-        lines.add(new VoucherService.VoucherLineRequest(brokerageLedger, brokerageAmount, BigDecimal.ZERO));
-        lines.add(new VoucherService.VoucherLineRequest(brokerLedger, BigDecimal.ZERO, brokerageAmount));
-      }
-    }
-    if (supplierLedger != null) {
-      lines.add(new VoucherService.VoucherLineRequest(supplierLedger, BigDecimal.ZERO, netPayable));
-    }
-
-    if (supplierLedger != null) {
+    if (!chargeResult.postings().isEmpty()) {
       voucherService.createVoucher("PURCHASE_ARRIVAL", saved.getId(), saved.getCreatedAt() != null
           ? saved.getCreatedAt().atZone(java.time.ZoneId.systemDefault()).toLocalDate()
           : java.time.LocalDate.now(),
-          "Purchase arrival posting", lines);
+          "Purchase arrival charges", chargeResult.postings().stream()
+          .map(posting -> new VoucherService.VoucherLineRequest(posting.ledger(), posting.drAmount(), posting.crAmount()))
+          .toList());
     }
 
     return saved;
@@ -189,7 +150,9 @@ public class PurchaseArrivalService {
   }
 
   private ChargeComputationResult computeCharges(List<PurchaseArrivalDtos.PurchaseArrivalChargeRequest> requests,
-                                                 BigDecimal baseAmount) {
+                                                 BigDecimal baseAmount,
+                                                 Ledger chargeLedger,
+                                                 Ledger deductionLedger) {
     if (requests == null || requests.isEmpty()) {
       return new ChargeComputationResult(BigDecimal.ZERO, BigDecimal.ZERO, java.util.Collections.emptyList(),
           java.util.Collections.emptyList());
@@ -198,6 +161,9 @@ public class PurchaseArrivalService {
     BigDecimal deductions = BigDecimal.ZERO;
     List<PurchaseArrivalCharge> charges = new java.util.ArrayList<>();
     List<ChargePosting> postings = new java.util.ArrayList<>();
+
+    Ledger chargePayableLedger = ledgerService.findOrCreateLedger("Purchase Charges Payable", LedgerType.GENERAL);
+    Ledger deductionPayableLedger = ledgerService.findOrCreateLedger("Purchase Deductions Payable", LedgerType.GENERAL);
 
     for (PurchaseArrivalDtos.PurchaseArrivalChargeRequest req : requests) {
       var type = chargeTypeRepository.findById(req.chargeTypeId())
@@ -228,20 +194,23 @@ public class PurchaseArrivalService {
       charge.setRemarks(req.remarks());
       charges.add(charge);
 
-      Ledger partyLedger = ledgerForParty(charge.getPayablePartyType(), charge.getPayablePartyId());
-      if (partyLedger != null && amount.compareTo(BigDecimal.ZERO) != 0) {
-        if (isDeduction) {
-          deductions = deductions.add(amount);
-          postings.add(new ChargePosting(partyLedger, BigDecimal.ZERO, amount));
-        } else {
-          additions = additions.add(amount);
-          postings.add(new ChargePosting(partyLedger, amount, BigDecimal.ZERO));
-        }
+      if (isDeduction) {
+        deductions = deductions.add(amount);
       } else {
+        additions = additions.add(amount);
+      }
+      if (amount.compareTo(BigDecimal.ZERO) != 0) {
+        Ledger partyLedger = ledgerForParty(charge.getPayablePartyType(), charge.getPayablePartyId());
+        if (partyLedger == null) {
+          partyLedger = isDeduction ? deductionPayableLedger : chargePayableLedger;
+        }
+        Ledger expenseLedger = isDeduction ? deductionLedger : chargeLedger;
         if (isDeduction) {
-          deductions = deductions.add(amount);
+          postings.add(new ChargePosting(partyLedger, amount, BigDecimal.ZERO));
+          postings.add(new ChargePosting(expenseLedger, BigDecimal.ZERO, amount));
         } else {
-          additions = additions.add(amount);
+          postings.add(new ChargePosting(expenseLedger, amount, BigDecimal.ZERO));
+          postings.add(new ChargePosting(partyLedger, BigDecimal.ZERO, amount));
         }
       }
     }
@@ -274,6 +243,7 @@ public class PurchaseArrivalService {
             return supplier.getLedger();
           })
           .orElse(null);
+      case CUSTOMER -> null;
       case BROKER -> brokerRepository.findById(partyId)
           .map(broker -> ledgerService.findOrCreateLedger("Broker " + broker.getName(), LedgerType.GENERAL))
           .orElse(null);
@@ -289,6 +259,7 @@ public class PurchaseArrivalService {
             return party.getLedger();
           })
           .orElse(null);
+      default -> null;
     };
   }
 
@@ -307,5 +278,14 @@ public class PurchaseArrivalService {
     }
     return baseAmount.multiply(rule.get().getRatePercent())
         .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+  }
+
+  private com.manufacturing.erp.domain.Company requireCompany() {
+    Long companyId = companyContext.getCompanyId();
+    if (companyId == null) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Missing company context");
+    }
+    return companyRepository.findById(companyId)
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Company not found"));
   }
 }

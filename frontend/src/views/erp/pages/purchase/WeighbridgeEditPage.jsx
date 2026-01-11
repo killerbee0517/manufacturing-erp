@@ -26,6 +26,7 @@ export default function WeighbridgeEditPage() {
     poId: '',
     vehicleId: '',
     itemId: '',
+    supplierInvoiceNo: '',
     dateIn: '',
     timeIn: '',
     grossWeight: '',
@@ -50,6 +51,7 @@ export default function WeighbridgeEditPage() {
           poId: ticket.poId || '',
           vehicleId: ticket.vehicleId || '',
           itemId: ticket.itemId || '',
+          supplierInvoiceNo: ticket.supplierInvoiceNo || '',
           dateIn: ticket.dateIn || '',
           timeIn: ticket.timeIn || '',
           grossWeight: ticket.grossWeight ?? '',
@@ -110,7 +112,9 @@ export default function WeighbridgeEditPage() {
       return;
     }
     const response = await apiClient.get(`/api/purchase-orders/${poId}`);
-    setPoInfo(response.data);
+    const po = response.data;
+    setPoInfo(po);
+    setHeader((prev) => ({ ...prev, supplierInvoiceNo: po?.supplierInvoiceNo || prev.supplierInvoiceNo }));
   };
 
   const handleSave = async () => {
@@ -131,6 +135,7 @@ export default function WeighbridgeEditPage() {
           serialNo: header.serialNo || undefined,
           poId: Number(header.poId),
           vehicleId: Number(header.vehicleId),
+          supplierInvoiceNo: header.supplierInvoiceNo || null,
           dateIn: header.dateIn,
           timeIn: header.timeIn,
           grossWeight: Number(header.grossWeight)
@@ -202,6 +207,14 @@ export default function WeighbridgeEditPage() {
           </Grid>
           <Grid size={{ xs: 12, md: 4 }}>
             <TextField fullWidth label="Supplier" value={poInfo?.supplierName || poInfo?.supplierId || ''} InputProps={{ readOnly: true }} />
+          </Grid>
+          <Grid size={{ xs: 12, md: 4 }}>
+            <TextField
+              fullWidth
+              label="Supplier Invoice No"
+              value={header.supplierInvoiceNo}
+              onChange={(event) => setHeader((prev) => ({ ...prev, supplierInvoiceNo: event.target.value }))}
+            />
           </Grid>
           <Grid size={{ xs: 12, md: 4 }}>
             <TextField

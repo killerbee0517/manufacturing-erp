@@ -86,8 +86,12 @@ export default function GrnDetailPage() {
       if (grn?.purchaseOrderId) {
         const params = new URLSearchParams();
         params.set('poId', String(grn.purchaseOrderId));
+        params.set('grnId', String(grn.id));
         if (grn.weighbridgeTicketId) {
           params.set('ticketId', String(grn.weighbridgeTicketId));
+        }
+        if (grn.godownId) {
+          params.set('godownId', String(grn.godownId));
         }
         navigate(`/purchase/arrival/new?${params.toString()}`);
       } else {

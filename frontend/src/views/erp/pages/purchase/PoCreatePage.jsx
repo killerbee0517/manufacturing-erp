@@ -17,6 +17,7 @@ import MainCard from 'ui-component/cards/MainCard';
 import PageHeader from 'components/common/PageHeader';
 import apiClient from 'api/client';
 import MasterAutocomplete from 'components/common/MasterAutocomplete';
+import CompanyField from 'components/common/CompanyField';
 
 const emptyLine = () => ({
   key: Date.now() + Math.random(),
@@ -129,6 +130,9 @@ export default function PoCreatePage() {
       />
       <Stack spacing={3}>
         <Grid container spacing={2}>
+          <Grid size={{ xs: 12, md: 4 }}>
+            <CompanyField />
+          </Grid>
           <Grid size={{ xs: 12, md: 4 }}>
             <MasterAutocomplete
               label="Supplier"

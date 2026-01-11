@@ -7,6 +7,9 @@ import com.manufacturing.erp.domain.Enums.ProcessInputSourceType;
 import com.manufacturing.erp.domain.Enums.ProcessOutputType;
 import com.manufacturing.erp.domain.Enums.ProductionStatus;
 import com.manufacturing.erp.domain.Enums.StockStatus;
+import com.manufacturing.erp.domain.Enums.CalcType;
+import com.manufacturing.erp.domain.Enums.PayablePartyType;
+import com.manufacturing.erp.domain.DeductionChargeType;
 import com.manufacturing.erp.domain.Godown;
 import com.manufacturing.erp.domain.InventoryMovement;
 import com.manufacturing.erp.domain.Item;
@@ -15,6 +18,7 @@ import com.manufacturing.erp.domain.ProcessTemplateInput;
 import com.manufacturing.erp.domain.ProcessTemplateOutput;
 import com.manufacturing.erp.domain.ProcessTemplateStep;
 import com.manufacturing.erp.domain.ProcessTemplateStep.StepType;
+import com.manufacturing.erp.domain.ProcessTemplateStepCharge;
 import com.manufacturing.erp.domain.ProductionBatch;
 import com.manufacturing.erp.domain.ProductionBatchInput;
 import com.manufacturing.erp.domain.ProductionBatchOutput;
@@ -23,6 +27,7 @@ import com.manufacturing.erp.domain.ProductionOrder;
 import com.manufacturing.erp.domain.Uom;
 import com.manufacturing.erp.dto.ProductionDtos;
 import com.manufacturing.erp.repository.CompanyRepository;
+import com.manufacturing.erp.repository.DeductionChargeTypeRepository;
 import com.manufacturing.erp.repository.GodownRepository;
 import com.manufacturing.erp.repository.InventoryMovementRepository;
 import com.manufacturing.erp.repository.ItemRepository;
@@ -30,6 +35,7 @@ import com.manufacturing.erp.repository.ProcessTemplateInputRepository;
 import com.manufacturing.erp.repository.ProcessTemplateOutputRepository;
 import com.manufacturing.erp.repository.ProcessTemplateRepository;
 import com.manufacturing.erp.repository.ProcessTemplateStepRepository;
+import com.manufacturing.erp.repository.ProcessTemplateStepChargeRepository;
 import com.manufacturing.erp.repository.ProductionBatchInputRepository;
 import com.manufacturing.erp.repository.ProductionBatchOutputRepository;
 import com.manufacturing.erp.repository.ProductionBatchRepository;
@@ -53,6 +59,7 @@ public class ProductionService {
   private final ProcessTemplateInputRepository processTemplateInputRepository;
   private final ProcessTemplateOutputRepository processTemplateOutputRepository;
   private final ProcessTemplateStepRepository processTemplateStepRepository;
+  private final ProcessTemplateStepChargeRepository processTemplateStepChargeRepository;
   private final ProductionOrderRepository productionOrderRepository;
   private final ProductionBatchRepository productionBatchRepository;
   private final ProductionBatchInputRepository productionBatchInputRepository;
@@ -63,6 +70,7 @@ public class ProductionService {
   private final UomRepository uomRepository;
   private final InventoryMovementRepository inventoryMovementRepository;
   private final StockLedgerService stockLedgerService;
+  private final DeductionChargeTypeRepository deductionChargeTypeRepository;
   private final CompanyRepository companyRepository;
   private final CompanyContext companyContext;
 
@@ -70,6 +78,7 @@ public class ProductionService {
                            ProcessTemplateInputRepository processTemplateInputRepository,
                            ProcessTemplateOutputRepository processTemplateOutputRepository,
                            ProcessTemplateStepRepository processTemplateStepRepository,
+                           ProcessTemplateStepChargeRepository processTemplateStepChargeRepository,
                            ProductionOrderRepository productionOrderRepository,
                            ProductionBatchRepository productionBatchRepository,
                            ProductionBatchInputRepository productionBatchInputRepository,
@@ -80,12 +89,14 @@ public class ProductionService {
                            UomRepository uomRepository,
                            InventoryMovementRepository inventoryMovementRepository,
                            StockLedgerService stockLedgerService,
+                           DeductionChargeTypeRepository deductionChargeTypeRepository,
                            CompanyRepository companyRepository,
                            CompanyContext companyContext) {
     this.processTemplateRepository = processTemplateRepository;
     this.processTemplateInputRepository = processTemplateInputRepository;
     this.processTemplateOutputRepository = processTemplateOutputRepository;
     this.processTemplateStepRepository = processTemplateStepRepository;
+    this.processTemplateStepChargeRepository = processTemplateStepChargeRepository;
     this.productionOrderRepository = productionOrderRepository;
     this.productionBatchRepository = productionBatchRepository;
     this.productionBatchInputRepository = productionBatchInputRepository;
@@ -96,6 +107,7 @@ public class ProductionService {
     this.uomRepository = uomRepository;
     this.inventoryMovementRepository = inventoryMovementRepository;
     this.stockLedgerService = stockLedgerService;
+    this.deductionChargeTypeRepository = deductionChargeTypeRepository;
     this.companyRepository = companyRepository;
     this.companyContext = companyContext;
   }
@@ -505,10 +517,37 @@ public class ProductionService {
         step.setStepType(StepType.valueOf(request.stepType()));
       }
       step.setNotes(request.notes());
+      step.setCharges(buildStepCharges(request.charges(), step));
       steps.add(step);
     }
     steps.sort(Comparator.comparing(ProcessTemplateStep::getStepNo));
     return steps;
+  }
+
+  private List<ProcessTemplateStepCharge> buildStepCharges(List<ProductionDtos.ProcessTemplateStepChargeRequest> requests,
+                                                           ProcessTemplateStep step) {
+    if (requests == null || requests.isEmpty()) {
+      return List.of();
+    }
+    List<ProcessTemplateStepCharge> charges = new ArrayList<>();
+    for (ProductionDtos.ProcessTemplateStepChargeRequest request : requests) {
+      DeductionChargeType type = deductionChargeTypeRepository.findById(request.chargeTypeId())
+          .orElseThrow(() -> new IllegalArgumentException("Charge/Deduction type not found"));
+      ProcessTemplateStepCharge charge = new ProcessTemplateStepCharge();
+      charge.setStep(step);
+      charge.setChargeType(type);
+      CalcType calcType = request.calcType() != null ? CalcType.valueOf(request.calcType().toUpperCase())
+          : type.getDefaultCalcType();
+      charge.setCalcType(calcType);
+      charge.setRate(request.rate() != null ? request.rate() : type.getDefaultRate());
+      charge.setPerQty(request.perQty() != null ? request.perQty() : Boolean.FALSE);
+      charge.setDeduction(request.isDeduction() != null ? request.isDeduction() : type.isDeduction());
+      charge.setPayablePartyType(PayablePartyType.valueOf(request.payablePartyType().toUpperCase()));
+      charge.setPayablePartyId(request.payablePartyId());
+      charge.setRemarks(request.remarks());
+      charges.add(charge);
+    }
+    return charges;
   }
 
   private List<ProcessTemplateInput> buildInputs(List<ProductionDtos.ProcessTemplateInputRequest> requests, ProcessTemplate template) {
@@ -550,13 +589,30 @@ public class ProductionService {
   private ProductionDtos.ProcessTemplateResponse toTemplateResponse(ProcessTemplate template) {
     List<ProductionDtos.ProcessTemplateStepResponse> steps = processTemplateStepRepository
         .findByTemplateIdOrderByStepNoAsc(template.getId()).stream()
-        .map(step -> new ProductionDtos.ProcessTemplateStepResponse(
-            step.getId(),
-            step.getStepNo(),
-            step.getStepName(),
-            step.getStepType() != null ? step.getStepType().name() : null,
-            step.getNotes()
-        )).toList();
+        .map(step -> {
+          List<ProductionDtos.ProcessTemplateStepChargeResponse> charges = processTemplateStepChargeRepository
+              .findByStepId(step.getId()).stream()
+              .map(charge -> new ProductionDtos.ProcessTemplateStepChargeResponse(
+                  charge.getId(),
+                  charge.getChargeType() != null ? charge.getChargeType().getId() : null,
+                  charge.getChargeType() != null ? charge.getChargeType().getName() : null,
+                  charge.getCalcType() != null ? charge.getCalcType().name() : null,
+                  charge.getRate(),
+                  charge.isPerQty(),
+                  charge.isDeduction(),
+                  charge.getPayablePartyType() != null ? charge.getPayablePartyType().name() : null,
+                  charge.getPayablePartyId(),
+                  charge.getRemarks()
+              )).toList();
+          return new ProductionDtos.ProcessTemplateStepResponse(
+              step.getId(),
+              step.getStepNo(),
+              step.getStepName(),
+              step.getStepType() != null ? step.getStepType().name() : null,
+              step.getNotes(),
+              charges
+          );
+        }).toList();
     List<ProductionDtos.ProcessTemplateInputResponse> inputs = processTemplateInputRepository.findByTemplateId(template.getId()).stream()
         .map(input -> new ProductionDtos.ProcessTemplateInputResponse(
             input.getId(),
@@ -673,6 +729,7 @@ public class ProductionService {
                               BigDecimal qtyIn, BigDecimal qtyOut,
                               InventoryLocationType locationType, Long locationId) {
     InventoryMovement movement = new InventoryMovement();
+    movement.setCompany(batch.getCompany());
     movement.setTxnType(txnType);
     movement.setRefType("BATCH");
     movement.setRefId(batch.getId());

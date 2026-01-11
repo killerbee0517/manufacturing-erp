@@ -57,6 +57,7 @@ public class Enums {
 
   public enum PayablePartyType {
     SUPPLIER,
+    CUSTOMER,
     BROKER,
     VEHICLE,
     EXPENSE

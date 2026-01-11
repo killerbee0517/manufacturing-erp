@@ -22,11 +22,22 @@ public class ProductionDtos {
       @NotNull String outputType,
       String notes) {}
 
+  public record ProcessTemplateStepChargeRequest(
+      @NotNull Long chargeTypeId,
+      String calcType,
+      BigDecimal rate,
+      Boolean perQty,
+      Boolean isDeduction,
+      @NotNull String payablePartyType,
+      Long payablePartyId,
+      String remarks) {}
+
   public record ProcessTemplateStepRequest(
       @NotNull Integer stepNo,
       @NotBlank String stepName,
       String stepType,
-      String notes) {}
+      String notes,
+      List<ProcessTemplateStepChargeRequest> charges) {}
 
   public record ProcessTemplateRequest(
       String code,
@@ -59,12 +70,25 @@ public class ProductionDtos {
       String outputType,
       String notes) {}
 
+  public record ProcessTemplateStepChargeResponse(
+      Long id,
+      Long chargeTypeId,
+      String chargeTypeName,
+      String calcType,
+      BigDecimal rate,
+      Boolean perQty,
+      Boolean isDeduction,
+      String payablePartyType,
+      Long payablePartyId,
+      String remarks) {}
+
   public record ProcessTemplateStepResponse(
       Long id,
       Integer stepNo,
       String stepName,
       String stepType,
-      String notes) {}
+      String notes,
+      List<ProcessTemplateStepChargeResponse> charges) {}
 
   public record ProcessTemplateResponse(
       Long id,
@@ -217,6 +241,17 @@ public class ProductionDtos {
       BigDecimal rate,
       BigDecimal amount) {}
 
+  public record RunChargeRequest(
+      @NotNull Long chargeTypeId,
+      String calcType,
+      BigDecimal rate,
+      BigDecimal quantity,
+      BigDecimal amount,
+      Boolean isDeduction,
+      @NotNull String payablePartyType,
+      Long payablePartyId,
+      String remarks) {}
+
   public record ProductionRunRequest(
       Integer stepNo,
       String stepName,
@@ -224,7 +259,8 @@ public class ProductionDtos {
       String notes,
       LocalDate runDate,
       List<RunInputRequest> inputs,
-      List<RunOutputRequest> outputs) {}
+      List<RunOutputRequest> outputs,
+      List<RunChargeRequest> charges) {}
 
   public record RunInputResponse(
       Long id,
@@ -254,6 +290,19 @@ public class ProductionDtos {
       BigDecimal rate,
       BigDecimal amount) {}
 
+  public record RunChargeResponse(
+      Long id,
+      Long chargeTypeId,
+      String chargeTypeName,
+      String calcType,
+      BigDecimal rate,
+      BigDecimal quantity,
+      BigDecimal amount,
+      Boolean isDeduction,
+      String payablePartyType,
+      Long payablePartyId,
+      String remarks) {}
+
   public record ProductionRunResponse(
       Long id,
       Long batchId,
@@ -267,7 +316,8 @@ public class ProductionDtos {
       String notes,
       BigDecimal moisturePercent,
       List<RunInputResponse> inputs,
-      List<RunOutputResponse> outputs) {}
+      List<RunOutputResponse> outputs,
+      List<RunChargeResponse> charges) {}
 
   public record RunCostSummaryLine(
       Long outputId,

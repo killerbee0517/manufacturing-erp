@@ -107,3 +107,11 @@ mvn test
 cd frontend
 npm run build
 ```
+
+```declarative
+$env:BASE_URL = "http://localhost:8080"
+$env:USERNAME = "admin"
+$env:PASSWORD = "admin123"
+$env:COMPANY_ID = "1"
+python scripts/seed_master_data.py
+```

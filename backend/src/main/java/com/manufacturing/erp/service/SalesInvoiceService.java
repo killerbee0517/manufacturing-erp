@@ -3,6 +3,7 @@ package com.manufacturing.erp.service;
 import com.manufacturing.erp.domain.Broker;
 import com.manufacturing.erp.domain.BrokerCommission;
 import com.manufacturing.erp.domain.BrokerCommissionRule;
+import com.manufacturing.erp.domain.Company;
 import com.manufacturing.erp.domain.Customer;
 import com.manufacturing.erp.domain.Enums.DocumentStatus;
 import com.manufacturing.erp.domain.Enums.LedgerType;
@@ -23,6 +24,8 @@ import com.manufacturing.erp.repository.GodownRepository;
 import com.manufacturing.erp.repository.ItemRepository;
 import com.manufacturing.erp.repository.SalesInvoiceRepository;
 import com.manufacturing.erp.repository.UomRepository;
+import com.manufacturing.erp.repository.CompanyRepository;
+import com.manufacturing.erp.security.CompanyContext;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
@@ -43,6 +46,8 @@ public class SalesInvoiceService {
   private final GodownRepository godownRepository;
   private final CustomerRepository customerRepository;
   private final BrokerRepository brokerRepository;
+  private final CompanyRepository companyRepository;
+  private final CompanyContext companyContext;
 
   public SalesInvoiceService(SalesInvoiceRepository salesInvoiceRepository,
                              BrokerCommissionRuleRepository brokerCommissionRuleRepository,
@@ -54,7 +59,9 @@ public class SalesInvoiceService {
                              UomRepository uomRepository,
                              GodownRepository godownRepository,
                              CustomerRepository customerRepository,
-                             BrokerRepository brokerRepository) {
+                             BrokerRepository brokerRepository,
+                             CompanyRepository companyRepository,
+                             CompanyContext companyContext) {
     this.salesInvoiceRepository = salesInvoiceRepository;
     this.brokerCommissionRuleRepository = brokerCommissionRuleRepository;
     this.brokerCommissionRepository = brokerCommissionRepository;
@@ -66,16 +73,20 @@ public class SalesInvoiceService {
     this.godownRepository = godownRepository;
     this.customerRepository = customerRepository;
     this.brokerRepository = brokerRepository;
+    this.companyRepository = companyRepository;
+    this.companyContext = companyContext;
   }
 
   @Transactional
   public SalesInvoice postInvoice(StockDtos.SalesInvoiceRequest request) {
+    Company company = requireCompany();
     Customer customer = customerRepository.findById(request.customerId())
         .orElseThrow(() -> new IllegalArgumentException("Customer not found"));
     Broker broker = request.brokerId() != null
         ? brokerRepository.findById(request.brokerId()).orElse(null)
         : null;
     SalesInvoice invoice = new SalesInvoice();
+    invoice.setCompany(company);
     invoice.setInvoiceNo(request.invoiceNo());
     invoice.setCustomer(customer);
     invoice.setBroker(broker);
@@ -158,5 +169,14 @@ public class SalesInvoiceService {
     record.setBroker(invoice.getBroker());
     record.setCommissionAmount(commission);
     brokerCommissionRepository.save(record);
+  }
+
+  private Company requireCompany() {
+    Long companyId = companyContext.getCompanyId();
+    if (companyId == null) {
+      throw new IllegalArgumentException("Missing company context");
+    }
+    return companyRepository.findById(companyId)
+        .orElseThrow(() -> new IllegalArgumentException("Company not found"));
   }
 }

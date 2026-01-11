@@ -3,6 +3,7 @@ import useSWR from 'swr';
 
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
 import CircularProgress from '@mui/material/CircularProgress';
 import Grid from '@mui/material/Grid';
 import Stack from '@mui/material/Stack';
@@ -20,10 +21,12 @@ import MainCard from 'ui-component/cards/MainCard';
 import { gridSpacing } from 'store/constant';
 import ModulePage from 'views/erp/ModulePage';
 import { moduleConfigs } from 'views/erp/moduleConfig';
+import PartyBankAccountsDialog from './PartyBankAccountsDialog';
 
 export default function BankMasterPage() {
   const [filters, setFilters] = useState({ search: '' });
   const [debouncedFilters, setDebouncedFilters] = useState({ search: '' });
+  const [selectedPartyId, setSelectedPartyId] = useState(null);
 
   useEffect(() => {
     const handle = setTimeout(() => setDebouncedFilters(filters), 300);
@@ -91,12 +94,13 @@ export default function BankMasterPage() {
                         <TableCell>Type</TableCell>
                         <TableCell>Default</TableCell>
                         <TableCell>Active</TableCell>
+                        <TableCell align="right">Actions</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
                       {accounts.length === 0 && (
                         <TableRow>
-                          <TableCell colSpan={7}>
+                          <TableCell colSpan={8}>
                             {isLoading || isValidating ? (
                               <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
                                 <CircularProgress size={18} />
@@ -117,6 +121,15 @@ export default function BankMasterPage() {
                           <TableCell>{account.accountType || '-'}</TableCell>
                           <TableCell>{account.isDefault ? 'Yes' : 'No'}</TableCell>
                           <TableCell>{account.active ? 'Yes' : 'No'}</TableCell>
+                          <TableCell align="right">
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              onClick={() => setSelectedPartyId(account.partyId)}
+                            >
+                              Edit
+                            </Button>
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -127,6 +140,11 @@ export default function BankMasterPage() {
           </MainCard>
         </Grid>
       </Grid>
+      <PartyBankAccountsDialog
+        open={Boolean(selectedPartyId)}
+        partyId={selectedPartyId || undefined}
+        onClose={() => setSelectedPartyId(null)}
+      />
     </>
   );
 }

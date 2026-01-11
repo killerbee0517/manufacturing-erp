@@ -11,7 +11,8 @@ import org.springframework.data.repository.query.Param;
 public interface LedgerRepository extends JpaRepository<Ledger, Long> {
   Optional<Ledger> findByNameAndType(String name, LedgerType type);
 
-  @Query("select l from Ledger l where (:type is null or l.type = :type) "
+  @Query("select l from Ledger l where l.enabled = true "
+      + "and (:type is null or l.type = :type) "
       + "and (:q is null or lower(l.name) like lower(concat('%', :q, '%'))) "
       + "order by l.name asc")
   List<Ledger> search(@Param("q") String q, @Param("type") LedgerType type);

@@ -62,11 +62,7 @@ export default function QcPage() {
       <PageHeader
         title="QC Inspections"
         breadcrumbs={[{ label: 'Purchase' }, { label: 'QC Inspection' }]}
-        actions={
-          <Button variant="outlined" onClick={() => navigate('/purchase/weighbridge-in')}>
-            Weighbridge In
-          </Button>
-        }
+        actions={null}
       />
       <Stack spacing={2}>
         <Grid container spacing={2}>

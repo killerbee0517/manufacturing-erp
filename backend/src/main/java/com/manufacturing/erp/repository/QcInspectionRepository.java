@@ -8,6 +8,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface QcInspectionRepository extends JpaRepository<QcInspection, Long> {
   long countByStatus(QcStatus status);
 
+  long countByStatusAndPurchaseOrderCompanyId(QcStatus status, Long companyId);
+
   List<QcInspection> findByGrnId(Long grnId);
 
   boolean existsByGrnIdAndStatus(Long grnId, QcStatus status);

@@ -97,7 +97,7 @@ export default function PurchaseArrivalDetailPage() {
   return (
     <MainCard>
       <PageHeader
-        title={`Purchase Arrival ${arrival.id}`}
+        title="Purchase Arrival Detail"
         breadcrumbs={[{ label: 'Purchase', to: '/purchase/arrival' }, { label: 'Arrival Detail' }]}
         actions={
           <Button variant="outlined" onClick={() => navigate('/purchase/arrival')}>
@@ -131,18 +131,6 @@ export default function PurchaseArrivalDetailPage() {
             <Typography>{arrival.grossAmount ?? '-'}</Typography>
           </Grid>
           <Grid size={{ xs: 12, md: 4 }}>
-            <Typography variant="subtitle2">Unloading Charges</Typography>
-            <Typography>{arrival.unloadingCharges ?? '-'}</Typography>
-          </Grid>
-          <Grid size={{ xs: 12, md: 4 }}>
-            <Typography variant="subtitle2">Deductions</Typography>
-            <Typography>{arrival.deductions ?? '-'}</Typography>
-          </Grid>
-          <Grid size={{ xs: 12, md: 4 }}>
-            <Typography variant="subtitle2">TDS %</Typography>
-            <Typography>{arrival.tdsPercent ?? '-'}</Typography>
-          </Grid>
-          <Grid size={{ xs: 12, md: 4 }}>
             <Typography variant="subtitle2">Net Payable</Typography>
             <Typography>{arrival.netPayable ?? '-'}</Typography>
           </Grid>
@@ -172,7 +160,7 @@ export default function PurchaseArrivalDetailPage() {
                   </Typography>
                 </Grid>
                 <Grid size={{ xs: 12, md: 4 }}>
-                  <Typography variant="subtitle2">Payable To</Typography>
+                  <Typography variant="subtitle2">Payable Type</Typography>
                   <Typography>{charge.payablePartyType || '-'}</Typography>
                 </Grid>
               </Grid>

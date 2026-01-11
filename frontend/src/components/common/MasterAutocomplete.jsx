@@ -15,14 +15,15 @@ export default function MasterAutocomplete({
   value,
   onChange,
   optionLabelKey,
-  optionValueKey,
-  required,
-  placeholder,
-  size,
-  fullWidth,
-  disabled,
-  limit,
-  queryParams
+  optionValueKey = 'id',
+  required = false,
+  placeholder = '',
+  size = 'medium',
+  fullWidth = true,
+  disabled = false,
+  limit = 20,
+  queryParams,
+  freeSolo = false
 }) {
   const [options, setOptions] = useState([]);
   const [inputValue, setInputValue] = useState('');
@@ -35,10 +36,27 @@ export default function MasterAutocomplete({
     [optionLabelKey]
   );
 
+  const normalizeValue = useCallback((val) => (val === null || val === undefined ? '' : String(val)), []);
+
   const selectedOption = useMemo(() => {
     if (value === null || value === undefined || value === '') return null;
-    return options.find((option) => getOptionValue(option) === value) || null;
-  }, [options, value, getOptionValue]);
+    const normalized = normalizeValue(value);
+    return options.find((option) => normalizeValue(getOptionValue(option)) === normalized) || null;
+  }, [options, value, getOptionValue, normalizeValue]);
+
+  useEffect(() => {
+    if (open) return;
+    if (!selectedOption) {
+      if (inputValue !== '') {
+        setInputValue('');
+      }
+      return;
+    }
+    const label = getOptionLabel(selectedOption);
+    if (label !== inputValue) {
+      setInputValue(label);
+    }
+  }, [selectedOption, getOptionLabel, inputValue, open]);
 
   const fetchOptions = useCallback(
     async (searchValue) => {
@@ -103,7 +121,7 @@ export default function MasterAutocomplete({
       inputValue={inputValue}
       onInputChange={(_, newInputValue) => setInputValue(newInputValue)}
       getOptionLabel={getOptionLabel}
-      isOptionEqualToValue={(option, selected) => getOptionValue(option) === getOptionValue(selected)}
+      isOptionEqualToValue={(option, selected) => normalizeValue(getOptionValue(option)) === normalizeValue(getOptionValue(selected))}
       renderInput={(params) => (
         <TextField
           {...params}
@@ -115,6 +133,7 @@ export default function MasterAutocomplete({
       fullWidth={fullWidth}
       size={size}
       disabled={disabled}
+      freeSolo={freeSolo}
     />
   );
 }
@@ -132,18 +151,12 @@ MasterAutocomplete.propTypes = {
   fullWidth: PropTypes.bool,
   disabled: PropTypes.bool,
   limit: PropTypes.number,
-  queryParams: PropTypes.object
+  queryParams: PropTypes.object,
+  freeSolo: PropTypes.bool
 };
 
 MasterAutocomplete.defaultProps = {
   value: '',
   optionLabelKey: undefined,
-  optionValueKey: 'id',
-  required: false,
-  placeholder: '',
-  size: 'medium',
-  fullWidth: true,
-  disabled: false,
-  limit: 20,
   queryParams: undefined
 };

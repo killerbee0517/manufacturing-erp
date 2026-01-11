@@ -15,6 +15,9 @@ import java.time.Instant;
 @Entity
 @Table(name = "stock_ledger")
 public class StockLedger extends BaseEntity {
+  @ManyToOne
+  private Company company;
+
   @Column(nullable = false)
   private String docType;
 
@@ -78,6 +81,14 @@ public class StockLedger extends BaseEntity {
 
   public String getDocType() {
     return docType;
+  }
+
+  public Company getCompany() {
+    return company;
+  }
+
+  public void setCompany(Company company) {
+    this.company = company;
   }
 
   public void setDocType(String docType) {

@@ -1,13 +1,13 @@
 import { lazy } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, Outlet } from 'react-router-dom';
 
 // project imports
 import MainLayout from 'layout/MainLayout';
 import Loadable from 'ui-component/Loadable';
 import AuthGuard from './AuthGuard';
+import RoleGuard from './RoleGuard';
 // dashboard routing
 const DashboardDefault = Loadable(lazy(() => import('views/dashboard/Default')));
-const SettingsEntityRouter = Loadable(lazy(() => import('views/erp/pages/settings/SettingsEntityRouter')));
 const MastersEntityRouter = Loadable(lazy(() => import('views/erp/pages/masters/MastersEntityRouter')));
 const AdminEntityRouter = Loadable(lazy(() => import('views/erp/pages/admin/AdminEntityRouter')));
 const RfqPage = Loadable(lazy(() => import('views/erp/pages/purchase/RfqPage')));
@@ -37,6 +37,8 @@ const DebitNotePage = Loadable(lazy(() => import('views/erp/pages/purchase/Debit
 const DebitNoteDetailPage = Loadable(lazy(() => import('views/erp/pages/purchase/DebitNoteDetailPage')));
 const SalesOrderPage = Loadable(lazy(() => import('views/erp/pages/sales/SalesOrderPage')));
 const SalesOrderFormPage = Loadable(lazy(() => import('views/erp/pages/sales/SalesOrderFormPage')));
+const SalesAttendancePage = Loadable(lazy(() => import('views/erp/pages/sales/SalesAttendancePage')));
+const SalesAttendanceDetailPage = Loadable(lazy(() => import('views/erp/pages/sales/SalesAttendanceDetailPage')));
 const DeliveryNotePage = Loadable(lazy(() => import('views/erp/pages/sales/DeliveryNotePage')));
 const TaxInvoicePage = Loadable(lazy(() => import('views/erp/pages/sales/TaxInvoicePage')));
 const CreditNotePage = Loadable(lazy(() => import('views/erp/pages/sales/CreditNotePage')));
@@ -60,7 +62,6 @@ const PaymentVoucherPage = Loadable(lazy(() => import('views/erp/pages/accounts/
 const PaymentVoucherDetailPage = Loadable(lazy(() => import('views/erp/pages/accounts/PaymentVoucherDetailPage')));
 const ProfilePage = Loadable(lazy(() => import('views/erp/pages/profile/ProfilePage')));
 const ChangePasswordPage = Loadable(lazy(() => import('views/erp/pages/profile/ChangePasswordPage')));
-const DevToolsPage = Loadable(lazy(() => import('views/erp/pages/dev-tools/DevToolsPage')));
 const PaymentsReportsPage = Loadable(lazy(() => import('views/erp/pages/reports/PaymentsReportsPage')));
 
 // ==============================|| MAIN ROUTING ||============================== //
@@ -82,24 +83,32 @@ const MainRoutes = {
       element: <DashboardDefault />
     },
     {
-      path: 'settings',
-      children: [
-        { path: '', element: <Navigate to="/settings/company" replace /> },
-        { path: ':entity', element: <SettingsEntityRouter /> }
-      ]
-    },
-    {
       path: 'masters',
+      element: (
+        <RoleGuard allowedRoles={['ADMIN', 'HEAD']}>
+          <Outlet />
+        </RoleGuard>
+      ),
       children: [
         { path: ':entity/*', element: <MastersEntityRouter /> }
       ]
     },
     {
       path: 'admin',
+      element: (
+        <RoleGuard allowedRoles={['ADMIN']}>
+          <Outlet />
+        </RoleGuard>
+      ),
       children: [{ path: ':entity', element: <AdminEntityRouter /> }]
     },
     {
       path: 'purchase',
+      element: (
+        <RoleGuard allowedRoles={['ADMIN', 'HEAD', 'PURCHASE', 'STORE', 'QC', 'FINANCE']}>
+          <Outlet />
+        </RoleGuard>
+      ),
       children: [
         { path: 'rfq', element: <RfqPage /> },
         { path: 'rfq/new', element: <RfqCreatePage /> },
@@ -130,10 +139,18 @@ const MainRoutes = {
     },
     {
       path: 'sales',
+      element: (
+        <RoleGuard allowedRoles={['ADMIN', 'HEAD', 'SALES']}>
+          <Outlet />
+        </RoleGuard>
+      ),
       children: [
         { path: 'sales-order', element: <SalesOrderPage /> },
         { path: 'sales-order/new', element: <SalesOrderFormPage /> },
         { path: 'sales-order/:id/edit', element: <SalesOrderFormPage /> },
+        { path: 'attendance', element: <SalesAttendancePage /> },
+        { path: 'attendance/new', element: <SalesAttendanceDetailPage /> },
+        { path: 'attendance/:id', element: <SalesAttendanceDetailPage /> },
         { path: 'delivery-note', element: <DeliveryNotePage /> },
         { path: 'tax-invoice', element: <TaxInvoicePage /> },
         { path: 'credit-note', element: <CreditNotePage /> },
@@ -142,6 +159,11 @@ const MainRoutes = {
     },
     {
       path: 'inventory',
+      element: (
+        <RoleGuard allowedRoles={['ADMIN', 'HEAD', 'STORE', 'PRODUCTION', 'PURCHASE']}>
+          <Outlet />
+        </RoleGuard>
+      ),
       children: [
         { path: 'stock-on-hand', element: <ItemBalancesPage /> },
         { path: 'stock-transfer', element: <StockTransferPage /> },
@@ -152,6 +174,11 @@ const MainRoutes = {
     },
     {
       path: 'production',
+      element: (
+        <RoleGuard allowedRoles={['ADMIN', 'HEAD', 'PRODUCTION']}>
+          <Outlet />
+        </RoleGuard>
+      ),
       children: [
         { path: 'templates', element: <ProcessTemplatesPage /> },
         { path: 'batches', element: <ProductionBatchesPage /> },
@@ -162,16 +189,25 @@ const MainRoutes = {
     },
     {
       path: 'accounts',
+      element: (
+        <RoleGuard allowedRoles={['ADMIN', 'HEAD', 'FINANCE']}>
+          <Outlet />
+        </RoleGuard>
+      ),
       children: [
         { path: 'ledgers', element: <LedgerListPage /> },
         { path: 'ledgers/:id', element: <LedgerStatementPage /> },
         { path: 'payments', element: <PaymentVoucherPage /> },
-        { path: 'payments/new', element: <PaymentVoucherDetailPage /> },
         { path: 'payments/:id', element: <PaymentVoucherDetailPage /> }
       ]
     },
     {
       path: 'reports',
+      element: (
+        <RoleGuard allowedRoles={['ADMIN', 'HEAD', 'FINANCE', 'VIEWER']}>
+          <Outlet />
+        </RoleGuard>
+      ),
       children: [
         { path: 'ledger', element: <LedgerReportPage /> },
         { path: 'outstanding', element: <OutstandingReportPage /> },
@@ -186,18 +222,6 @@ const MainRoutes = {
         { path: '', element: <ProfilePage /> },
         { path: 'change-password', element: <ChangePasswordPage /> }
       ]
-    },
-    ...(import.meta.env.DEV
-      ? [
-          {
-            path: 'dev-tools',
-            element: <DevToolsPage />
-          }
-        ]
-      : []),
-    {
-      path: 'dev-tools',
-      element: <Navigate to="/dashboard" replace />
     },
     {
       path: '*',

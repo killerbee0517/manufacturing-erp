@@ -1,21 +1,32 @@
 package com.manufacturing.erp.service;
 
 import com.manufacturing.erp.dto.StockDtos;
+import com.manufacturing.erp.domain.Company;
+import com.manufacturing.erp.repository.CompanyRepository;
 import com.manufacturing.erp.repository.StockLedgerRepository;
 import java.math.BigDecimal;
 import java.util.List;
 import org.springframework.stereotype.Service;
+import com.manufacturing.erp.security.CompanyContext;
 
 @Service
 public class StockQueryService {
   private final StockLedgerRepository stockLedgerRepository;
+  private final CompanyRepository companyRepository;
+  private final CompanyContext companyContext;
 
-  public StockQueryService(StockLedgerRepository stockLedgerRepository) {
+  public StockQueryService(StockLedgerRepository stockLedgerRepository,
+                           CompanyRepository companyRepository,
+                           CompanyContext companyContext) {
     this.stockLedgerRepository = stockLedgerRepository;
+    this.companyRepository = companyRepository;
+    this.companyContext = companyContext;
   }
 
   public List<StockDtos.StockOnHandResponse> getStockOnHand(Long godownId, Long itemId) {
-    List<com.manufacturing.erp.domain.StockLedger> ledger = stockLedgerRepository.findLedger(itemId, godownId, null, null);
+    Company company = requireCompany();
+    List<com.manufacturing.erp.domain.StockLedger> ledger =
+        stockLedgerRepository.findLedger(company.getId(), itemId, godownId, null, null);
     record Totals(BigDecimal in, BigDecimal out) {}
     java.util.Map<String, Totals> balanceMap = new java.util.HashMap<>();
     for (var entry : ledger) {
@@ -42,5 +53,14 @@ public class StockQueryService {
               totals.in().subtract(totals.out()));
         })
         .toList();
+  }
+
+  private Company requireCompany() {
+    Long companyId = companyContext.getCompanyId();
+    if (companyId == null) {
+      throw new IllegalArgumentException("Missing company context");
+    }
+    return companyRepository.findById(companyId)
+        .orElseThrow(() -> new IllegalArgumentException("Company not found"));
   }
 }

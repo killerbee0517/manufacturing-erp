@@ -6,6 +6,7 @@ import com.manufacturing.erp.repository.PaymentVoucherAllocationRepository;
 import com.manufacturing.erp.repository.PaymentVoucherRepository;
 import com.manufacturing.erp.security.CompanyContext;
 import com.manufacturing.erp.repository.BrokerRepository;
+import com.manufacturing.erp.repository.CustomerRepository;
 import com.manufacturing.erp.repository.ExpensePartyRepository;
 import com.manufacturing.erp.repository.SupplierRepository;
 import com.manufacturing.erp.service.PaymentVoucherService;
@@ -29,6 +30,7 @@ public class PaymentVoucherController {
   private final PaymentVoucherRepository paymentVoucherRepository;
   private final PaymentVoucherAllocationRepository allocationRepository;
   private final SupplierRepository supplierRepository;
+  private final CustomerRepository customerRepository;
   private final BrokerRepository brokerRepository;
   private final ExpensePartyRepository expensePartyRepository;
   private final CompanyContext companyContext;
@@ -37,6 +39,7 @@ public class PaymentVoucherController {
                                   PaymentVoucherRepository paymentVoucherRepository,
                                   PaymentVoucherAllocationRepository allocationRepository,
                                   SupplierRepository supplierRepository,
+                                  CustomerRepository customerRepository,
                                   BrokerRepository brokerRepository,
                                   ExpensePartyRepository expensePartyRepository,
                                   CompanyContext companyContext) {
@@ -44,6 +47,7 @@ public class PaymentVoucherController {
     this.paymentVoucherRepository = paymentVoucherRepository;
     this.allocationRepository = allocationRepository;
     this.supplierRepository = supplierRepository;
+    this.customerRepository = customerRepository;
     this.brokerRepository = brokerRepository;
     this.expensePartyRepository = expensePartyRepository;
     this.companyContext = companyContext;
@@ -121,6 +125,9 @@ public class PaymentVoucherController {
     return switch (voucher.getPartyType()) {
       case SUPPLIER -> supplierRepository.findById(voucher.getPartyId())
           .map(supplier -> supplier.getName())
+          .orElse(null);
+      case CUSTOMER -> customerRepository.findById(voucher.getPartyId())
+          .map(customer -> customer.getName())
           .orElse(null);
       case BROKER -> brokerRepository.findById(voucher.getPartyId())
           .map(broker -> broker.getName())

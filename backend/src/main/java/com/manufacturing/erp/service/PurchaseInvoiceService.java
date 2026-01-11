@@ -121,7 +121,11 @@ public class PurchaseInvoiceService {
     invoice.setPurchaseOrder(grn.getPurchaseOrder());
     invoice.setGrn(grn);
     invoice.setBroker(resolveBrokerFromArrival(grn, grn.getPurchaseOrder()));
-    invoice.setSupplierInvoiceNo(null);
+    String invoiceNo = grn.getPurchaseOrder() != null ? grn.getPurchaseOrder().getSupplierInvoiceNo() : null;
+    if (invoiceNo == null && grn.getWeighbridgeTicket() != null) {
+      invoiceNo = grn.getWeighbridgeTicket().getSupplierInvoiceNo();
+    }
+    invoice.setSupplierInvoiceNo(invoiceNo);
     invoice.setInvoiceDate(LocalDate.now());
     invoice.setNarration(null);
     invoice.setStatus(DocumentStatus.DRAFT);
@@ -158,7 +162,7 @@ public class PurchaseInvoiceService {
     invoice.setPurchaseOrder(purchaseOrder);
     invoice.setGrn(null);
     invoice.setBroker(resolveBrokerFromArrival(null, purchaseOrder));
-    invoice.setSupplierInvoiceNo(null);
+    invoice.setSupplierInvoiceNo(purchaseOrder.getSupplierInvoiceNo());
     invoice.setInvoiceDate(LocalDate.now());
     invoice.setNarration(null);
     invoice.setStatus(DocumentStatus.DRAFT);
@@ -228,7 +232,6 @@ public class PurchaseInvoiceService {
     Ledger deductionLedger = ledgerService.findOrCreateLedger("Purchase Deductions", LedgerType.GENERAL);
     Ledger chargeLedger = ledgerService.findOrCreateLedger("Purchase Charges", LedgerType.EXPENSE);
     Ledger tdsLedger = ledgerService.findOrCreateLedger("TDS Payable", LedgerType.GENERAL);
-    Ledger brokerageLedger = ledgerService.findOrCreateLedger("Brokerage Expense", LedgerType.EXPENSE);
 
     List<VoucherService.VoucherLineRequest> lines = new ArrayList<>();
     lines.add(new VoucherService.VoucherLineRequest(purchaseLedger, invoice.getSubtotal(), BigDecimal.ZERO));
@@ -245,7 +248,8 @@ public class PurchaseInvoiceService {
     }
     if (invoice.getBroker() != null && defaultAmount(invoice.getBrokerageAmount()).compareTo(BigDecimal.ZERO) > 0) {
       Ledger brokerLedger = ledgerService.findOrCreateLedger("Broker " + invoice.getBroker().getName(), LedgerType.GENERAL);
-      lines.add(new VoucherService.VoucherLineRequest(brokerageLedger, invoice.getBrokerageAmount(), BigDecimal.ZERO));
+      Ledger brokeragePayableLedger = ledgerService.findOrCreateLedger("Brokerage Payable", LedgerType.GENERAL, false);
+      lines.add(new VoucherService.VoucherLineRequest(brokeragePayableLedger, invoice.getBrokerageAmount(), BigDecimal.ZERO));
       lines.add(new VoucherService.VoucherLineRequest(brokerLedger, BigDecimal.ZERO, invoice.getBrokerageAmount()));
     }
 
@@ -422,6 +426,7 @@ public class PurchaseInvoiceService {
             return supplier.getLedger();
           })
           .orElse(null);
+      case CUSTOMER -> null;
       case BROKER -> brokerRepository.findById(partyId)
           .map(broker -> ledgerService.findOrCreateLedger("Broker " + broker.getName(), LedgerType.GENERAL))
           .orElse(null);
@@ -437,6 +442,7 @@ public class PurchaseInvoiceService {
             return party.getLedger();
           })
           .orElse(null);
+      default -> null;
     };
   }
 

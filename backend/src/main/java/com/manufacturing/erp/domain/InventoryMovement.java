@@ -14,6 +14,10 @@ import java.math.BigDecimal;
 @Entity
 @Table(name = "inventory_movements")
 public class InventoryMovement extends BaseEntity {
+  @ManyToOne
+  @JoinColumn(name = "company_id", nullable = false)
+  private Company company;
+
   @Column(name = "txn_type", nullable = false)
   private String txnType;
 
@@ -46,6 +50,14 @@ public class InventoryMovement extends BaseEntity {
 
   public String getTxnType() {
     return txnType;
+  }
+
+  public Company getCompany() {
+    return company;
+  }
+
+  public void setCompany(Company company) {
+    this.company = company;
   }
 
   public void setTxnType(String txnType) {

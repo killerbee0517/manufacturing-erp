@@ -6,7 +6,6 @@ import {
   IconFileInvoice,
   IconPackage,
   IconReportAnalytics,
-  IconSettings,
   IconBuildingFactory2,
   IconClipboardList,
   IconBuildingWarehouse
@@ -20,23 +19,12 @@ const icons = {
   IconFileInvoice,
   IconPackage,
   IconReportAnalytics,
-  IconSettings,
   IconBuildingFactory2,
   IconClipboardList,
   IconBuildingWarehouse
 };
 
 // ==============================|| ERP MENU ITEMS ||============================== //
-
-const devToolsItem = import.meta.env.DEV
-  ? {
-      id: 'dev-tools',
-      title: 'Dev Tools',
-      type: 'item',
-      url: '/dev-tools',
-      icon: icons.IconClipboardList
-    }
-  : null;
 
 const erp = {
   id: 'erp',
@@ -56,6 +44,7 @@ const erp = {
       title: 'Masters',
       type: 'collapse',
       icon: icons.IconBuildingWarehouse,
+      roles: ['ADMIN', 'HEAD'],
       children: [
         { id: 'masters-parties', title: 'Party Master', type: 'item', url: '/masters/parties' },
         { id: 'masters-companies', title: 'Company Master', type: 'item', url: '/masters/companies' },
@@ -65,8 +54,8 @@ const erp = {
         { id: 'masters-items', title: 'Item Master', type: 'item', url: '/masters/items' },
         { id: 'masters-uoms', title: 'UOM Master', type: 'item', url: '/masters/uoms' },
         { id: 'masters-charge-types', title: 'Charges & Deductions', type: 'item', url: '/masters/charge-types' },
-        { id: 'admin-users', title: 'User Management', type: 'item', url: '/admin/users' },
-        { id: 'admin-roles', title: 'Role Management', type: 'item', url: '/admin/roles' }
+        { id: 'admin-users', title: 'User Management', type: 'item', url: '/admin/users', roles: ['ADMIN'] },
+        { id: 'admin-roles', title: 'Role Management', type: 'item', url: '/admin/roles', roles: ['ADMIN'] }
       ]
     },
     {
@@ -74,6 +63,7 @@ const erp = {
       title: 'Purchase',
       type: 'collapse',
       icon: icons.IconShoppingCart,
+      roles: ['ADMIN', 'HEAD', 'PURCHASE', 'STORE', 'QC', 'FINANCE'],
       children: [
         { id: 'purchase-rfq', title: 'RFQ', type: 'item', url: '/purchase/rfq' },
         { id: 'purchase-po', title: 'Purchase Order', type: 'item', url: '/purchase/po' },
@@ -90,6 +80,7 @@ const erp = {
       title: 'Inventory',
       type: 'collapse',
       icon: icons.IconPackage,
+      roles: ['ADMIN', 'HEAD', 'STORE', 'PRODUCTION', 'PURCHASE'],
       children: [
         { id: 'inventory-stock-on-hand', title: 'Stock On Hand', type: 'item', url: '/inventory/stock-on-hand' },
         { id: 'inventory-stock-transfer', title: 'Stock Transfer', type: 'item', url: '/inventory/stock-transfer' },
@@ -101,8 +92,10 @@ const erp = {
       title: 'Sales',
       type: 'collapse',
       icon: icons.IconFileInvoice,
+      roles: ['ADMIN', 'HEAD', 'SALES'],
       children: [
         { id: 'sales-order', title: 'Sales Order', type: 'item', url: '/sales/sales-order' },
+        { id: 'sales-attendance', title: 'Sales Attendance', type: 'item', url: '/sales/attendance' },
         { id: 'sales-delivery', title: 'Delivery Note', type: 'item', url: '/sales/delivery-note' },
         { id: 'sales-tax-invoice', title: 'Tax Invoice', type: 'item', url: '/sales/tax-invoice' },
         { id: 'sales-credit-note', title: 'Credit Note', type: 'item', url: '/sales/credit-note' },
@@ -114,6 +107,7 @@ const erp = {
       title: 'Production',
       type: 'collapse',
       icon: icons.IconBuildingFactory2,
+      roles: ['ADMIN', 'HEAD', 'PRODUCTION'],
       children: [
         { id: 'production-templates', title: 'Process Templates', type: 'item', url: '/production/templates' },
         { id: 'production-batches', title: 'Batches', type: 'item', url: '/production/batches' },
@@ -127,6 +121,7 @@ const erp = {
       title: 'Accounts',
       type: 'collapse',
       icon: icons.IconReportAnalytics,
+      roles: ['ADMIN', 'HEAD', 'FINANCE'],
       children: [
         { id: 'accounts-ledgers', title: 'Ledgers', type: 'item', url: '/accounts/ledgers' },
         { id: 'accounts-payments', title: 'Payments', type: 'item', url: '/accounts/payments' }
@@ -137,6 +132,7 @@ const erp = {
       title: 'Reports',
       type: 'collapse',
       icon: icons.IconReportAnalytics,
+      roles: ['ADMIN', 'HEAD', 'FINANCE', 'VIEWER'],
       children: [
         { id: 'reports-ledger', title: 'Ledger', type: 'item', url: '/reports/ledger' },
         { id: 'reports-outstanding', title: 'Outstanding', type: 'item', url: '/reports/outstanding' },
@@ -144,14 +140,6 @@ const erp = {
         { id: 'reports-payments', title: 'Payment Reports', type: 'item', url: '/reports/payments' },
         { id: 'reports-module', title: 'Reports Module', type: 'item', url: '/reports/module' }
       ]
-    },
-    ...(devToolsItem ? [devToolsItem] : []),
-    {
-      id: 'settings',
-      title: 'Settings',
-      type: 'item',
-      url: '/settings',
-      icon: icons.IconSettings
     }
   ]
 };

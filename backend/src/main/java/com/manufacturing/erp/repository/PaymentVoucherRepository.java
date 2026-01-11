@@ -26,5 +26,11 @@ public interface PaymentVoucherRepository extends JpaRepository<PaymentVoucher, 
 
   List<PaymentVoucher> findByCompanyIdAndStatusIn(Long companyId, List<PaymentStatus> statuses);
 
+  long countByCompanyIdAndStatusAndChequeDateBefore(Long companyId, PaymentStatus status, LocalDate date);
+
+  long countByCompanyIdAndStatusAndChequeDate(Long companyId, PaymentStatus status, LocalDate date);
+
+  long countByCompanyIdAndStatusAndChequeDateAfter(Long companyId, PaymentStatus status, LocalDate date);
+
   java.util.Optional<PaymentVoucher> findByIdAndCompanyId(Long id, Long companyId);
 }

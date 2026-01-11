@@ -2,6 +2,7 @@ package com.manufacturing.erp.service;
 
 import com.manufacturing.erp.domain.Broker;
 import com.manufacturing.erp.domain.Company;
+import com.manufacturing.erp.domain.Customer;
 import com.manufacturing.erp.domain.Enums.DocumentStatus;
 import com.manufacturing.erp.domain.Enums.PaymentStatus;
 import com.manufacturing.erp.domain.Enums.ProcessOutputType;
@@ -18,6 +19,7 @@ import com.manufacturing.erp.report.ReportType;
 import com.manufacturing.erp.report.ReportWorkbookBuilder;
 import com.manufacturing.erp.repository.BrokerRepository;
 import com.manufacturing.erp.repository.CompanyRepository;
+import com.manufacturing.erp.repository.CustomerRepository;
 import com.manufacturing.erp.repository.ExpensePartyRepository;
 import com.manufacturing.erp.repository.GrnRepository;
 import com.manufacturing.erp.repository.LedgerAccountRepository;
@@ -46,6 +48,7 @@ public class ReportExportService {
   private final PurchaseInvoiceRepository purchaseInvoiceRepository;
   private final SupplierRepository supplierRepository;
   private final BrokerRepository brokerRepository;
+  private final CustomerRepository customerRepository;
   private final ExpensePartyRepository expensePartyRepository;
   private final ProcessRunOutputRepository processRunOutputRepository;
   private final PurchaseOrderRepository purchaseOrderRepository;
@@ -61,6 +64,7 @@ public class ReportExportService {
                              PurchaseInvoiceRepository purchaseInvoiceRepository,
                              SupplierRepository supplierRepository,
                              BrokerRepository brokerRepository,
+                             CustomerRepository customerRepository,
                              ExpensePartyRepository expensePartyRepository,
                              ProcessRunOutputRepository processRunOutputRepository,
                              PurchaseOrderRepository purchaseOrderRepository,
@@ -75,6 +79,7 @@ public class ReportExportService {
     this.purchaseInvoiceRepository = purchaseInvoiceRepository;
     this.supplierRepository = supplierRepository;
     this.brokerRepository = brokerRepository;
+    this.customerRepository = customerRepository;
     this.expensePartyRepository = expensePartyRepository;
     this.processRunOutputRepository = processRunOutputRepository;
     this.purchaseOrderRepository = purchaseOrderRepository;
@@ -100,6 +105,7 @@ public class ReportExportService {
       case FOODS_REPORT -> buildFoodsReportRows(headers);
       case BANK_PAYMENT_SUMMARY -> buildBankPaymentRows(filter, headers);
       case TDS_REPORT -> buildTdsRows(filter, headers);
+      default -> throw new IllegalArgumentException("Unsupported report type: " + reportType);
     };
     return new ReportDtos.ReportTableResponse(reportType.getId(), headers, rows);
   }
@@ -403,6 +409,9 @@ public class ReportExportService {
       case SUPPLIER -> supplierRepository.findById(voucher.getPartyId())
           .map(Supplier::getName)
           .orElse(null);
+      case CUSTOMER -> customerRepository.findById(voucher.getPartyId())
+          .map(Customer::getName)
+          .orElse(null);
       case BROKER -> brokerRepository.findById(voucher.getPartyId())
           .map(Broker::getName)
           .orElse(null);
@@ -410,6 +419,7 @@ public class ReportExportService {
           .map(party -> party.getName())
           .orElse(null);
       case VEHICLE -> null;
+      default -> null;
     };
   }
 

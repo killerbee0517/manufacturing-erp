@@ -26,6 +26,7 @@ export default function WeighbridgeCreatePage() {
     poId: '',
     vehicleId: '',
     itemId: '',
+    supplierInvoiceNo: '',
     dateIn: new Date().toISOString().slice(0, 10),
     timeIn: new Date().toISOString().slice(11, 16),
     grossWeight: '',
@@ -101,7 +102,8 @@ export default function WeighbridgeCreatePage() {
     setHeader((prev) => ({
       ...prev,
       supplierId: po.supplierId || '',
-      itemId: po.lines?.length === 1 ? po.lines[0].itemId : ''
+      itemId: po.lines?.length === 1 ? po.lines[0].itemId : '',
+      supplierInvoiceNo: po.supplierInvoiceNo || prev.supplierInvoiceNo || ''
     }));
   };
 
@@ -132,6 +134,7 @@ export default function WeighbridgeCreatePage() {
         serialNo: header.serialNo || undefined,
         poId,
         vehicleId,
+        supplierInvoiceNo: header.supplierInvoiceNo || null,
         dateIn: header.dateIn,
         timeIn: header.timeIn,
         grossWeight
@@ -212,6 +215,14 @@ export default function WeighbridgeCreatePage() {
               value={poInfo?.supplierName || ''}
               InputProps={{ readOnly: true }}
               placeholder="Auto from PO"
+            />
+          </Grid>
+          <Grid size={{ xs: 12, md: 4 }}>
+            <TextField
+              fullWidth
+              label="Supplier Invoice No"
+              value={header.supplierInvoiceNo}
+              onChange={(event) => setHeader((prev) => ({ ...prev, supplierInvoiceNo: event.target.value }))}
             />
           </Grid>
           <Grid size={{ xs: 12, md: 4 }}>

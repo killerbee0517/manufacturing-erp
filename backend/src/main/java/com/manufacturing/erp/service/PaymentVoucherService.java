@@ -13,11 +13,13 @@ import com.manufacturing.erp.domain.PaymentVoucher;
 import com.manufacturing.erp.domain.PaymentVoucherAllocation;
 import com.manufacturing.erp.domain.PurchaseInvoice;
 import com.manufacturing.erp.domain.Supplier;
+import com.manufacturing.erp.domain.Customer;
 import com.manufacturing.erp.dto.PaymentVoucherDtos;
 import com.manufacturing.erp.repository.BankRepository;
 import com.manufacturing.erp.repository.BrokerRepository;
 import com.manufacturing.erp.repository.BrokerRepository;
 import com.manufacturing.erp.repository.CompanyRepository;
+import com.manufacturing.erp.repository.CustomerRepository;
 import com.manufacturing.erp.repository.ExpensePartyRepository;
 import com.manufacturing.erp.repository.PaymentVoucherAllocationRepository;
 import com.manufacturing.erp.repository.PaymentVoucherRepository;
@@ -39,6 +41,7 @@ public class PaymentVoucherService {
   private final PaymentVoucherAllocationRepository allocationRepository;
   private final PurchaseInvoiceRepository purchaseInvoiceRepository;
   private final SupplierRepository supplierRepository;
+  private final CustomerRepository customerRepository;
   private final BrokerRepository brokerRepository;
   private final ExpensePartyRepository expensePartyRepository;
   private final BankRepository bankRepository;
@@ -51,6 +54,7 @@ public class PaymentVoucherService {
                                PaymentVoucherAllocationRepository allocationRepository,
                                PurchaseInvoiceRepository purchaseInvoiceRepository,
                                SupplierRepository supplierRepository,
+                               CustomerRepository customerRepository,
                                BrokerRepository brokerRepository,
                                ExpensePartyRepository expensePartyRepository,
                                BankRepository bankRepository,
@@ -62,6 +66,7 @@ public class PaymentVoucherService {
     this.allocationRepository = allocationRepository;
     this.purchaseInvoiceRepository = purchaseInvoiceRepository;
     this.supplierRepository = supplierRepository;
+    this.customerRepository = customerRepository;
     this.brokerRepository = brokerRepository;
     this.expensePartyRepository = expensePartyRepository;
     this.bankRepository = bankRepository;
@@ -103,6 +108,7 @@ public class PaymentVoucherService {
       return voucher;
     }
     if (voucher.getPaymentMode() == PaymentMode.PDC) {
+      postLedgerEntries(voucher, "PAYMENT_PDC_ISSUE");
       voucher.setStatus(PaymentStatus.PDC_ISSUED);
       return paymentVoucherRepository.save(voucher);
     }
@@ -123,7 +129,6 @@ public class PaymentVoucherService {
     if (voucher.getStatus() != PaymentStatus.PDC_ISSUED) {
       throw new IllegalStateException("PDC voucher must be issued before clearance");
     }
-    postLedgerEntries(voucher, "PAYMENT_PDC_CLEAR");
     voucher.setStatus(PaymentStatus.PDC_CLEARED);
     return paymentVoucherRepository.save(voucher);
   }
@@ -238,6 +243,9 @@ public class PaymentVoucherService {
       case SUPPLIER -> supplierRepository.findById(partyId)
           .map(this::ensureSupplierLedger)
           .orElse(null);
+      case CUSTOMER -> customerRepository.findById(partyId)
+          .map(this::ensureCustomerLedger)
+          .orElse(null);
       case BROKER -> brokerRepository.findById(partyId)
           .map(broker -> ledgerService.findOrCreateLedger("Broker " + broker.getName(), LedgerType.GENERAL))
           .orElse(null);
@@ -255,6 +263,8 @@ public class PaymentVoucherService {
     switch (partyType) {
       case SUPPLIER -> supplierRepository.findById(partyId)
           .orElseThrow(() -> new IllegalArgumentException("Supplier not found"));
+      case CUSTOMER -> customerRepository.findById(partyId)
+          .orElseThrow(() -> new IllegalArgumentException("Customer not found"));
       case BROKER -> brokerRepository.findById(partyId)
           .orElseThrow(() -> new IllegalArgumentException("Broker not found"));
       case EXPENSE -> expensePartyRepository.findById(partyId)
@@ -285,6 +295,16 @@ public class PaymentVoucherService {
       supplier.setLedger(ledger);
       supplierRepository.save(supplier);
     }
+    return ledger;
+  }
+
+  private Ledger ensureCustomerLedger(Customer customer) {
+    if (customer.getLedger() != null) {
+      return customer.getLedger();
+    }
+    Ledger ledger = ledgerService.createLedger(customer.getName(), LedgerType.CUSTOMER, "CUSTOMER", customer.getId());
+    customer.setLedger(ledger);
+    customerRepository.save(customer);
     return ledger;
   }
 

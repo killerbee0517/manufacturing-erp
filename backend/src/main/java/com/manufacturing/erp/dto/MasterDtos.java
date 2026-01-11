@@ -41,7 +41,7 @@ public class MasterDtos {
       BigDecimal currentBalance) {}
 
   public record ItemRequest(@NotBlank String name, @NotBlank String sku, @NotNull Long uomId) {}
-  public record ItemResponse(Long id, String name, String sku, Long uomId) {}
+  public record ItemResponse(Long id, String name, String sku, Long uomId, String uomCode) {}
 
   public record LocationRequest(@NotBlank String name, @NotBlank String code, @NotBlank String locationType) {}
   public record LocationResponse(Long id, String name, String code, String locationType) {}
@@ -107,6 +107,7 @@ public class MasterDtos {
   public record TdsRuleResponse(Long id, String sectionCode, BigDecimal ratePercent, BigDecimal thresholdAmount,
                                 LocalDate effectiveFrom, LocalDate effectiveTo) {}
 
-  public record UserRequest(@NotBlank String username, @NotBlank String password, @NotBlank String fullName, String roleName) {}
+  public record UserRequest(@NotBlank String username, @NotBlank String password, @NotBlank String fullName,
+                            String roleName, java.util.List<Long> companyIds) {}
   public record UserResponse(Long id, String username, String fullName, List<String> roles) {}
 }

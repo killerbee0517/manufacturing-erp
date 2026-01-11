@@ -11,9 +11,6 @@ public class PurchaseArrivalDtos {
       Long brokerId,
       BigDecimal brokerageAmount,
       @NotNull Long godownId,
-      BigDecimal unloadingCharges,
-      BigDecimal deductions,
-      BigDecimal tdsPercent,
       java.util.List<PurchaseArrivalChargeRequest> charges) {}
 
   public record PurchaseArrivalChargeRequest(
@@ -34,9 +31,6 @@ public class PurchaseArrivalDtos {
       String brokerName,
       BigDecimal brokerageAmount,
       Long godownId,
-      BigDecimal unloadingCharges,
-      BigDecimal deductions,
-      BigDecimal tdsPercent,
       BigDecimal grossAmount,
       BigDecimal netPayable,
       java.util.List<PurchaseArrivalChargeResponse> charges,

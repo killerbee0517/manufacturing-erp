@@ -79,7 +79,7 @@ export default function QcDetailPage() {
       const next = [...prev];
       const current = next[index] || {};
       const updated = { ...current, [key]: value };
-      if (key === 'receivedQty' || key === 'rejectedQty') {
+      if (key === 'rejectedQty') {
         const received = Number(updated.receivedQty || 0);
         const rejected = Number(updated.rejectedQty || 0);
         const accepted = Math.max(0, received - rejected);
@@ -246,8 +246,7 @@ export default function QcDetailPage() {
                     <TextField
                       type="number"
                       value={line.receivedQty}
-                      onChange={(event) => updateLine(index, 'receivedQty', event.target.value)}
-                      disabled={!isEditable}
+                      InputProps={{ readOnly: true }}
                     />
                   </TableCell>
                   <TableCell>

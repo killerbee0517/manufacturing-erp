@@ -37,6 +37,9 @@ public class WeighbridgeTicket extends BaseEntity {
   @ManyToOne
   private Item item;
 
+  @Column(name = "supplier_invoice_no")
+  private String supplierInvoiceNo;
+
   @Column(name = "date_in", nullable = false)
   private LocalDate dateIn;
 
@@ -108,6 +111,14 @@ public class WeighbridgeTicket extends BaseEntity {
 
   public void setItem(Item item) {
     this.item = item;
+  }
+
+  public String getSupplierInvoiceNo() {
+    return supplierInvoiceNo;
+  }
+
+  public void setSupplierInvoiceNo(String supplierInvoiceNo) {
+    this.supplierInvoiceNo = supplierInvoiceNo;
   }
 
   public LocalDate getDateIn() {

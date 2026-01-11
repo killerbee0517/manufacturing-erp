@@ -40,7 +40,11 @@ public class ItemController {
         : itemRepository.findByNameContainingIgnoreCaseOrSkuContainingIgnoreCase(q, q);
     return applyLimit(items, limit).stream()
         .map(item -> new MasterDtos.ItemResponse(
-            item.getId(), item.getName(), item.getSku(), item.getUom() != null ? item.getUom().getId() : null))
+            item.getId(),
+            item.getName(),
+            item.getSku(),
+            item.getUom() != null ? item.getUom().getId() : null,
+            item.getUom() != null ? item.getUom().getCode() : null))
         .toList();
   }
 
@@ -49,7 +53,11 @@ public class ItemController {
     Item item = itemRepository.findById(id)
         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Item not found"));
     return new MasterDtos.ItemResponse(
-        item.getId(), item.getName(), item.getSku(), item.getUom() != null ? item.getUom().getId() : null);
+        item.getId(),
+        item.getName(),
+        item.getSku(),
+        item.getUom() != null ? item.getUom().getId() : null,
+        item.getUom() != null ? item.getUom().getCode() : null);
   }
 
   @PostMapping
@@ -62,7 +70,12 @@ public class ItemController {
     item.setSku(request.sku());
     item.setUom(uom);
     Item saved = itemRepository.save(item);
-    return new MasterDtos.ItemResponse(saved.getId(), saved.getName(), saved.getSku(), saved.getUom().getId());
+    return new MasterDtos.ItemResponse(
+        saved.getId(),
+        saved.getName(),
+        saved.getSku(),
+        saved.getUom().getId(),
+        saved.getUom().getCode());
   }
 
   @PutMapping("/{id}")
@@ -76,7 +89,12 @@ public class ItemController {
     item.setSku(request.sku());
     item.setUom(uom);
     Item saved = itemRepository.save(item);
-    return new MasterDtos.ItemResponse(saved.getId(), saved.getName(), saved.getSku(), saved.getUom().getId());
+    return new MasterDtos.ItemResponse(
+        saved.getId(),
+        saved.getName(),
+        saved.getSku(),
+        saved.getUom().getId(),
+        saved.getUom().getCode());
   }
 
   @DeleteMapping("/{id}")

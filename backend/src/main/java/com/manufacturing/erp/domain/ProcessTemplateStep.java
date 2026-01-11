@@ -7,7 +7,10 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "process_template_steps")
@@ -27,6 +30,9 @@ public class ProcessTemplateStep extends BaseEntity {
   private StepType stepType = StepType.PROCESS;
 
   private String notes;
+
+  @OneToMany(mappedBy = "step", cascade = jakarta.persistence.CascadeType.ALL, orphanRemoval = true)
+  private List<ProcessTemplateStepCharge> charges = new ArrayList<>();
 
   public enum StepType {
     CONSUME,
@@ -73,5 +79,13 @@ public class ProcessTemplateStep extends BaseEntity {
 
   public void setNotes(String notes) {
     this.notes = notes;
+  }
+
+  public List<ProcessTemplateStepCharge> getCharges() {
+    return charges;
+  }
+
+  public void setCharges(List<ProcessTemplateStepCharge> charges) {
+    this.charges = charges;
   }
 }

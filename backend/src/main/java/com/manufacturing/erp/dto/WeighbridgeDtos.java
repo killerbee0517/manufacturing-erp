@@ -10,6 +10,7 @@ public class WeighbridgeDtos {
       String serialNo,
       @NotNull Long poId,
       @NotNull Long vehicleId,
+      String supplierInvoiceNo,
       LocalDate dateIn,
       LocalTime timeIn,
       @NotNull BigDecimal grossWeight) {}
@@ -28,6 +29,7 @@ public class WeighbridgeDtos {
       Long poId,
       Long supplierId,
       Long itemId,
+      String supplierInvoiceNo,
       LocalDate dateIn,
       LocalTime timeIn,
       LocalDate secondDate,

@@ -20,6 +20,7 @@ export default function PurchaseInvoicePage() {
   const [selectedPo, setSelectedPo] = useState('');
   const [creating, setCreating] = useState(false);
   const [creatingPo, setCreatingPo] = useState(false);
+  const [autoCreated, setAutoCreated] = useState(false);
 
   const fetchInvoices = () => {
     setLoading(true);
@@ -36,10 +37,21 @@ export default function PurchaseInvoicePage() {
 
   useEffect(() => {
     const poId = searchParams.get('poId');
+    const grnId = searchParams.get('grnId');
+    if (grnId) {
+      setSelectedGrn(grnId);
+      if (!autoCreated) {
+        setAutoCreated(true);
+        apiClient.post(`/api/purchase-invoices/from-grn/${grnId}`)
+          .then((response) => navigate(`/purchase/purchase-invoice/${response.data.id}`))
+          .catch(() => null);
+      }
+      return;
+    }
     if (poId) {
       setSelectedPo(poId);
     }
-  }, [searchParams]);
+  }, [searchParams, autoCreated, navigate]);
 
   const handleCreate = async () => {
     if (!selectedGrn) return;

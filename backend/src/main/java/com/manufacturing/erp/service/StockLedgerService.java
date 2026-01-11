@@ -2,12 +2,15 @@ package com.manufacturing.erp.service;
 
 import com.manufacturing.erp.domain.Enums.LedgerTxnType;
 import com.manufacturing.erp.domain.Enums.StockStatus;
+import com.manufacturing.erp.domain.Company;
 import com.manufacturing.erp.domain.Godown;
 import com.manufacturing.erp.domain.Item;
 import com.manufacturing.erp.domain.Location;
 import com.manufacturing.erp.domain.StockLedger;
 import com.manufacturing.erp.domain.Uom;
+import com.manufacturing.erp.repository.CompanyRepository;
 import com.manufacturing.erp.repository.StockLedgerRepository;
+import com.manufacturing.erp.security.CompanyContext;
 import java.math.BigDecimal;
 import java.time.Instant;
 import org.springframework.stereotype.Service;
@@ -15,9 +18,15 @@ import org.springframework.stereotype.Service;
 @Service
 public class StockLedgerService {
   private final StockLedgerRepository stockLedgerRepository;
+  private final CompanyRepository companyRepository;
+  private final CompanyContext companyContext;
 
-  public StockLedgerService(StockLedgerRepository stockLedgerRepository) {
+  public StockLedgerService(StockLedgerRepository stockLedgerRepository,
+                            CompanyRepository companyRepository,
+                            CompanyContext companyContext) {
     this.stockLedgerRepository = stockLedgerRepository;
+    this.companyRepository = companyRepository;
+    this.companyContext = companyContext;
   }
 
   public StockLedger postEntry(String docType, Long docId, Long docLineId, LedgerTxnType txnType,
@@ -33,7 +42,9 @@ public class StockLedgerService {
                                Godown fromGodown, Godown toGodown, Godown godown, Long batchId,
                                BigDecimal quantity, BigDecimal weight, StockStatus status,
                                BigDecimal rate, BigDecimal amount) {
+    Company company = requireCompany();
     StockLedger ledger = new StockLedger();
+    ledger.setCompany(company);
     ledger.setDocType(docType);
     ledger.setDocId(docId);
     ledger.setDocLineId(docLineId);
@@ -83,5 +94,14 @@ public class StockLedgerService {
 
   private BigDecimal defaultZero(BigDecimal value) {
     return value != null ? value : BigDecimal.ZERO;
+  }
+
+  private Company requireCompany() {
+    Long companyId = companyContext.getCompanyId();
+    if (companyId == null) {
+      throw new IllegalArgumentException("Missing company context");
+    }
+    return companyRepository.findById(companyId)
+        .orElseThrow(() -> new IllegalArgumentException("Company not found"));
   }
 }

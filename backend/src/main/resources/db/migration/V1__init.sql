@@ -510,12 +510,6 @@ SELECT u.id, r.id FROM users u JOIN roles r ON r.name = 'ADMIN' WHERE u.username
 INSERT INTO branches (name, code, created_at, created_by, updated_at, updated_by)
 VALUES ('Main Branch', 'MAIN', CURRENT_TIMESTAMP, 'seed', CURRENT_TIMESTAMP, 'seed');
 
-INSERT INTO uoms (code, description, created_at, created_by, updated_at, updated_by)
-VALUES ('KG', 'Kilogram', CURRENT_TIMESTAMP, 'seed', CURRENT_TIMESTAMP, 'seed');
-
 INSERT INTO tds_rules (section_code, rate_percent, threshold_amount, effective_from, effective_to, created_at, created_by, updated_at, updated_by)
 VALUES ('194Q', 0.1, 5000000, DATE '2023-04-01', DATE '2099-12-31', CURRENT_TIMESTAMP, 'seed', CURRENT_TIMESTAMP, 'seed');
-
-INSERT INTO items (name, sku, uom_id, created_at, created_by, updated_at, updated_by)
-SELECT 'Raw Paddy', 'ITEM-001', u.id, CURRENT_TIMESTAMP, 'seed', CURRENT_TIMESTAMP, 'seed' FROM uoms u WHERE u.code = 'KG';
 

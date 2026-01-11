@@ -35,6 +35,8 @@ const partyEndpoint = (type) => {
   switch (type) {
     case 'SUPPLIER':
       return '/api/suppliers';
+    case 'CUSTOMER':
+      return '/api/customers';
     case 'BROKER':
       return '/api/brokers';
     case 'EXPENSE':
@@ -237,6 +239,7 @@ export default function PaymentVoucherDetailPage() {
               disabled={!isDraft}
             >
               <MenuItem value="SUPPLIER">Supplier</MenuItem>
+              <MenuItem value="CUSTOMER">Customer</MenuItem>
               <MenuItem value="BROKER">Broker</MenuItem>
               <MenuItem value="EXPENSE">Expense Party</MenuItem>
             </TextField>

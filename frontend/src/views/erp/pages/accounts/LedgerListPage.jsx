@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 
 import Button from '@mui/material/Button';
 import Grid from '@mui/material/Grid';
+import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 
@@ -50,14 +51,13 @@ export default function LedgerListPage() {
             label="Type"
             value={filters.type}
             onChange={(event) => setFilters((prev) => ({ ...prev, type: event.target.value }))}
-            SelectProps={{ native: true }}
           >
-            <option value="">All</option>
-            <option value="SUPPLIER">SUPPLIER</option>
-            <option value="CUSTOMER">CUSTOMER</option>
-            <option value="EXPENSE">EXPENSE</option>
-            <option value="BANK">BANK</option>
-            <option value="GENERAL">GENERAL</option>
+            <MenuItem value="">All</MenuItem>
+            <MenuItem value="SUPPLIER">SUPPLIER</MenuItem>
+            <MenuItem value="CUSTOMER">CUSTOMER</MenuItem>
+            <MenuItem value="EXPENSE">EXPENSE</MenuItem>
+            <MenuItem value="BANK">BANK</MenuItem>
+            <MenuItem value="GENERAL">GENERAL</MenuItem>
           </TextField>
         </Grid>
       </Grid>

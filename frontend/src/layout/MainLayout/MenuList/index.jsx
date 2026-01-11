@@ -21,16 +21,60 @@ function MenuList({ itemsConfig = menuItems }) {
 
   const [selectedID, setSelectedID] = useState('');
 
+  const getUserRoles = () => {
+    try {
+      const raw = localStorage.getItem('userRoles');
+      const roles = raw ? JSON.parse(raw) : [];
+      return Array.isArray(roles) ? roles : [];
+    } catch (err) {
+      return [];
+    }
+  };
+
+  const hasRoleAccess = (itemRoles, userRoles) => {
+    if (!itemRoles || itemRoles.length === 0) return true;
+    if (userRoles.includes('ADMIN')) return true;
+    if (userRoles.includes('HEAD') && !(itemRoles.length === 1 && itemRoles[0] === 'ADMIN')) {
+      return true;
+    }
+    return userRoles.some((role) => itemRoles.includes(role));
+  };
+
+  const filterByRoles = (items, userRoles) => {
+    if (!Array.isArray(items)) return [];
+    return items
+      .map((item) => {
+        if (!hasRoleAccess(item.roles, userRoles)) {
+          return null;
+        }
+        if (item.children) {
+          const nextChildren = filterByRoles(item.children, userRoles);
+          if (nextChildren.length === 0) {
+            return null;
+          }
+          return { ...item, children: nextChildren };
+        }
+        return item;
+      })
+      .filter(Boolean);
+  };
+
+  const userRoles = getUserRoles();
+  const filteredConfig = {
+    ...itemsConfig,
+    items: filterByRoles(itemsConfig.items, userRoles)
+  };
+
   const lastItem = null;
 
-  let lastItemIndex = itemsConfig.items.length - 1;
+  let lastItemIndex = filteredConfig.items.length - 1;
   let remItems = [];
   let lastItemId;
 
-  if (lastItem && lastItem < itemsConfig.items.length) {
-    lastItemId = itemsConfig.items[lastItem - 1].id;
+  if (lastItem && lastItem < filteredConfig.items.length) {
+    lastItemId = filteredConfig.items[lastItem - 1].id;
     lastItemIndex = lastItem - 1;
-    remItems = itemsConfig.items.slice(lastItem - 1, itemsConfig.items.length).map((item) => ({
+    remItems = filteredConfig.items.slice(lastItem - 1, filteredConfig.items.length).map((item) => ({
       title: item.title,
       elements: item.children,
       icon: item.icon,
@@ -40,7 +84,7 @@ function MenuList({ itemsConfig = menuItems }) {
     }));
   }
 
-  const navItems = itemsConfig.items.slice(0, lastItemIndex + 1).map((item, index) => {
+  const navItems = filteredConfig.items.slice(0, lastItemIndex + 1).map((item, index) => {
     switch (item.type) {
       case 'group':
         if (item.url && item.id !== lastItemId) {

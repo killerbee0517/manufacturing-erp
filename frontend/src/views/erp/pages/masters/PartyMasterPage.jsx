@@ -209,6 +209,33 @@ export default function PartyMasterPage() {
     }
   };
 
+  const handleOpenBankAccounts = async () => {
+    if (editingId) {
+      setBankAccountsPartyId(editingId);
+      return;
+    }
+    setActionLoading(true);
+    const payload = buildPayload();
+    try {
+      const response = await apiClient.post('/api/parties', payload);
+      const newId = response.data?.id || null;
+      setEditingId(newId);
+      if (newId) {
+        setBankAccountsPartyId(newId);
+      }
+      setSnackbar({ open: true, message: 'Party created', severity: 'success' });
+      await mutate();
+    } catch (error) {
+      setSnackbar({
+        open: true,
+        message: error?.response?.data?.message || 'Save failed. Check input values.',
+        severity: 'error'
+      });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const updateRoleField = (role, key, value) => {
     setFormState((prev) => ({
       ...prev,
@@ -439,11 +466,7 @@ export default function PartyMasterPage() {
                 <Button variant="outlined" onClick={resetForm} disabled={actionLoading}>
                   {editingId ? 'Cancel edit' : 'Clear'}
                 </Button>
-                <Button
-                  variant="outlined"
-                  onClick={() => setBankAccountsPartyId(editingId)}
-                  disabled={!editingId}
-                >
+                <Button variant="outlined" onClick={handleOpenBankAccounts} disabled={actionLoading}>
                   Bank Accounts
                 </Button>
               </Stack>

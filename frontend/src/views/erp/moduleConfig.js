@@ -60,7 +60,7 @@ export const moduleConfigs = {
       { label: 'ID', field: 'id' },
       { label: 'Name', field: 'name' },
       { label: 'SKU', field: 'sku' },
-      { label: 'UOM', field: 'uomId' }
+      { label: 'UOM', field: 'uomCode' }
     ]
   },
   uoms: {
@@ -99,7 +99,14 @@ export const moduleConfigs = {
       { name: 'pan', label: 'PAN', type: 'text' },
       { name: 'address', label: 'Address', type: 'text' },
       { name: 'active', label: 'Active', type: 'select', options: [true, false] },
-      { name: 'parentCompanyId', label: 'Parent Company ID', type: 'number' }
+      {
+        name: 'parentCompanyId',
+        label: 'Parent Company',
+        type: 'select',
+        optionsSource: 'companies',
+        optionValue: 'id',
+        optionLabel: 'name'
+      }
     ],
     buildPayload: (values) => ({
       ...values,
@@ -300,8 +307,22 @@ export const moduleConfigs = {
       { name: 'username', label: 'Username', type: 'text' },
       { name: 'fullName', label: 'Full Name', type: 'text' },
       { name: 'password', label: 'Password', type: 'password' },
+      {
+        name: 'companyIds',
+        label: 'Companies',
+        type: 'multi-select',
+        optionsSource: 'companies',
+        optionValue: 'id',
+        optionLabel: 'name'
+      },
       { name: 'roleName', label: 'Role', type: 'select', optionsSource: 'roles', optionValue: 'name', optionLabel: 'name' }
     ],
+    buildPayload: (values) => ({
+      ...values,
+      companyIds: Array.isArray(values.companyIds)
+        ? values.companyIds.map((companyId) => Number(companyId))
+        : []
+    }),
     columns: [
       { label: 'ID', field: 'id' },
       { label: 'Username', field: 'username' },

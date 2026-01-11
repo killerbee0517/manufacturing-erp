@@ -3,6 +3,7 @@ package com.manufacturing.erp.controller;
 import com.manufacturing.erp.domain.StockLedger;
 import com.manufacturing.erp.dto.StockDtos;
 import com.manufacturing.erp.repository.StockLedgerRepository;
+import com.manufacturing.erp.security.CompanyContext;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
@@ -16,9 +17,12 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/stock-ledger")
 public class StockLedgerController {
   private final StockLedgerRepository stockLedgerRepository;
+  private final CompanyContext companyContext;
 
-  public StockLedgerController(StockLedgerRepository stockLedgerRepository) {
+  public StockLedgerController(StockLedgerRepository stockLedgerRepository,
+                               CompanyContext companyContext) {
     this.stockLedgerRepository = stockLedgerRepository;
+    this.companyContext = companyContext;
   }
 
   @GetMapping
@@ -26,9 +30,10 @@ public class StockLedgerController {
                                                   @RequestParam(required = false) Long godownId,
                                                   @RequestParam(required = false) LocalDate from,
                                                   @RequestParam(required = false) LocalDate to) {
+    Long companyId = requireCompanyId();
     Instant fromInstant = from != null ? from.atStartOfDay().toInstant(ZoneOffset.UTC) : null;
     Instant toInstant = to != null ? to.plusDays(1).atStartOfDay().toInstant(ZoneOffset.UTC) : null;
-    return stockLedgerRepository.findLedger(itemId, godownId, fromInstant, toInstant).stream()
+    return stockLedgerRepository.findLedger(companyId, itemId, godownId, fromInstant, toInstant).stream()
         .map(this::toResponse)
         .toList();
   }
@@ -50,5 +55,13 @@ public class StockLedgerController {
         entry.getStatus().name(),
         entry.getTxnType().name(),
         entry.getPostedAt());
+  }
+
+  private Long requireCompanyId() {
+    Long companyId = companyContext.getCompanyId();
+    if (companyId == null) {
+      throw new IllegalArgumentException("Missing company context");
+    }
+    return companyId;
   }
 }

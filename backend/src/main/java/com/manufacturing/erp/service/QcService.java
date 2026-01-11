@@ -91,12 +91,22 @@ public class QcService {
     inspection.setMethod(null);
     inspection.setRemarks(null);
     QcInspection saved = qcInspectionRepository.save(inspection);
+    BigDecimal netWeight = ticket.getNetWeight();
+    BigDecimal totalPoQty = purchaseOrder.getLines().stream()
+        .map(line -> defaultQty(line.getQuantity(), BigDecimal.ZERO))
+        .reduce(BigDecimal.ZERO, BigDecimal::add);
     for (PurchaseOrderLine poLine : purchaseOrder.getLines()) {
       QcInspectionLine line = new QcInspectionLine();
       line.setQcInspection(saved);
       line.setPurchaseOrderLine(poLine);
-      line.setReceivedQty(defaultQty(poLine.getQuantity(), BigDecimal.ZERO));
-      line.setAcceptedQty(defaultQty(poLine.getQuantity(), BigDecimal.ZERO));
+      BigDecimal receivedQty = defaultQty(poLine.getQuantity(), BigDecimal.ZERO);
+      if (netWeight != null && totalPoQty.compareTo(BigDecimal.ZERO) > 0) {
+        receivedQty = netWeight
+            .multiply(receivedQty)
+            .divide(totalPoQty, 6, java.math.RoundingMode.HALF_UP);
+      }
+      line.setReceivedQty(receivedQty);
+      line.setAcceptedQty(receivedQty);
       line.setRejectedQty(BigDecimal.ZERO);
       qcInspectionLineRepository.save(line);
       saved.getLines().add(line);
@@ -164,7 +174,7 @@ public class QcService {
       QcInspectionLine line = existing.getOrDefault(poLine.getId(), new QcInspectionLine());
       line.setQcInspection(inspection);
       line.setPurchaseOrderLine(poLine);
-      BigDecimal received = lineRequest.receivedQty();
+      BigDecimal received = defaultQty(line.getReceivedQty(), defaultQty(poLine.getQuantity(), BigDecimal.ZERO));
       BigDecimal rejected = lineRequest.rejectedQty();
       BigDecimal accepted = normalizeAccepted(received, rejected);
       validateQuantities(received, accepted, rejected);

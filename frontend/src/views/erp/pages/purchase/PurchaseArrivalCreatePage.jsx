@@ -13,6 +13,7 @@ import MainCard from 'ui-component/cards/MainCard';
 import PageHeader from 'components/common/PageHeader';
 import apiClient from 'api/client';
 import MasterAutocomplete from 'components/common/MasterAutocomplete';
+import CompanyField from 'components/common/CompanyField';
 
 export default function PurchaseArrivalCreatePage() {
   const navigate = useNavigate();
@@ -21,10 +22,7 @@ export default function PurchaseArrivalCreatePage() {
     purchaseOrderId: '',
     weighbridgeTicketId: '',
     brokerId: '',
-    godownId: '',
-    unloadingCharges: '',
-    deductions: '',
-    tdsPercent: ''
+    godownId: ''
   });
   const [purchaseOrders, setPurchaseOrders] = useState([]);
   const [purchaseOrderMap, setPurchaseOrderMap] = useState({});
@@ -39,6 +37,7 @@ export default function PurchaseArrivalCreatePage() {
   const [brokers, setBrokers] = useState([]);
   const [vehicles, setVehicles] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
+  const [grnId, setGrnId] = useState('');
 
   useEffect(() => {
     apiClient
@@ -80,6 +79,14 @@ export default function PurchaseArrivalCreatePage() {
   useEffect(() => {
     const poId = searchParams.get('poId');
     const ticketId = searchParams.get('ticketId');
+    const nextGrnId = searchParams.get('grnId');
+    const godownId = searchParams.get('godownId');
+    if (nextGrnId) {
+      setGrnId(nextGrnId);
+    }
+    if (godownId) {
+      setHeader((prev) => ({ ...prev, godownId }));
+    }
     if (poId) {
       handlePurchaseOrderChange(poId);
       setHeader((prev) => ({ ...prev, purchaseOrderId: poId }));
@@ -89,6 +96,36 @@ export default function PurchaseArrivalCreatePage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
+
+  useEffect(() => {
+    if (!grnId) return;
+    apiClient
+      .get(`/api/grn/${grnId}`)
+      .then((response) => {
+        const payload = response.data;
+        if (!payload) return;
+        if (payload.purchaseOrderId) {
+          handlePurchaseOrderChange(payload.purchaseOrderId);
+          setHeader((prev) => ({ ...prev, purchaseOrderId: payload.purchaseOrderId }));
+        }
+        if (payload.weighbridgeTicketId) {
+          handleTicketChange(payload.weighbridgeTicketId);
+        }
+        if (payload.godownId) {
+          setHeader((prev) => ({ ...prev, godownId: payload.godownId }));
+        }
+      })
+      .catch(() => null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [grnId]);
+
+  useEffect(() => {
+    if (!header.purchaseOrderId) return;
+    const po = purchaseOrderMap[String(header.purchaseOrderId)];
+    if (po) {
+      setGrossAmount(Number(po.totalAmount || 0));
+    }
+  }, [header.purchaseOrderId, purchaseOrderMap]);
 
   const handleTicketChange = async (ticketId) => {
     setHeader((prev) => ({ ...prev, weighbridgeTicketId: ticketId }));
@@ -110,8 +147,18 @@ export default function PurchaseArrivalCreatePage() {
       const type = merged.chargeTypeId ? getChargeType(Number(merged.chargeTypeId)) : null;
       const calcType = merged.calcType || type?.defaultCalcType || '';
       const rate = merged.rate ?? type?.defaultRate ?? '';
-      if (!merged.amount && rate && calcType === 'PERCENT') {
-        merged.amount = ((grossAmount * Number(rate)) / 100).toFixed(2);
+      const shouldRecalc =
+        patch.rate !== undefined ||
+        patch.calcType !== undefined ||
+        patch.chargeTypeId !== undefined;
+      if (shouldRecalc && patch.amount === undefined) {
+        if (rate && calcType === 'PERCENT') {
+          merged.amount = ((grossAmount * Number(rate)) / 100).toFixed(2);
+        } else if (rate) {
+          merged.amount = Number(rate).toFixed(2);
+        } else {
+          merged.amount = '';
+        }
       }
       if (merged.isDeduction === undefined && type) {
         merged.isDeduction = type.isDeduction;
@@ -130,10 +177,6 @@ export default function PurchaseArrivalCreatePage() {
     });
 
   const netPayable = useMemo(() => {
-    const unloadingCharges = Number(header.unloadingCharges || 0);
-    const deductions = Number(header.deductions || 0);
-    const tdsPercent = Number(header.tdsPercent || 0);
-    const tdsAmount = (grossAmount * tdsPercent) / 100;
     const chargeAdd = charges.reduce((sum, charge) => {
       if (!charge.amount) return sum;
       return sum + (charge.isDeduction ? 0 : Number(charge.amount));
@@ -142,8 +185,8 @@ export default function PurchaseArrivalCreatePage() {
       if (!charge.amount) return sum;
       return sum + (charge.isDeduction ? Number(charge.amount) : 0);
     }, 0);
-    return grossAmount + unloadingCharges + chargeAdd - deductions - chargeDeduct - tdsAmount;
-  }, [grossAmount, header.unloadingCharges, header.deductions, header.tdsPercent, charges]);
+    return grossAmount + chargeAdd - chargeDeduct;
+  }, [grossAmount, charges]);
 
   const handlePurchaseOrderChange = async (poId) => {
     setHeader((prev) => ({ ...prev, purchaseOrderId: poId }));
@@ -182,13 +225,14 @@ export default function PurchaseArrivalCreatePage() {
         weighbridgeTicketId: header.weighbridgeTicketId ? Number(header.weighbridgeTicketId) : null,
         brokerId: header.brokerId ? Number(header.brokerId) : null,
         godownId: Number(header.godownId),
-        unloadingCharges: header.unloadingCharges ? Number(header.unloadingCharges) : 0,
-        deductions: header.deductions ? Number(header.deductions) : 0,
-        tdsPercent: header.tdsPercent ? Number(header.tdsPercent) : 0,
         charges: payloadCharges
       };
       await apiClient.post('/api/purchase-arrivals', payload);
-      navigate(`/purchase/purchase-invoice?poId=${payload.purchaseOrderId}`);
+      if (grnId) {
+        navigate(`/purchase/purchase-invoice?grnId=${grnId}`);
+      } else {
+        navigate(`/purchase/purchase-invoice?poId=${payload.purchaseOrderId}`);
+      }
       setError('');
     } catch (err) {
       setError(err?.response?.data?.message || 'Failed to save purchase arrival.');
@@ -211,6 +255,9 @@ export default function PurchaseArrivalCreatePage() {
       <Stack spacing={3}>
         {error && <Typography color="error">{error}</Typography>}
         <Grid container spacing={2}>
+          <Grid size={{ xs: 12, md: 4 }}>
+            <CompanyField />
+          </Grid>
           <Grid size={{ xs: 12, md: 4 }}>
             <TextField
               fullWidth
@@ -278,36 +325,6 @@ export default function PurchaseArrivalCreatePage() {
         <Divider />
         <Stack spacing={2}>
           <Typography variant="h5">Charges & Deductions</Typography>
-          <Grid container spacing={2}>
-            <Grid size={{ xs: 12, md: 4 }}>
-              <TextField
-                fullWidth
-                type="number"
-                label="Unloading Charges"
-                value={header.unloadingCharges}
-                onChange={(event) => setHeader((prev) => ({ ...prev, unloadingCharges: event.target.value }))}
-              />
-            </Grid>
-            <Grid size={{ xs: 12, md: 4 }}>
-              <TextField
-                fullWidth
-                type="number"
-                label="Deductions"
-                value={header.deductions}
-                onChange={(event) => setHeader((prev) => ({ ...prev, deductions: event.target.value }))}
-              />
-            </Grid>
-            <Grid size={{ xs: 12, md: 4 }}>
-              <TextField
-                fullWidth
-                type="number"
-                label="TDS %"
-                value={header.tdsPercent}
-                onChange={(event) => setHeader((prev) => ({ ...prev, tdsPercent: event.target.value }))}
-              />
-            </Grid>
-          </Grid>
-          <Divider />
           <Stack spacing={2}>
             {charges.map((charge, index) => {
               const typeInfo = getChargeType(Number(charge.chargeTypeId));
@@ -364,7 +381,7 @@ export default function PurchaseArrivalCreatePage() {
                     <TextField
                       select
                       fullWidth
-                      label="Payable To"
+                      label="Payable Type"
                       value={charge.payablePartyType || 'SUPPLIER'}
                       onChange={(event) => updateCharge(index, { payablePartyType: event.target.value, payablePartyId: '' })}
                     >

@@ -8,6 +8,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
+import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
@@ -18,6 +19,10 @@ import java.util.List;
 @Entity
 @Table(name = "stock_transfer_header")
 public class StockTransferHeader extends BaseEntity {
+  @ManyToOne
+  @JoinColumn(name = "company_id", nullable = false)
+  private Company company;
+
   @Column(name = "transfer_no", nullable = false)
   private String transferNo;
 
@@ -42,6 +47,14 @@ public class StockTransferHeader extends BaseEntity {
 
   public String getTransferNo() {
     return transferNo;
+  }
+
+  public Company getCompany() {
+    return company;
+  }
+
+  public void setCompany(Company company) {
+    this.company = company;
   }
 
   public void setTransferNo(String transferNo) {

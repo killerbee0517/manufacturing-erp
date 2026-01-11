@@ -40,6 +40,7 @@ const lookupEndpoints = {
   godowns: '/api/godowns',
   brokers: '/api/brokers',
   parties: '/api/parties/autocomplete',
+  companies: '/api/companies',
   roles: '/api/roles',
   tickets: '/api/weighbridge/tickets',
   salesOrders: '/api/sales-orders'
@@ -72,6 +73,7 @@ export default function ModulePage({ config }) {
   const [formState, setFormState] = useState({});
   const [editingId, setEditingId] = useState(null);
   const [bankAccountsPartyId, setBankAccountsPartyId] = useState(null);
+  const [optionsCache, setOptionsCache] = useState({});
   const [actionLoading, setActionLoading] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
@@ -84,6 +86,7 @@ export default function ModulePage({ config }) {
   const hasNavigationActions = Boolean(config.detailRouteBase || config.editRouteBase);
   const showActions = hasNavigationActions || allowInlineEdit;
   const isEditing = Boolean(editingId);
+  const showCreateButton = createEnabled && (!useInlineCreate || Boolean(config.createRoute));
 
   const visibleFields = useMemo(() => fields.filter((field) => !hiddenFieldNames.has(field.name)), [fields]);
   const visibleFieldNames = useMemo(() => new Set(visibleFields.map((field) => field.name)), [visibleFields]);
@@ -105,6 +108,26 @@ export default function ModulePage({ config }) {
     setFilters({ search: '', status: '' });
     setDebouncedFilters({ search: '', status: '' });
   }, [config.listEndpoint, config.createEndpoint]);
+
+  useEffect(() => {
+    const targets = fields.filter((field) => field.type === 'multi-select' && field.optionsSource);
+    if (!targets.length) return;
+    targets.forEach((field) => {
+      const source = field.optionsSource;
+      if (!source || optionsCache[source]) return;
+      const endpoint = lookupEndpoints[source];
+      if (!endpoint) return;
+      apiClient
+        .get(endpoint)
+        .then((response) => {
+          const payload = response.data || [];
+          setOptionsCache((prev) => ({ ...prev, [source]: payload.content || payload }));
+        })
+        .catch(() => {
+          setOptionsCache((prev) => ({ ...prev, [source]: [] }));
+        });
+    });
+  }, [fields, optionsCache]);
 
   const listKey = useMemo(() => {
     if (!config.listEndpoint) return null;
@@ -248,20 +271,22 @@ export default function ModulePage({ config }) {
               </Stack>
             }
             secondary={
-              <Button
-                variant="contained"
-                color="secondary"
-                disabled={!createEnabled}
-                type={createEnabled && useInlineCreate ? 'submit' : 'button'}
-                form={createEnabled && useInlineCreate ? 'module-form' : undefined}
-                onClick={
-                  config.createRoute
-                    ? () => navigate(config.createRoute)
-                    : undefined
-                }
-              >
-                Create
-              </Button>
+              showCreateButton ? (
+                <Button
+                  variant="contained"
+                  color="secondary"
+                  disabled={!createEnabled}
+                  type={createEnabled && useInlineCreate ? 'submit' : 'button'}
+                  form={createEnabled && useInlineCreate ? 'module-form' : undefined}
+                  onClick={
+                    config.createRoute
+                      ? () => navigate(config.createRoute)
+                      : undefined
+                  }
+                >
+                  Create
+                </Button>
+              ) : null
             }
           >
             <Stack spacing={2}>
@@ -324,6 +349,31 @@ export default function ModulePage({ config }) {
                                   </Button>
                                 )}
                               </Stack>
+                            ) : field.type === 'multi-select' ? (
+                              <TextField
+                                fullWidth
+                                select
+                                SelectProps={{ multiple: true }}
+                                label={field.label}
+                                value={formState[field.name] || []}
+                                onChange={(event) => setFormState({ ...formState, [field.name]: event.target.value })}
+                                required={field.required}
+                              >
+                                {(field.optionsSource ? (optionsCache[field.optionsSource] || []) : (field.options || []))
+                                  .map((option) => {
+                                    const value = typeof option === 'object'
+                                      ? option[field.optionValue || 'id'] ?? option.id ?? option.code ?? option.name
+                                      : option;
+                                    const label = typeof option === 'object'
+                                      ? option[field.optionLabel || 'name'] ?? option.name ?? option.code ?? option.id
+                                      : option;
+                                    return (
+                                      <MenuItem key={String(value)} value={value}>
+                                        {label}
+                                      </MenuItem>
+                                    );
+                                  })}
+                              </TextField>
                             ) : field.type === 'select' ? (
                               <TextField
                                 fullWidth
@@ -417,13 +467,22 @@ export default function ModulePage({ config }) {
                           }
                           sx={{ cursor: config.detailRouteBase ? 'pointer' : 'default' }}
                         >
-                          {columns.map((column) => (
-                            <TableCell key={`${row.id}-${column.field}`}>
-                              {Array.isArray(row[column.field])
-                                ? row[column.field].join(', ')
-                                : row[column.field] ?? '-'}
-                            </TableCell>
-                          ))}
+                          {columns.map((column) => {
+                            const rawValue = row[column.field];
+                            let displayValue = '-';
+                            if (Array.isArray(rawValue)) {
+                              displayValue = rawValue.join(', ');
+                            } else if (typeof rawValue === 'boolean') {
+                              displayValue = rawValue ? 'Yes' : 'No';
+                            } else if (rawValue !== null && rawValue !== undefined && rawValue !== '') {
+                              displayValue = rawValue;
+                            }
+                            return (
+                              <TableCell key={`${row.id}-${column.field}`}>
+                                {displayValue}
+                              </TableCell>
+                            );
+                          })}
                           {showActions && (
                         <TableCell align="right" onClick={(event) => event.stopPropagation()}>
                           {config.detailRouteBase && (

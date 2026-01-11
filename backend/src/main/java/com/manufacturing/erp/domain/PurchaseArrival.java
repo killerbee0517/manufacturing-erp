@@ -30,15 +30,6 @@ public class PurchaseArrival extends BaseEntity {
   private Godown godown;
 
   @Column(nullable = false)
-  private BigDecimal unloadingCharges;
-
-  @Column(nullable = false)
-  private BigDecimal deductions;
-
-  @Column(nullable = false)
-  private BigDecimal tdsPercent;
-
-  @Column(nullable = false)
   private BigDecimal grossAmount;
 
   @Column(nullable = false)
@@ -88,30 +79,6 @@ public class PurchaseArrival extends BaseEntity {
 
   public void setGodown(Godown godown) {
     this.godown = godown;
-  }
-
-  public BigDecimal getUnloadingCharges() {
-    return unloadingCharges;
-  }
-
-  public void setUnloadingCharges(BigDecimal unloadingCharges) {
-    this.unloadingCharges = unloadingCharges;
-  }
-
-  public BigDecimal getDeductions() {
-    return deductions;
-  }
-
-  public void setDeductions(BigDecimal deductions) {
-    this.deductions = deductions;
-  }
-
-  public BigDecimal getTdsPercent() {
-    return tdsPercent;
-  }
-
-  public void setTdsPercent(BigDecimal tdsPercent) {
-    this.tdsPercent = tdsPercent;
   }
 
   public BigDecimal getGrossAmount() {

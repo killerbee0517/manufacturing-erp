@@ -80,6 +80,7 @@ public class WeighbridgeService {
     ticket.setPurchaseOrder(po);
     ticket.setSupplier(supplier);
     ticket.setItem(item);
+    ticket.setSupplierInvoiceNo(request.supplierInvoiceNo());
     ticket.setDateIn(request.dateIn() != null ? request.dateIn() : ticket.getDateIn());
     ticket.setTimeIn(request.timeIn() != null ? request.timeIn() : ticket.getTimeIn());
     ticket.setGrossWeight(gross);
@@ -103,6 +104,7 @@ public class WeighbridgeService {
     ticket.setPurchaseOrder(po);
     ticket.setSupplier(supplier);
     ticket.setItem(item);
+    ticket.setSupplierInvoiceNo(request.supplierInvoiceNo());
     ticket.setDateIn(request.dateIn() != null ? request.dateIn() : LocalDate.now());
     ticket.setTimeIn(request.timeIn() != null ? request.timeIn() : LocalTime.now());
     ticket.setGrossWeight(request.grossWeight());

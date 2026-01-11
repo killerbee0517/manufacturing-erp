@@ -1,12 +1,14 @@
 package com.manufacturing.erp.service;
 
 import com.manufacturing.erp.domain.Customer;
+import com.manufacturing.erp.domain.Company;
 import com.manufacturing.erp.domain.Enums.DocumentStatus;
 import com.manufacturing.erp.domain.Item;
 import com.manufacturing.erp.domain.SalesOrder;
 import com.manufacturing.erp.domain.SalesOrderLine;
 import com.manufacturing.erp.domain.Uom;
 import com.manufacturing.erp.dto.TransactionDtos;
+import com.manufacturing.erp.repository.CompanyRepository;
 import com.manufacturing.erp.repository.CustomerRepository;
 import com.manufacturing.erp.repository.ItemRepository;
 import com.manufacturing.erp.repository.SalesOrderLineRepository;
@@ -16,6 +18,7 @@ import java.util.ArrayList;
 import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.manufacturing.erp.security.CompanyContext;
 
 @Service
 public class SalesOrderService {
@@ -24,22 +27,29 @@ public class SalesOrderService {
   private final CustomerRepository customerRepository;
   private final ItemRepository itemRepository;
   private final UomRepository uomRepository;
+  private final CompanyRepository companyRepository;
+  private final CompanyContext companyContext;
 
   public SalesOrderService(SalesOrderRepository salesOrderRepository,
                            SalesOrderLineRepository salesOrderLineRepository,
                            CustomerRepository customerRepository,
                            ItemRepository itemRepository,
-                           UomRepository uomRepository) {
+                           UomRepository uomRepository,
+                           CompanyRepository companyRepository,
+                           CompanyContext companyContext) {
     this.salesOrderRepository = salesOrderRepository;
     this.salesOrderLineRepository = salesOrderLineRepository;
     this.customerRepository = customerRepository;
     this.itemRepository = itemRepository;
     this.uomRepository = uomRepository;
+    this.companyRepository = companyRepository;
+    this.companyContext = companyContext;
   }
 
   @org.springframework.transaction.annotation.Transactional(readOnly = true)
   public List<TransactionDtos.SalesOrderResponse> list(String status) {
-    return salesOrderRepository.findAll().stream()
+    Company company = requireCompany();
+    return salesOrderRepository.findByCompanyId(company.getId()).stream()
         .filter(so -> status == null || status.isBlank() || so.getStatus().name().equalsIgnoreCase(status))
         .map(this::toResponse)
         .toList();
@@ -47,19 +57,22 @@ public class SalesOrderService {
 
   @org.springframework.transaction.annotation.Transactional(readOnly = true)
   public TransactionDtos.SalesOrderResponse get(Long id) {
-    SalesOrder salesOrder = salesOrderRepository.findById(id)
+    Company company = requireCompany();
+    SalesOrder salesOrder = salesOrderRepository.findByIdAndCompanyId(id, company.getId())
         .orElseThrow(() -> new IllegalArgumentException("Sales order not found"));
     return toResponse(salesOrder);
   }
 
   @Transactional
   public TransactionDtos.SalesOrderResponse save(TransactionDtos.SalesOrderRequest request) {
+    Company company = requireCompany();
     Customer customer = customerRepository.findById(request.customerId())
         .orElseThrow(() -> new IllegalArgumentException("Customer not found"));
 
     SalesOrder salesOrder = request.id() != null
-        ? salesOrderRepository.findById(request.id()).orElse(new SalesOrder())
+        ? salesOrderRepository.findByIdAndCompanyId(request.id(), company.getId()).orElse(new SalesOrder())
         : new SalesOrder();
+    salesOrder.setCompany(company);
     salesOrder.setSoNo(request.soNo() != null ? request.soNo() : generateSoNo());
     salesOrder.setCustomer(customer);
     salesOrder.setOrderDate(request.orderDate());
@@ -113,5 +126,14 @@ public class SalesOrderService {
         salesOrder.getStatus().name(),
         salesOrder.getNarration(),
         lines);
+  }
+
+  private Company requireCompany() {
+    Long companyId = companyContext.getCompanyId();
+    if (companyId == null) {
+      throw new IllegalArgumentException("Missing company context");
+    }
+    return companyRepository.findById(companyId)
+        .orElseThrow(() -> new IllegalArgumentException("Company not found"));
   }
 }

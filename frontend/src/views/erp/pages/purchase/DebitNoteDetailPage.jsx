@@ -25,8 +25,6 @@ const generateId = () =>
 const newLine = () => ({
   clientId: generateId(),
   description: '',
-  baseValue: '',
-  rate: '',
   amount: '',
   remarks: ''
 });
@@ -38,7 +36,6 @@ export default function DebitNoteDetailPage() {
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({ dnDate: new Date().toISOString().slice(0, 10), narration: '' });
   const [lines, setLines] = useState([newLine()]);
-  const [saving, setSaving] = useState(false);
   const [posting, setPosting] = useState(false);
 
   const fetchNote = async () => {
@@ -77,13 +74,7 @@ export default function DebitNoteDetailPage() {
   const handleLineChange = (index, key, value) => {
     setLines((prev) => {
       const next = [...prev];
-      const updated = { ...next[index], [key]: value };
-      if (key === 'baseValue' || key === 'rate') {
-        const base = Number(updated.baseValue || 0);
-        const rate = Number(updated.rate || 0);
-        updated.amount = ((base * rate) / 100).toFixed(2);
-      }
-      next[index] = updated;
+      next[index] = { ...next[index], [key]: value };
       return next;
     });
   };
@@ -91,31 +82,26 @@ export default function DebitNoteDetailPage() {
   const handleAddLine = () => setLines((prev) => [...prev, newLine()]);
   const handleRemoveLine = (clientId) => setLines((prev) => prev.filter((line) => line.clientId !== clientId));
 
-  const handleSave = async () => {
-    setSaving(true);
-    try {
-      await apiClient.put(`/api/debit-notes/${id}`, {
-        dnDate: form.dnDate,
-        narration: form.narration,
-        lines: lines.map((line) => ({
-          id: line.id,
-          ruleId: line.ruleId,
-          description: line.description,
-          baseValue: line.baseValue === '' ? null : Number(line.baseValue),
-          rate: line.rate === '' ? null : Number(line.rate),
-          amount: line.amount === '' ? null : Number(line.amount),
-          remarks: line.remarks
-        }))
-      });
-      await fetchNote();
-    } finally {
-      setSaving(false);
-    }
-  };
+  const buildPayload = () => ({
+    dnDate: form.dnDate,
+    narration: form.narration,
+    lines: lines.map((line) => ({
+      id: line.id,
+      ruleId: line.ruleId,
+      description: line.description,
+      baseValue: null,
+      rate: null,
+      amount: line.amount === '' ? null : Number(line.amount),
+      remarks: line.remarks
+    }))
+  });
 
   const handlePost = async () => {
     setPosting(true);
     try {
+      if (isDraft) {
+        await apiClient.put(`/api/debit-notes/${id}`, buildPayload());
+      }
       await apiClient.post(`/api/debit-notes/${id}/post`);
       await fetchNote();
     } finally {
@@ -144,9 +130,6 @@ export default function DebitNoteDetailPage() {
           <Stack direction="row" spacing={1}>
             <Button variant="outlined" onClick={() => navigate('/purchase/debit-note')}>
               Back to List
-            </Button>
-            <Button variant="contained" color="secondary" onClick={handleSave} disabled={!isDraft || saving}>
-              Save
             </Button>
             <Button variant="contained" color="primary" onClick={handlePost} disabled={!isDraft || posting}>
               Post Debit Note
@@ -205,14 +188,12 @@ export default function DebitNoteDetailPage() {
           </Stack>
           <Table size="small">
             <TableHead>
-              <TableRow>
-                <TableCell>Description</TableCell>
-                <TableCell>Base</TableCell>
-                <TableCell>Rate %</TableCell>
-                <TableCell>Amount</TableCell>
-                <TableCell>Remarks</TableCell>
-                {isDraft && <TableCell align="right">Actions</TableCell>}
-              </TableRow>
+            <TableRow>
+              <TableCell>Description</TableCell>
+              <TableCell>Amount</TableCell>
+              <TableCell>Remarks</TableCell>
+              {isDraft && <TableCell align="right">Actions</TableCell>}
+            </TableRow>
             </TableHead>
             <TableBody>
               {lines.map((line, index) => (
@@ -222,24 +203,6 @@ export default function DebitNoteDetailPage() {
                       fullWidth
                       value={line.description || ''}
                       onChange={(event) => handleLineChange(index, 'description', event.target.value)}
-                      disabled={!isDraft}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <TextField
-                      fullWidth
-                      type="number"
-                      value={line.baseValue}
-                      onChange={(event) => handleLineChange(index, 'baseValue', event.target.value)}
-                      disabled={!isDraft}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <TextField
-                      fullWidth
-                      type="number"
-                      value={line.rate}
-                      onChange={(event) => handleLineChange(index, 'rate', event.target.value)}
                       disabled={!isDraft}
                     />
                   </TableCell>
@@ -271,7 +234,7 @@ export default function DebitNoteDetailPage() {
               ))}
               {!lines.length && (
                 <TableRow>
-                  <TableCell colSpan={isDraft ? 6 : 5}>No deduction lines.</TableCell>
+                  <TableCell colSpan={isDraft ? 4 : 3}>No deduction lines.</TableCell>
                 </TableRow>
               )}
             </TableBody>

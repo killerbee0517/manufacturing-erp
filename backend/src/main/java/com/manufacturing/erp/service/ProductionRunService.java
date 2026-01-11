@@ -1,31 +1,48 @@
 package com.manufacturing.erp.service;
 
 import com.manufacturing.erp.domain.Company;
+import com.manufacturing.erp.domain.Broker;
+import com.manufacturing.erp.domain.DeductionChargeType;
+import com.manufacturing.erp.domain.Enums.CalcType;
 import com.manufacturing.erp.domain.Enums.InventoryLocationType;
 import com.manufacturing.erp.domain.Enums.LedgerTxnType;
+import com.manufacturing.erp.domain.Enums.LedgerType;
+import com.manufacturing.erp.domain.Enums.PayablePartyType;
 import com.manufacturing.erp.domain.Enums.ProcessInputSourceType;
 import com.manufacturing.erp.domain.Enums.ProcessOutputType;
 import com.manufacturing.erp.domain.Enums.ProductionStatus;
+import com.manufacturing.erp.domain.ExpenseParty;
 import com.manufacturing.erp.domain.Godown;
 import com.manufacturing.erp.domain.InventoryMovement;
 import com.manufacturing.erp.domain.Item;
+import com.manufacturing.erp.domain.Ledger;
 import com.manufacturing.erp.domain.ProcessRun;
+import com.manufacturing.erp.domain.ProcessRunCharge;
 import com.manufacturing.erp.domain.ProcessRunConsumption;
 import com.manufacturing.erp.domain.ProcessRunOutput;
 import com.manufacturing.erp.domain.ProcessTemplateStep;
+import com.manufacturing.erp.domain.ProcessTemplateStepCharge;
 import com.manufacturing.erp.domain.ProductionBatch;
+import com.manufacturing.erp.domain.Supplier;
 import com.manufacturing.erp.domain.Uom;
 import com.manufacturing.erp.dto.ProductionDtos;
+import com.manufacturing.erp.repository.BrokerRepository;
 import com.manufacturing.erp.repository.CompanyRepository;
+import com.manufacturing.erp.repository.DeductionChargeTypeRepository;
+import com.manufacturing.erp.repository.ExpensePartyRepository;
 import com.manufacturing.erp.repository.GodownRepository;
 import com.manufacturing.erp.repository.InventoryMovementRepository;
 import com.manufacturing.erp.repository.ItemRepository;
+import com.manufacturing.erp.repository.ProcessRunChargeRepository;
 import com.manufacturing.erp.repository.ProcessRunConsumptionRepository;
 import com.manufacturing.erp.repository.ProcessRunOutputRepository;
 import com.manufacturing.erp.repository.ProcessRunRepository;
 import com.manufacturing.erp.repository.ProcessTemplateStepRepository;
+import com.manufacturing.erp.repository.ProcessTemplateStepChargeRepository;
 import com.manufacturing.erp.repository.ProductionBatchRepository;
+import com.manufacturing.erp.repository.SupplierRepository;
 import com.manufacturing.erp.repository.UomRepository;
+import com.manufacturing.erp.repository.VehicleRepository;
 import com.manufacturing.erp.security.CompanyContext;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -42,12 +59,21 @@ public class ProductionRunService {
   private final ProcessRunRepository processRunRepository;
   private final ProcessRunConsumptionRepository processRunConsumptionRepository;
   private final ProcessRunOutputRepository processRunOutputRepository;
+  private final ProcessRunChargeRepository processRunChargeRepository;
   private final ProcessTemplateStepRepository processTemplateStepRepository;
+  private final ProcessTemplateStepChargeRepository processTemplateStepChargeRepository;
   private final ItemRepository itemRepository;
   private final UomRepository uomRepository;
   private final GodownRepository godownRepository;
   private final InventoryMovementRepository inventoryMovementRepository;
   private final StockLedgerService stockLedgerService;
+  private final DeductionChargeTypeRepository deductionChargeTypeRepository;
+  private final SupplierRepository supplierRepository;
+  private final BrokerRepository brokerRepository;
+  private final VehicleRepository vehicleRepository;
+  private final ExpensePartyRepository expensePartyRepository;
+  private final LedgerService ledgerService;
+  private final VoucherService voucherService;
   private final CompanyRepository companyRepository;
   private final CompanyContext companyContext;
 
@@ -55,24 +81,42 @@ public class ProductionRunService {
                               ProcessRunRepository processRunRepository,
                               ProcessRunConsumptionRepository processRunConsumptionRepository,
                               ProcessRunOutputRepository processRunOutputRepository,
+                              ProcessRunChargeRepository processRunChargeRepository,
                               ProcessTemplateStepRepository processTemplateStepRepository,
+                              ProcessTemplateStepChargeRepository processTemplateStepChargeRepository,
                               ItemRepository itemRepository,
                               UomRepository uomRepository,
                               GodownRepository godownRepository,
                               InventoryMovementRepository inventoryMovementRepository,
                               StockLedgerService stockLedgerService,
+                              DeductionChargeTypeRepository deductionChargeTypeRepository,
+                              SupplierRepository supplierRepository,
+                              BrokerRepository brokerRepository,
+                              VehicleRepository vehicleRepository,
+                              ExpensePartyRepository expensePartyRepository,
+                              LedgerService ledgerService,
+                              VoucherService voucherService,
                               CompanyRepository companyRepository,
                               CompanyContext companyContext) {
     this.productionBatchRepository = productionBatchRepository;
     this.processRunRepository = processRunRepository;
     this.processRunConsumptionRepository = processRunConsumptionRepository;
     this.processRunOutputRepository = processRunOutputRepository;
+    this.processRunChargeRepository = processRunChargeRepository;
     this.processTemplateStepRepository = processTemplateStepRepository;
+    this.processTemplateStepChargeRepository = processTemplateStepChargeRepository;
     this.itemRepository = itemRepository;
     this.uomRepository = uomRepository;
     this.godownRepository = godownRepository;
     this.inventoryMovementRepository = inventoryMovementRepository;
     this.stockLedgerService = stockLedgerService;
+    this.deductionChargeTypeRepository = deductionChargeTypeRepository;
+    this.supplierRepository = supplierRepository;
+    this.brokerRepository = brokerRepository;
+    this.vehicleRepository = vehicleRepository;
+    this.expensePartyRepository = expensePartyRepository;
+    this.ledgerService = ledgerService;
+    this.voucherService = voucherService;
     this.companyRepository = companyRepository;
     this.companyContext = companyContext;
   }
@@ -95,6 +139,11 @@ public class ProductionRunService {
     List<ProcessRunOutput> outputs = buildOutputs(saved, request.outputs());
     processRunConsumptionRepository.saveAll(inputs);
     processRunOutputRepository.saveAll(outputs);
+    BigDecimal baseAmount = resolveBaseAmountFromOutputs(request.outputs());
+    List<ProcessRunCharge> charges = buildCharges(saved, request.charges(), baseAmount);
+    if (!charges.isEmpty()) {
+      processRunChargeRepository.saveAll(charges);
+    }
     return toRunResponse(saved);
   }
 
@@ -107,8 +156,14 @@ public class ProductionRunService {
     run.setMoisturePercent(request.moisturePercent());
     processRunConsumptionRepository.deleteAll(processRunConsumptionRepository.findByProcessRunId(runId));
     processRunOutputRepository.deleteAll(processRunOutputRepository.findByProcessRunId(runId));
+    processRunChargeRepository.deleteAll(processRunChargeRepository.findByProcessRunId(runId));
     processRunConsumptionRepository.saveAll(buildConsumptions(run, request.inputs()));
     processRunOutputRepository.saveAll(buildOutputs(run, request.outputs()));
+    BigDecimal baseAmount = resolveBaseAmountFromOutputs(request.outputs());
+    List<ProcessRunCharge> charges = buildCharges(run, request.charges(), baseAmount);
+    if (!charges.isEmpty()) {
+      processRunChargeRepository.saveAll(charges);
+    }
     return toRunResponse(processRunRepository.save(run));
   }
 
@@ -122,6 +177,7 @@ public class ProductionRunService {
     ProcessRun run = getRunOrThrow(runId);
     List<ProcessRunConsumption> inputs = processRunConsumptionRepository.findByProcessRunId(runId);
     List<ProcessRunOutput> outputs = processRunOutputRepository.findByProcessRunId(runId);
+    List<ProcessRunCharge> charges = processRunChargeRepository.findByProcessRunId(runId);
 
     BigDecimal totalInputQty = inputs.stream()
         .map(ProcessRunConsumption::getQuantity)
@@ -204,6 +260,7 @@ public class ProductionRunService {
     }
     List<ProcessRunConsumption> inputs = processRunConsumptionRepository.findByProcessRunId(runId);
     List<ProcessRunOutput> outputs = processRunOutputRepository.findByProcessRunId(runId);
+    List<ProcessRunCharge> charges = processRunChargeRepository.findByProcessRunId(runId);
 
     for (ProcessRunConsumption input : inputs) {
       validateQuantity(input.getQuantity(), "Input quantity");
@@ -284,6 +341,18 @@ public class ProductionRunService {
         recordMovement("PROD_RUN_OUT", run, output.getItem(), output.getUom(), output.getQuantity(), BigDecimal.ZERO,
             locationType, locationId);
       }
+    }
+
+    List<VoucherService.VoucherLineRequest> postings = new java.util.ArrayList<>();
+    if (!charges.isEmpty()) {
+      Ledger chargesLedger = ledgerService.findOrCreateLedger("Production Charges", LedgerType.EXPENSE);
+      Ledger deductionsLedger = ledgerService.findOrCreateLedger("Production Deductions", LedgerType.GENERAL);
+      postings.addAll(buildChargePostings(charges, chargesLedger, deductionsLedger));
+    }
+    postings.addAll(buildTemplateStepChargePostings(run, outputs));
+    if (!postings.isEmpty()) {
+      voucherService.createVoucher("PRODUCTION_RUN", run.getId(), run.getRunDate(),
+          "Production run charges", postings);
     }
 
     run.setStatus(ProductionStatus.COMPLETED);
@@ -415,9 +484,176 @@ public class ProductionRunService {
     }).toList();
   }
 
+  private BigDecimal resolveBaseAmountFromOutputs(List<ProductionDtos.RunOutputRequest> outputs) {
+    if (outputs == null) {
+      return BigDecimal.ZERO;
+    }
+    return outputs.stream()
+        .map(req -> resolveAmount(req.amount(), req.rate(), req.qty()))
+        .reduce(BigDecimal.ZERO, BigDecimal::add);
+  }
+
+  private List<ProcessRunCharge> buildCharges(ProcessRun run,
+                                              List<ProductionDtos.RunChargeRequest> requests,
+                                              BigDecimal baseAmount) {
+    if (requests == null || requests.isEmpty()) {
+      return List.of();
+    }
+    return requests.stream().map(req -> {
+      DeductionChargeType type = deductionChargeTypeRepository.findById(req.chargeTypeId())
+          .orElseThrow(() -> new IllegalArgumentException("Charge/Deduction type not found"));
+      CalcType calcType = req.calcType() != null ? CalcType.valueOf(req.calcType().toUpperCase())
+          : type.getDefaultCalcType();
+      BigDecimal rate = req.rate() != null ? req.rate() : type.getDefaultRate();
+      BigDecimal quantity = req.quantity();
+      BigDecimal amount = req.amount();
+      if (amount == null) {
+        if (calcType == CalcType.PERCENT && rate != null) {
+          amount = baseAmount.multiply(rate).divide(BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP);
+        } else if (rate != null && quantity != null) {
+          amount = rate.multiply(quantity).setScale(2, java.math.RoundingMode.HALF_UP);
+        } else if (rate != null) {
+          amount = rate.setScale(2, java.math.RoundingMode.HALF_UP);
+        } else {
+          amount = BigDecimal.ZERO;
+        }
+      }
+      boolean isDeduction = req.isDeduction() != null ? req.isDeduction() : type.isDeduction();
+
+      ProcessRunCharge charge = new ProcessRunCharge();
+      charge.setProcessRun(run);
+      charge.setChargeType(type);
+      charge.setCalcType(calcType);
+      charge.setRate(rate);
+      charge.setQuantity(quantity);
+      charge.setAmount(amount);
+      charge.setDeduction(isDeduction);
+      charge.setPayablePartyType(PayablePartyType.valueOf(req.payablePartyType().toUpperCase()));
+      charge.setPayablePartyId(req.payablePartyId());
+      charge.setRemarks(req.remarks());
+      return charge;
+    }).toList();
+  }
+
+  private List<VoucherService.VoucherLineRequest> buildChargePostings(List<ProcessRunCharge> charges,
+                                                                      Ledger chargeLedger,
+                                                                      Ledger deductionLedger) {
+    if (charges == null || charges.isEmpty()) {
+      return List.of();
+    }
+    List<VoucherService.VoucherLineRequest> postings = new java.util.ArrayList<>();
+    for (ProcessRunCharge charge : charges) {
+      BigDecimal amount = defaultZero(charge.getAmount());
+      if (amount.compareTo(BigDecimal.ZERO) == 0) {
+        continue;
+      }
+      Ledger partyLedger = ledgerForParty(charge.getPayablePartyType(), charge.getPayablePartyId());
+      Ledger targetLedger = partyLedger != null ? partyLedger : (charge.isDeduction() ? deductionLedger : chargeLedger);
+      if (charge.isDeduction()) {
+        postings.add(new VoucherService.VoucherLineRequest(targetLedger, BigDecimal.ZERO, amount));
+      } else {
+        postings.add(new VoucherService.VoucherLineRequest(targetLedger, amount, BigDecimal.ZERO));
+      }
+    }
+    return postings;
+  }
+
+  private List<VoucherService.VoucherLineRequest> buildTemplateStepChargePostings(ProcessRun run,
+                                                                                  List<ProcessRunOutput> outputs) {
+    if (run.getProductionBatch() == null || run.getProductionBatch().getTemplate() == null || run.getStepNo() == null) {
+      return List.of();
+    }
+    List<ProcessTemplateStep> steps = processTemplateStepRepository.findByTemplateIdOrderByStepNoAsc(
+        run.getProductionBatch().getTemplate().getId());
+    ProcessTemplateStep step = steps.stream()
+        .filter(candidate -> Objects.equals(candidate.getStepNo(), run.getStepNo()))
+        .findFirst()
+        .orElse(null);
+    if (step == null) {
+      return List.of();
+    }
+    List<ProcessTemplateStepCharge> stepCharges = processTemplateStepChargeRepository.findByStepId(step.getId());
+    if (stepCharges.isEmpty()) {
+      return List.of();
+    }
+    BigDecimal baseAmount = outputs.stream()
+        .map(output -> resolveAmount(output.getAmount(), output.getRate(), output.getQuantity()))
+        .reduce(BigDecimal.ZERO, BigDecimal::add);
+    BigDecimal outputQty = outputs.stream()
+        .filter(out -> out.getOutputType() != ProcessOutputType.BYPRODUCT
+            && out.getOutputType() != ProcessOutputType.EMPTY_BAG)
+        .map(out -> defaultZero(out.getQuantity()))
+        .reduce(BigDecimal.ZERO, BigDecimal::add);
+    Ledger chargesLedger = ledgerService.findOrCreateLedger("Production Charges", LedgerType.EXPENSE);
+    Ledger deductionsLedger = ledgerService.findOrCreateLedger("Production Deductions", LedgerType.GENERAL);
+    List<VoucherService.VoucherLineRequest> postings = new java.util.ArrayList<>();
+    for (ProcessTemplateStepCharge charge : stepCharges) {
+      DeductionChargeType type = charge.getChargeType();
+      CalcType calcType = charge.getCalcType() != null ? charge.getCalcType()
+          : (type != null ? type.getDefaultCalcType() : CalcType.FLAT);
+      BigDecimal rate = charge.getRate() != null ? charge.getRate() : (type != null ? type.getDefaultRate() : null);
+      boolean isDeduction = charge.isDeduction() || (type != null && type.isDeduction());
+      BigDecimal amount;
+      if (calcType == CalcType.PERCENT && rate != null) {
+        amount = baseAmount.multiply(rate).divide(BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP);
+      } else if (charge.isPerQty() && rate != null) {
+        amount = rate.multiply(outputQty).setScale(2, java.math.RoundingMode.HALF_UP);
+      } else if (rate != null) {
+        amount = rate.setScale(2, java.math.RoundingMode.HALF_UP);
+      } else {
+        amount = BigDecimal.ZERO;
+      }
+      if (amount.compareTo(BigDecimal.ZERO) == 0) {
+        continue;
+      }
+      Ledger partyLedger = ledgerForParty(charge.getPayablePartyType(), charge.getPayablePartyId());
+      Ledger targetLedger = partyLedger != null ? partyLedger : (isDeduction ? deductionsLedger : chargesLedger);
+      if (isDeduction) {
+        postings.add(new VoucherService.VoucherLineRequest(targetLedger, BigDecimal.ZERO, amount));
+      } else {
+        postings.add(new VoucherService.VoucherLineRequest(targetLedger, amount, BigDecimal.ZERO));
+      }
+    }
+    return postings;
+  }
+
+  private Ledger ledgerForParty(PayablePartyType partyType, Long partyId) {
+    if (partyType == null || partyId == null) {
+      return null;
+    }
+    return switch (partyType) {
+      case SUPPLIER -> supplierRepository.findById(partyId)
+          .map(supplier -> {
+            if (supplier.getLedger() == null) {
+              supplier.setLedger(ledgerService.createLedger(supplier.getName(), LedgerType.SUPPLIER, "SUPPLIER", supplier.getId()));
+              supplierRepository.save(supplier);
+            }
+            return supplier.getLedger();
+          })
+          .orElse(null);
+      case BROKER -> brokerRepository.findById(partyId)
+          .map(broker -> ledgerService.findOrCreateLedger("Broker " + broker.getName(), LedgerType.GENERAL))
+          .orElse(null);
+      case VEHICLE -> vehicleRepository.findById(partyId)
+          .map(vehicle -> ledgerService.findOrCreateLedger("Vehicle " + vehicle.getVehicleNo(), LedgerType.EXPENSE))
+          .orElse(null);
+      case EXPENSE -> expensePartyRepository.findById(partyId)
+          .map(party -> {
+            if (party.getLedger() == null) {
+              party.setLedger(ledgerService.findOrCreateLedger(party.getName(), LedgerType.EXPENSE));
+              expensePartyRepository.save(party);
+            }
+            return party.getLedger();
+          })
+          .orElse(null);
+      default -> null;
+    };
+  }
+
   private ProductionDtos.ProductionRunResponse toRunResponse(ProcessRun run) {
     List<ProcessRunConsumption> inputs = processRunConsumptionRepository.findByProcessRunId(run.getId());
     List<ProcessRunOutput> outputs = processRunOutputRepository.findByProcessRunId(run.getId());
+    List<ProcessRunCharge> charges = processRunChargeRepository.findByProcessRunId(run.getId());
     return new ProductionDtos.ProductionRunResponse(
         run.getId(),
         run.getProductionBatch().getId(),
@@ -457,6 +693,19 @@ public class ProductionRunService {
             output.getDestGodown() != null ? output.getDestGodown().getName() : null,
             output.getRate(),
             output.getAmount()
+        )).toList(),
+        charges.stream().map(charge -> new ProductionDtos.RunChargeResponse(
+            charge.getId(),
+            charge.getChargeType() != null ? charge.getChargeType().getId() : null,
+            charge.getChargeType() != null ? charge.getChargeType().getName() : null,
+            charge.getCalcType() != null ? charge.getCalcType().name() : null,
+            charge.getRate(),
+            charge.getQuantity(),
+            charge.getAmount(),
+            charge.isDeduction(),
+            charge.getPayablePartyType() != null ? charge.getPayablePartyType().name() : null,
+            charge.getPayablePartyId(),
+            charge.getRemarks()
         )).toList()
     );
   }
@@ -481,6 +730,7 @@ public class ProductionRunService {
                               BigDecimal qtyIn, BigDecimal qtyOut,
                               InventoryLocationType locationType, Long locationId) {
     InventoryMovement movement = new InventoryMovement();
+    movement.setCompany(run.getCompany());
     movement.setTxnType(txnType);
     movement.setRefType("RUN");
     movement.setRefId(run.getId());

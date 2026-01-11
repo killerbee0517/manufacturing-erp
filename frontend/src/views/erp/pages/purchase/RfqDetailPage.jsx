@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
+import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
@@ -13,6 +14,7 @@ import InputLabel from '@mui/material/InputLabel';
 import MenuItem from '@mui/material/MenuItem';
 import Radio from '@mui/material/Radio';
 import RadioGroup from '@mui/material/RadioGroup';
+import Snackbar from '@mui/material/Snackbar';
 import Select from '@mui/material/Select';
 import Stack from '@mui/material/Stack';
 import Tab from '@mui/material/Tab';
@@ -38,7 +40,6 @@ export default function RfqDetailPage() {
   const [itemMap, setItemMap] = useState({});
   const [uomMap, setUomMap] = useState({});
   const [supplierMap, setSupplierMap] = useState({});
-  const [brokerMap, setBrokerMap] = useState({});
   const [closeOpen, setCloseOpen] = useState(false);
   const [closing, setClosing] = useState(false);
   const [tab, setTab] = useState('request');
@@ -52,9 +53,13 @@ export default function RfqDetailPage() {
   const [awarding, setAwarding] = useState(false);
   const [closeRemaining, setCloseRemaining] = useState(false);
   const [closureReason, setClosureReason] = useState('');
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'error' });
 
   const isFullyAwarded = rfq?.status === 'AWARDED_FULL';
-  const isQuoteLocked = isFullyAwarded || rfq?.status === 'CANCELLED';
+  const isQuoteEditable = ['QUOTING', 'AWARDED_PARTIAL'].includes(rfq?.status);
+  const isQuoteLocked = !isQuoteEditable || isFullyAwarded || rfq?.status === 'CANCELLED';
+  const canOpenQuotes = ['QUOTING', 'AWARDED_PARTIAL', 'AWARDED_FULL'].includes(rfq?.status);
+  const canOpenCompare = ['QUOTING', 'AWARDED_PARTIAL'].includes(rfq?.status);
   const hasSubmittedQuotes = useMemo(
     () => Object.values(compareQuotes || {}).some((quote) => quote.status === 'SUBMITTED'),
     [compareQuotes]
@@ -73,6 +78,35 @@ export default function RfqDetailPage() {
       return acc;
     }, {});
   }, [rfq?.awards]);
+
+  const awardSummary = useMemo(() => {
+    if (!rfq?.awards?.length) return [];
+    return rfq.awards.map((award) => ({
+      id: award.id || `${award.rfqLineId}-${award.supplierId}-${award.awardQty}-${award.awardRate}`,
+      rfqLineId: award.rfqLineId,
+      supplierId: award.supplierId,
+      awardQty: award.awardQty,
+      awardRate: award.awardRate,
+      deliveryDate: award.deliveryDate
+    }));
+  }, [rfq?.awards]);
+
+  const lineSummary = useMemo(() => {
+    if (!rfq?.lines) return [];
+    return rfq.lines.map((line) => {
+      const alreadyAwarded = awardedByLine[line.id]?.total || 0;
+      const requested = Number(line.quantity || 0);
+      const remaining = Math.max(0, requested - alreadyAwarded);
+      return {
+        id: line.id,
+        itemId: line.itemId,
+        uomId: line.uomId,
+        requested,
+        awarded: alreadyAwarded,
+        remaining
+      };
+    });
+  }, [rfq?.lines, awardedByLine]);
 
   const remainingQtyByLine = useMemo(() => {
     if (!rfq?.lines) return {};
@@ -131,16 +165,6 @@ export default function RfqDetailPage() {
         setSupplierMap(lookup);
       })
       .catch(() => setSupplierMap({}));
-    apiClient
-      .get('/api/brokers')
-      .then((response) => {
-        const lookup = (response.data || []).reduce((acc, broker) => {
-          acc[broker.id] = broker.name;
-          return acc;
-        }, {});
-        setBrokerMap(lookup);
-      })
-      .catch(() => setBrokerMap({}));
   };
 
   const loadRfq = () => {
@@ -180,6 +204,15 @@ export default function RfqDetailPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, rfq?.id]);
+
+  useEffect(() => {
+    if (tab === 'quotes' && !canOpenQuotes) {
+      setTab('request');
+    }
+    if (tab === 'compare' && !canOpenCompare) {
+      setTab('request');
+    }
+  }, [tab, canOpenQuotes, canOpenCompare]);
 
   const loadQuoteDetail = async (supplierId) => {
     if (!rfq) return;
@@ -281,20 +314,11 @@ export default function RfqDetailPage() {
     const submittedQuotes = Object.values(quotesMap || {}).filter((quote) => quote.status === 'SUBMITTED');
     const next = {};
     (rfq.lines || []).forEach((line) => {
-      const remaining = remainingQtyByLine[line.id] ?? line.quantity;
-      const bestQuote = submittedQuotes.reduce((best, quote) => {
-        const qLine = quote.lines?.find((ql) => ql.rfqLineId === line.id);
-        if (!qLine || qLine.quotedRate == null) return best;
-        if (!best || Number(qLine.quotedRate) < Number(best.rate)) {
-          return { supplierId: quote.supplierId, rate: qLine.quotedRate };
-        }
-        return best;
-      }, null);
       const perSupplier = {};
       submittedQuotes.forEach((quote) => {
         const qLine = quote.lines?.find((ql) => ql.rfqLineId === line.id);
         perSupplier[quote.supplierId] = {
-          awardQty: bestQuote?.supplierId === quote.supplierId ? remaining : '',
+          awardQty: qLine?.quotedQty ?? '',
           awardRate: qLine?.quotedRate ?? '',
           deliveryDate: qLine?.deliveryDate || ''
         };
@@ -348,15 +372,23 @@ export default function RfqDetailPage() {
     });
 
     if (!Object.values(supplierAwardMap).flat().length) {
-      setAwardErrors({ form: 'Enter an award quantity for at least one supplier' });
+      const message = 'Enter an award quantity for at least one supplier';
+      setAwardErrors({ form: message });
+      setSnackbar({ open: true, message, severity: 'error' });
       return;
     }
     if (closeRemaining && !closureReason) {
-      setAwardErrors({ form: 'Provide a closure reason when cancelling remaining quantity' });
+      const message = 'Provide a closure reason when cancelling remaining quantity';
+      setAwardErrors({ form: message });
+      setSnackbar({ open: true, message, severity: 'error' });
       return;
     }
     setAwardErrors(validationErrors);
     if (Object.keys(validationErrors).length) {
+      const firstError = Object.values(validationErrors)[0];
+      if (firstError) {
+        setSnackbar({ open: true, message: firstError, severity: 'error' });
+      }
       return;
     }
 
@@ -387,7 +419,9 @@ export default function RfqDetailPage() {
         navigate(`/purchase/po/${targetPoId}`);
       }
     } catch (error) {
-      setAwardErrors({ form: error?.response?.data?.message || 'Unable to award RFQ. Please review the inputs.' });
+      const message = error?.response?.data?.message || 'Unable to award RFQ. Please review the inputs.';
+      setAwardErrors({ form: message });
+      setSnackbar({ open: true, message, severity: 'error' });
     } finally {
       setAwarding(false);
     }
@@ -475,6 +509,73 @@ export default function RfqDetailPage() {
           </Stack>
         </Stack>
       )}
+      {(awardSummary.length > 0 || lineSummary.length > 0) && (
+        <Stack spacing={2}>
+          <Typography variant="h6">Award Summary</Typography>
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell>Item</TableCell>
+                <TableCell>Requested</TableCell>
+                <TableCell>Awarded</TableCell>
+                <TableCell>Remaining</TableCell>
+                <TableCell>UOM</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {lineSummary.map((line) => (
+                <TableRow key={line.id}>
+                  <TableCell>{itemMap[line.itemId] || line.itemId}</TableCell>
+                  <TableCell>{line.requested}</TableCell>
+                  <TableCell>{line.awarded}</TableCell>
+                  <TableCell>{line.remaining}</TableCell>
+                  <TableCell>{uomMap[line.uomId] || line.uomId}</TableCell>
+                </TableRow>
+              ))}
+              {!lineSummary.length && (
+                <TableRow>
+                  <TableCell colSpan={5}>No summary available.</TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell>Supplier</TableCell>
+                <TableCell>Item</TableCell>
+                <TableCell>Award Qty</TableCell>
+                <TableCell>Award Rate</TableCell>
+                <TableCell>Delivery</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {awardSummary.map((award) => {
+                const line = rfq.lines?.find((l) => l.id === award.rfqLineId);
+                return (
+                  <TableRow key={award.id}>
+                    <TableCell>{supplierMap[award.supplierId] || award.supplierId}</TableCell>
+                    <TableCell>{itemMap[line?.itemId] || line?.itemId || '-'}</TableCell>
+                    <TableCell>{award.awardQty ?? '-'}</TableCell>
+                    <TableCell>{award.awardRate ?? '-'}</TableCell>
+                    <TableCell>{award.deliveryDate || '-'}</TableCell>
+                  </TableRow>
+                );
+              })}
+              {!awardSummary.length && (
+                <TableRow>
+                  <TableCell colSpan={5}>No awards recorded.</TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+          {rfq.closureReason && (
+            <Typography variant="body2" color="text.secondary">
+              Cancelled remainder: {rfq.closureReason}
+            </Typography>
+          )}
+        </Stack>
+      )}
       <Divider />
       <Stack spacing={1}>
         <Typography variant="h5">Line Items</Typography>
@@ -483,7 +584,6 @@ export default function RfqDetailPage() {
             <TableRow>
               <TableCell>Item</TableCell>
               <TableCell>UOM</TableCell>
-              <TableCell>Broker</TableCell>
               <TableCell>Qty</TableCell>
               <TableCell>Rate</TableCell>
               <TableCell>Amount</TableCell>
@@ -495,7 +595,6 @@ export default function RfqDetailPage() {
               <TableRow key={line.id}>
                 <TableCell>{itemMap[line.itemId] || line.itemId}</TableCell>
                 <TableCell>{uomMap[line.uomId] || line.uomId}</TableCell>
-                <TableCell>{brokerMap[line.brokerId] || line.brokerId || '-'}</TableCell>
                 <TableCell>{line.quantity}</TableCell>
                 <TableCell>{line.rateExpected ?? '-'}</TableCell>
                 <TableCell>{formatAmount(line.quantity, line.rateExpected)}</TableCell>
@@ -800,7 +899,7 @@ export default function RfqDetailPage() {
             <Button
               variant="outlined"
               onClick={() => setTab('quotes')}
-              disabled={!['QUOTING', 'AWARDED_PARTIAL', 'AWARDED_FULL'].includes(rfq.status)}
+              disabled={!canOpenQuotes}
             >
               Supplier Quotes
             </Button>
@@ -808,7 +907,7 @@ export default function RfqDetailPage() {
               variant="contained"
               color="secondary"
               onClick={() => setTab('compare')}
-              disabled={!['QUOTING', 'AWARDED_PARTIAL'].includes(rfq.status)}
+              disabled={!canOpenCompare}
             >
               Compare &amp; Award
             </Button>
@@ -833,14 +932,24 @@ export default function RfqDetailPage() {
       <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
         <Tabs value={tab} onChange={(_, value) => setTab(value)}>
           <Tab label="Request" value="request" />
-          <Tab label="Supplier Quotes" value="quotes" />
-          <Tab label="Compare & Award" value="compare" />
+          <Tab label="Supplier Quotes" value="quotes" disabled={!canOpenQuotes} />
+          <Tab label="Compare & Award" value="compare" disabled={!canOpenCompare} />
         </Tabs>
       </Box>
       {tab === 'request' && renderRequestTab()}
       {tab === 'quotes' && renderSupplierQuotesTab()}
       {tab === 'compare' && renderCompareTab()}
       <RfqCloseDialog open={closeOpen} onClose={() => setCloseOpen(false)} onConfirm={handleClose} loading={closing} />
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={4000}
+        onClose={() => setSnackbar((prev) => ({ ...prev, open: false }))}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+      >
+        <Alert severity={snackbar.severity} onClose={() => setSnackbar((prev) => ({ ...prev, open: false }))}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </MainCard>
   );
 }

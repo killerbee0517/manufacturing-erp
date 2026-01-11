@@ -174,7 +174,8 @@ export default function ProductionRunsPage() {
             destGodownId: line.destGodownId ? Number(line.destGodownId) : null,
             rate: line.rate ? Number(line.rate) : null,
             amount: line.amount ? Number(line.amount) : null
-          }))
+          })),
+        charges: []
       };
 
       const runResponse = await productionApi.createRun(Number(batchId), payload);
